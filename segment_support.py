@@ -9,48 +9,213 @@ import os
 import numpy as np
 import cv2
 import pickle
+import cmath
+from scipy import optimize
+from scipy.signal import convolve2d
+from scipy.interpolate import interp1d, UnivariateSpline
+from skimage import measure
 
 CHANNEL_MAX = 65535
 
+def get_center(edge):
+    # Deprecated, calculate plate center based on edge
+    x, y = np.where(edge)
+    def calc_R(xc, yc):
+        return np.sqrt((x-xc)**2 + (y-yc)**2)
+    
+    def loss(c):
+        Ri = calc_R(*c)
+        return Ri - Ri.mean()
+    
+    center, ier = optimize.leastsq(loss, (x.mean(), y.mean()))
+    assert ier in [1,2,3,4]
+    R = calc_R(*center).mean()
+    return center, R
+
+def generate_mask(pair_dat):
+    fl = pair_dat[1] # Should be unnormalized uint16 values
+    threshold = fl > 18000
+    mask = cv2.blur(threshold.astype('uint8'), (10, 10))
+    return mask
+
+def rotate(coords, angle):
+    cs = np.cos(angle)
+    sn = np.sin(angle)
+
+    x = coords[0] * cs - coords[1] * sn;
+    y = coords[0] * sn + coords[1] * cs;
+    return x, y
+
+def get_long_axis(blob_mask, blob_id):
+    y, x = np.where(blob_mask == blob_id)
+    x = x - np.mean(x)
+    y = y - np.mean(y)
+    coords = np.stack([x, y], 0)
+    cov = np.cov(coords)
+    evals, evecs = np.linalg.eig(cov)
+    main_axis = evecs[:, np.argmax(evals)]  # Eigenvector with largest eigenvalue
+    angle = cmath.polar(complex(*main_axis))[1]
+    _x, _y = rotate(coords, angle)
+    return max(_y.max() - _y.min(), _x.max() - _x.min())
+
+def generate_fluorescence_labels(pair_dat, mask):
+    fl = pair_dat[1]
+
+    # Add blur to intensity
+    intensity = ((fl * mask.astype('float'))/256).astype('uint8')
+    intensity = cv2.medianBlur(intensity, 15) * 256
+
+    # Reduce resolution to better find image gradient
+    _intensity = cv2.resize(intensity, (75, 56))
+    _mask = cv2.resize(mask, (75, 56))
+
+    # Extend mask to remove edge effect (if on 1, 3, 7, 9)
+    _mask_extended = 1 - np.sign(convolve2d(1 - _mask, np.ones((11, 11)), mode='same'))
+
+    # Using Laplacian to find points with large gradient
+    _lap = cv2.Laplacian(_intensity, cv2.CV_64F, ksize=17) * _mask_extended
+    
+    # Log transform
+    _lap[np.where(_lap > 1)] = np.log(_lap[np.where(_lap > 1)])
+    _lap[np.where(_lap < -1)] = - np.log(-_lap[np.where(_lap < -1)])
+    lap = cv2.resize(_lap, (1224, 904))
+    
+    # High-conf neg and pos
+    negatives = (lap > 25) * mask
+    positives = (lap < -27) * mask
+
+    if np.sum(positives) < 1200*900*0.01:
+        # No significant differentiation detected
+        negatives = mask - np.sign(convolve2d(positives, np.ones((3, 3)), mode='same'))
+        positives = np.zeros_like(mask)
+    else:
+        # Average fluorescence for negative/positive pixels
+        fl_neg_threshold = np.quantile(fl[np.where(negatives)], 0.6)
+        fl_pos_threshold = np.quantile(fl[np.where(positives)], 0.5)
+
+        # Assign uncovered pixels to negative if the gradient is not high and fluorescence signal is low
+        negatives = np.sign(negatives + (fl < fl_neg_threshold) * mask * (1 - positives))
+        positives = np.sign(positives + (fl > fl_pos_threshold) * mask * (1 - negatives))
+        negatives = np.sign(convolve2d(negatives, np.ones((3, 3)), mode='same')) * (1 - positives)
+
+    # Clean masks by removing scattered segmentations
+    blobs = measure.label(positives, background=0)
+    for blob_id, ct in zip(*np.unique(blobs, return_counts=True)):
+        if blob_id == 0:
+            continue
+        elif ct < 500:
+            positives[np.where(blobs == blob_id)] = 0
+        elif ct < 3000:
+            max_d = get_long_axis(blobs, blob_id)
+            if max_d < 60:
+                positives[np.where(blobs == blob_id)] = 0
+    return positives - negatives + 1
+
+
+def quantize_fluorescence(pair_dat, mask):
+    segmentation = generate_fluorescence_labels(pair_dat, mask)
+    
+    fl = pair_dat[1]
+    neg_intensity = fl[np.where(segmentation==0)]
+    pos_intensity = fl[np.where(segmentation==2)]
+    zero_standard = np.median(neg_intensity)
+    one_standard = np.median(pos_intensity)
+    
+    segs = np.linspace(zero_standard, one_standard, 4)
+    interval_seg = segs[1] - segs[0]
+    fl_discretized = [np.exp(-((fl - seg)/(0.8*interval_seg))**2) for seg in segs]
+    fl_discretized = np.stack(fl_discretized, 2)
+    fl_discretized = fl_discretized/fl_discretized.sum(2, keepdims=True)
+    return fl_discretized
+
+
+def generate_dist_mat(mask, position_code):
+    light_center = {
+        '1': (1356, 1836), 
+        '2': (1356, 612),
+        '3': (1356, -612),
+        '4': (452, 1836),
+        '5': (452, 612),
+        '6': (452, -612),
+        '7': (-452, 1836),
+        '8': (-452, 612),
+        '9': (-452, -612)
+    }
+    center = np.array(light_center[position_code])
+    dist_mat1 = np.stack([np.arange(mask.shape[0])] * mask.shape[1], 1)
+    dist_mat2 = np.stack([np.arange(mask.shape[1])] * mask.shape[0], 0)
+    dist_mat = np.stack([dist_mat1, dist_mat2], 2)
+
+    dist_mat = np.sqrt(((dist_mat - center.reshape((1, 1, 2)))**2).sum(2))
+    dist_mat = dist_mat * mask
+    return dist_mat
+
+def adjust_contrast(pair_dat, mask, position_code):
+    pc_mat = pair_dat[0]
+    dist_mat = generate_dist_mat(mask, position_code)
+    
+    dist_segs = np.linspace(np.min(dist_mat[np.nonzero(dist_mat)])-1e-5,
+                            np.max(dist_mat),
+                            11)
+    quantized_dist_mat = np.stack([dist_mat > seg for seg in dist_segs], 2).sum(2)
+    
+    dists = list((dist_segs[:-1] + dist_segs[1:])/2)
+    ms = [np.mean(pc_mat[np.where(quantized_dist_mat == i)]) for i in range(1, 11)]
+    stds = [np.std(pc_mat[np.where(quantized_dist_mat == i)]) for i in range(1, 11)]
+    
+    ms_fit = UnivariateSpline(dists, ms, k=2)
+    std_fit = UnivariateSpline(dists, stds, k=2)
+    
+    pc_adjusted = mask * (pc_mat - ms_fit(dist_mat))/std_fit(dist_mat)
+    return pc_adjusted
+
+def generate_weight(mask, position_code):
+    dist_mat = generate_dist_mat(mask, position_code)
+    weight_constant = (dist_mat < 1100) * 1
+    weight_edge = np.clip(1900 - dist_mat, 0, 800)/800 * (dist_mat >= 1100)
+    weight = weight_constant + weight_edge
+    assert np.all(weight <= 1)
+    return weight * mask
+
 def rotate_image(mat, angle, image_center=None):
-  # angle in degrees
-  height, width = mat.shape[:2]
-  if image_center is None:
-    image_center = (width/2, height/2)
-  rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.)
-  abs_cos = abs(rotation_mat[0,0])
-  abs_sin = abs(rotation_mat[0,1])
-  bound_w = int(height * abs_sin + width * abs_cos)
-  bound_h = int(height * abs_cos + width * abs_sin)
-  rotation_mat[0, 2] += bound_w/2 - image_center[0]
-  rotation_mat[1, 2] += bound_h/2 - image_center[1]
-  rotated_mat = cv2.warpAffine(mat, rotation_mat, (bound_w, bound_h))
-  return rotated_mat
+    # angle in degrees
+    height, width = mat.shape[:2]
+    if image_center is None:
+      image_center = (width/2, height/2)
+    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.)
+    abs_cos = abs(rotation_mat[0,0])
+    abs_sin = abs(rotation_mat[0,1])
+    bound_w = int(height * abs_sin + width * abs_cos)
+    bound_h = int(height * abs_cos + width * abs_sin)
+    rotation_mat[0, 2] += bound_w/2 - image_center[0]
+    rotation_mat[1, 2] += bound_h/2 - image_center[1]
+    rotated_mat = cv2.warpAffine(mat, rotation_mat, (bound_w, bound_h))
+    return rotated_mat
 
 
 def index_mat(mat, x_from, x_to, y_from, y_to):
-  x_size = mat.shape[0]
-  if x_from < 0:
-    assert x_to < x_size
-    s = np.concatenate([np.zeros_like(mat[x_from:]), mat[:x_to]], 0)
-  elif x_to > x_size:
-    assert x_from >= 0
-    s = np.concatenate([mat[x_from:], np.zeros_like(mat[:(x_to-x_size)])], 0)
-  else:
-    s = mat[x_from:x_to]
-
-  y_size = mat.shape[1]
-  if y_from < 0:
-    assert y_to < y_size
-    s = np.concatenate([np.zeros_like(s[:, y_from:]), s[:, :y_to]], 1)
-  elif y_to > y_size:
-    assert y_from >= 0
-    s = np.concatenate([s[:, y_from:], np.zeros_like(s[:, :(y_to-y_size)])], 1)
-  else:
-    s = s[:, y_from:y_to]
-  assert s.shape[0] == (x_to - x_from)
-  assert s.shape[1] == (y_to - y_from)
-  return s
+    x_size = mat.shape[0]
+    if x_from < 0:
+        assert x_to < x_size
+        s = np.concatenate([np.zeros_like(mat[x_from:]), mat[:x_to]], 0)
+    elif x_to > x_size:
+        assert x_from >= 0
+        s = np.concatenate([mat[x_from:], np.zeros_like(mat[:(x_to-x_size)])], 0)
+    else:
+        s = mat[x_from:x_to]
+  
+    y_size = mat.shape[1]
+    if y_from < 0:
+        assert y_to < y_size
+        s = np.concatenate([np.zeros_like(s[:, y_from:]), s[:, :y_to]], 1)
+    elif y_to > y_size:
+        assert y_from >= 0
+        s = np.concatenate([s[:, y_from:], np.zeros_like(s[:, :(y_to-y_size)])], 1)
+    else:
+        s = s[:, y_from:y_to]
+    assert s.shape[0] == (x_to - x_from)
+    assert s.shape[1] == (y_to - y_from)
+    return s
 
 
 def extract_mat(input_mat, 
@@ -60,24 +225,24 @@ def extract_mat(input_mat,
                 y_size=256,
                 angle=0, 
                 flip=False):
-  x_margin = int(x_size/np.sqrt(2))
-  y_margin = int(y_size/np.sqrt(2))
-
-  patch = index_mat(input_mat, 
-                    (x_center - x_margin), 
-                    (x_center + x_margin), 
-                    (y_center - y_margin), 
-                    (y_center + y_margin))
-  patch = np.array(patch).astype(float)
-  if angle != 0:
-    patch = rotate_image(patch, angle)
-  if flip:
-    patch = cv2.flip(patch, 1)
-
-  center = (patch.shape[0]//2, patch.shape[1]//2)
-  patch_X = patch[(center[0] - x_size//2):(center[0] + x_size//2),
-                  (center[1] - y_size//2):(center[1] + y_size//2)]
-  return patch_X
+    x_margin = int(x_size/np.sqrt(2))
+    y_margin = int(y_size/np.sqrt(2))
+  
+    patch = index_mat(input_mat, 
+                      (x_center - x_margin), 
+                      (x_center + x_margin), 
+                      (y_center - y_margin), 
+                      (y_center + y_margin))
+    patch = np.array(patch).astype(float)
+    if angle != 0:
+        patch = rotate_image(patch, angle)
+    if flip:
+        patch = cv2.flip(patch, 1)
+  
+    center = (patch.shape[0]//2, patch.shape[1]//2)
+    patch_X = patch[(center[0] - x_size//2):(center[0] + x_size//2),
+                    (center[1] - y_size//2):(center[1] + y_size//2)]
+    return patch_X
 
 
 def generate_patches(input_dat_pairs,
@@ -88,153 +253,78 @@ def generate_patches(input_dat_pairs,
                      mirror=False,
                      seed=None,
                      **kwargs):  
-  data = []
-  if not seed is None:
-    np.random.seed(seed)
-  while len(data) < n_patches:
-    pair = np.random.choice(input_dat_pairs)
-
-    x_center = np.random.randint(0, pair[0].shape[0])
-    y_center = np.random.randint(0, pair[0].shape[1])
-
-    if rotate:
-      angle = np.random.rand() * 360
-    else:
-      angle = 0
-
-    if mirror:
-      flip = np.random.rand() > 0.5
-    else:
-      flip = False
-
-    patch_pc = extract_mat(pair[0], x_center, y_center, x_size=x_size, y_size=y_size, angle=angle, flip=flip)
-    patch_gfp = extract_mat(pair[1], x_center, y_center, x_size=x_size, y_size=y_size, angle=angle, flip=flip)
-    data.append((patch_pc, patch_gfp))
-  return data
+    data = []
+    if not seed is None:
+        np.random.seed(seed)
+    while len(data) < n_patches:
+        pair = np.random.choice(input_dat_pairs)
+    
+        x_center = np.random.randint(0, pair[0].shape[0])
+        y_center = np.random.randint(0, pair[0].shape[1])
+    
+        if rotate:
+            angle = np.random.rand() * 360
+        else:
+            angle = 0
+    
+        if mirror:
+            flip = np.random.rand() > 0.5
+        else:
+            flip = False
+    
+        patch_pc = extract_mat(pair[0], x_center, y_center, x_size=x_size, y_size=y_size, angle=angle, flip=flip)
+        patch_gfp = extract_mat(pair[1], x_center, y_center, x_size=x_size, y_size=y_size, angle=angle, flip=flip)
+        data.append((patch_pc, patch_gfp))
+    return data
 
 def generate_ordered_patches(input_dat_pairs,
                              x_size=256,
                              y_size=256,
                              seed=None):
-  data = []
-  if not seed is None:
-    np.random.seed(seed)
-
-  x_shape = input_dat_pairs[0][0].shape[0]
-  y_shape = input_dat_pairs[0][0].shape[1]
-  for pair in input_dat_pairs:
-    x_center = np.random.randint(-x_size//2, x_size//2)
-    while (x_center < x_shape+x_size//2):
-      y_center = np.random.randint(-y_size//2, y_size//2)
-      while (y_center < y_shape+y_size//2):
-        patch_pc = extract_mat(pair[0], x_center, y_center, x_size=x_size, y_size=y_size)
-        patch_gfp = extract_mat(pair[1], x_center, y_center, x_size=x_size, y_size=y_size)
-        data.append((patch_pc, patch_gfp))
-        y_center += y_size
-      x_center += x_size
-  return data
-
-def preprocess(patches):
-  Xs = []
-  ys = []
-  for pair in patches:
-    x = np.expand_dims(pair[0].astype(float)/CHANNEL_MAX, 2)
-    y = np.expand_dims(pair[1].astype(float)/CHANNEL_MAX, 2)
-    Xs.append(x)
-    ys.append(y)
-  Xs = np.stack(Xs, 0)
-  ys = np.stack(ys, 0)
-  return Xs, ys
+    data = []
+    if not seed is None:
+        np.random.seed(seed)
   
+    x_shape = input_dat_pairs[0][0].shape[0]
+    y_shape = input_dat_pairs[0][0].shape[1]
+    for pair in input_dat_pairs:
+        x_center = np.random.randint(-x_size//2, x_size//2)
+        while (x_center < x_shape+x_size//2):
+            y_center = np.random.randint(-y_size//2, y_size//2)
+            while (y_center < y_shape+y_size//2):
+                patch_pc = extract_mat(pair[0], x_center, y_center, x_size=x_size, y_size=y_size)
+                patch_gfp = extract_mat(pair[1], x_center, y_center, x_size=x_size, y_size=y_size)
+                data.append((patch_pc, patch_gfp))
+                y_center += y_size
+            x_center += x_size
+    return data
 
-# def predict_whole_map_on_offset(inp, 
-#                                 model, 
-#                                 x_offset=0, 
-#                                 y_offset=0, 
-#                                 n_classes=3, 
-#                                 batch_size=8):
-#   x_size = model.input_shape[0]
-#   y_size = model.input_shape[1]
+def preprocess(dats):
+    Xs = []
+    ys = []
+    ws = []
+    names = []
+    for pair, pair_dat in dats.items():
+        pair_dat = dats[pair]
+        position_code = pair[0].split('/')[-1].split('_')[3]
+        mask = generate_mask(pair_dat)
+        pc_adjusted = adjust_contrast(pair_dat, mask, position_code)
+        weight = generate_weight(mask, position_code)
+        
+        fluorescence = generate_fluorescence_labels(pair_dat, mask)
+        # discretized_fl = quantize_fluorescence(pair_dat, mask)
+        
+        Xs.append(pc_adjusted)
+        ys.append(fluorescence)
+        ws.append(weight)
+        names.append(pair[0])
+        if len(names) % 100 == 0:
+            print("featurized %d inputs" % len(names))
+    Xs = np.stack(Xs, 0)
+    ys = np.stack(ys, 0)
+    ws = np.stack(ws, 0)
+    return Xs, ys, ws, names
 
-#   assert inp.shape[0] % x_size == 0
-#   assert inp.shape[1] % y_size == 0
-#   assert inp.shape[2] == model.input_shape[2]
-#   rows = inp.shape[0] // x_size
-#   columns = inp.shape[1] // y_size
-
-#   batch_inputs = []
-#   outputs = []
-#   for r in range(rows):
-#     for c in range(columns):
-#       if x_offset + (r+1)*x_size > inp.shape[0] or \
-#          y_offset + (c+1)*y_size > inp.shape[1]:
-#         continue
-#       patch_inp = inp[(x_offset + r*x_size):(x_offset + (r+1)*x_size), 
-#                       (y_offset + c*y_size):(y_offset + (c+1)*y_size)]
-#       batch_inputs.append((patch_inp, None))
-#       if len(batch_inputs) == batch_size:
-#         batch_outputs = model.predict(batch_inputs, label_input=None)
-#         outputs.extend(batch_outputs)
-#         batch_inputs = []
-#   if len(batch_inputs) > 0:
-#     batch_outputs = model.predict(batch_inputs, label_input=None)
-#     outputs.extend(batch_outputs)
-#     batch_inputs = []
-  
-#   ct = 0
-#   concatenated_output = -np.ones((inp.shape[0], inp.shape[1], n_classes))
-#   for r in range(rows):
-#     for c in range(columns):
-#       if x_offset + (r+1)*x_size > inp.shape[0] or \
-#          y_offset + (c+1)*y_size > inp.shape[1]:
-#         continue
-#       concatenated_output[(x_offset + r*x_size):(x_offset + (r+1)*x_size), 
-#                           (y_offset + c*y_size):(y_offset + (c+1)*y_size)] = outputs[ct]
-#       ct += 1
-#   assert ct == len(outputs)
-#   return concatenated_output
-
-# def predict_whole_map(inp, 
-#                       model, 
-#                       n_classes=3, 
-#                       batch_size=8, 
-#                       n_supp=5):
-#   x_size = model.input_shape[0]
-#   y_size = model.input_shape[1]
-#   base_mat = predict_whole_map_on_offset(inp, 
-#                                          model, 
-#                                          x_offset=0, 
-#                                          y_offset=0, 
-#                                          n_classes=n_classes, 
-#                                          batch_size=batch_size)
-#   ct_mat = np.ones((inp.shape[0], inp.shape[1], 1))
-#   for i_supp in range(n_supp):
-#     x_offset = np.random.randint(1, x_size)
-#     y_offset = np.random.randint(1, y_size)
-#     supp_mat = predict_whole_map_on_offset(inp, 
-#                                            model, 
-#                                            x_offset=x_offset, 
-#                                            y_offset=y_offset, 
-#                                            n_classes=n_classes, 
-#                                            batch_size=batch_size)
-#     supp_positions = np.where(supp_mat[:, :, 0] >= 0.)
-#     base_mat[supp_positions] = (base_mat[supp_positions] * ct_mat[supp_positions] + \
-#                                 supp_mat[supp_positions]) / (ct_mat[supp_positions] + 1)
-#     ct_mat[supp_positions] += 1
-#   return base_mat
-
-# if __name__ == '__main__':
-#   dats = load_features()
-#   uv_annos = load_UV_annos()
-#   bf_annos = load_BF_annos(shrink_cell_ratio=0.5)
-  
-#   uv_patches = generate_ordered_patches(dats[:, :, :, 2:3], uv_annos) + \
-#                generate_patches(dats[:, :, :, 2:3], uv_annos, rotate=True, mirror=True, seed=123)
-#   with open('uv_patches.pkl', 'wb') as f:
-#     pickle.dump(uv_patches, f)
-
-#   bf_patches = generate_ordered_patches(dats[:, :, :, 1:2], bf_annos) + \
-#                generate_patches(dats[:, :, :, 1:2], bf_annos, rotate=True, mirror=True, seed=123)
-#   with open('bf_patches.pkl', 'wb') as f:
-#     pickle.dump(bf_patches, f)
-#   
+if __name__ == '__main__':
+    dats = pickle.load(open('./dat.pkl', 'rb'))
+    # processed_dats = preprocess(dats)
