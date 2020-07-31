@@ -14,6 +14,8 @@ from scipy import optimize
 from scipy.signal import convolve2d
 from scipy.interpolate import interp1d, UnivariateSpline
 from skimage import measure
+import matplotlib.pyplot as plt
+plt.switch_backend('AGG')
 
 CHANNEL_MAX = 65535
 
@@ -31,12 +33,6 @@ def get_center(edge):
     assert ier in [1,2,3,4]
     R = calc_R(*center).mean()
     return center, R
-
-def generate_mask(pair_dat):
-    fl = pair_dat[1] # Should be unnormalized uint16 values
-    threshold = fl > 18000
-    mask = cv2.blur(threshold.astype('uint8'), (10, 10))
-    return mask
 
 def rotate(coords, angle):
     cs = np.cos(angle)
@@ -57,6 +53,78 @@ def get_long_axis(blob_mask, blob_id):
     angle = cmath.polar(complex(*main_axis))[1]
     _x, _y = rotate(coords, angle)
     return max(_y.max() - _y.min(), _x.max() - _x.min())
+
+def smooth(x, window_len=3, window='hanning'):    
+    w = np.ones(window_len, 'd')
+    y = np.convolve(w/w.sum(), x, mode='same')
+    return y
+
+def position_code(pair):
+    return pair[0].split('/')[-1].split('_')[3]
+
+def find_threshold(fl):
+    # Find threshold between out-of-well area fl and in-well fl
+    hist_vals, x = np.histogram(fl.flatten(), bins=np.arange(0, 65535, 200))
+    hist_vals = hist_vals/hist_vals.sum()
+    x = (x[1:] + x[:-1])/2
+
+    smoothed_arr = smooth(hist_vals, 30)
+    arr = np.r_[True, smoothed_arr[1:] > smoothed_arr[:-1]] & \
+          np.r_[smoothed_arr[:-1] > smoothed_arr[1:], True] & \
+          (smoothed_arr > np.max(smoothed_arr) * 0.1)
+    
+    local_maximas = sorted(np.where(arr)[0])
+    
+    if len(local_maximas) == 1:
+        thr = min(0.003, np.min(hist_vals[:local_maximas[0]])) + 0.0002
+    else:
+        thr = min(0.003, np.min(hist_vals[local_maximas[0]:local_maximas[-1]])) + 0.0002
+    
+    max_val = max([hist_vals[i] for i in local_maximas])
+    right_max_ind = [i for i in local_maximas if hist_vals[i] > 0.8 * max_val][-1]
+    
+    p_right = None
+    p_right_ind = None
+    for i in range(right_max_ind, 0, -1):
+        if hist_vals[i] < thr:
+            p_right_ind = i
+            p_right = x[i]
+            break
+    assert not p_right is None
+    
+    left_max_ind = np.argmax(hist_vals[:p_right_ind])
+    p_left = None
+    if hist_vals[left_max_ind] < thr:
+        p_left = x[0]
+    else:
+        for i in range(left_max_ind, p_right_ind):
+            if hist_vals[i] < thr and p_left is None:
+                p_left = x[i]
+                break
+    if p_left is None:
+      p_left = x[0]
+    return p_left, p_right
+
+def generate_mask(pair_dat, plot=False):
+    fl = pair_dat[1] # Should be unnormalized uint16 values
+
+    p_left, p_right = find_threshold(fl)
+    threshold = fl > ((p_left + p_right)/2)
+    mask = cv2.blur(threshold.astype('uint8'), (10, 10))
+
+    if plot:
+        hist_vals, x = np.histogram(fl.flatten(), bins=np.arange(0, 65535, 200))
+        hist_vals = hist_vals/hist_vals.sum()
+        x = (x[1:] + x[:-1])/2
+        plt.clf()
+        plt.plot(x, hist_vals)
+        plt.vlines([p_left, p_right], 0, 0.1, color='r')
+    
+        # plt.clf()
+        # plt.imshow(mask)
+        # plt.show()
+    return mask
+
 
 def generate_fluorescence_labels(pair_dat, mask):
     fl = pair_dat[1]
@@ -127,6 +195,9 @@ def quantize_fluorescence(pair_dat, mask):
     fl_discretized = np.stack(fl_discretized, 2)
     fl_discretized = fl_discretized/fl_discretized.sum(2, keepdims=True)
     return fl_discretized
+
+def position_code(pair):
+    return pair[0].split('/')[-1].split('_')[3]
 
 
 def generate_dist_mat(mask, position_code):
@@ -307,7 +378,10 @@ def preprocess(dats):
     for pair, pair_dat in dats.items():
         pair_dat = dats[pair]
         position_code = pair[0].split('/')[-1].split('_')[3]
-        mask = generate_mask(pair_dat)
+        if position_code in ['1', '3', '7', '9']:
+            mask = generate_mask(pair_dat)
+        else:
+            mask = np.ones_like(pair_dat[0])
         pc_adjusted = adjust_contrast(pair_dat, mask, position_code)
         weight = generate_weight(mask, position_code)
         
@@ -320,11 +394,22 @@ def preprocess(dats):
         names.append(pair[0])
         if len(names) % 100 == 0:
             print("featurized %d inputs" % len(names))
-    Xs = np.stack(Xs, 0)
-    ys = np.stack(ys, 0)
-    ws = np.stack(ws, 0)
     return Xs, ys, ws, names
 
 if __name__ == '__main__':
-    dats = pickle.load(open('./dat.pkl', 'rb'))
-    # processed_dats = preprocess(dats)
+    dat_fs = os.listdir('data')
+    for f_name in dat_fs:
+      f_name = f_name.split('.')[0]
+      if not 'processed' in f_name:
+        print(f_name)
+        dats = pickle.load(open('./data/%s.pkl' % f_name, 'rb'))
+        for pos_code in [str(i) for i in range(1, 10)]:
+            print(pos_code)
+            try:
+              pos_code_dats = {k:v for k,v in dats.items() if position_code(k) == pos_code}
+              processed_dats = preprocess(pos_code_dats)
+              with open('./data/%s_processed_%s.pkl' % (f_name, pos_code), 'wb') as f:
+                pickle.dump(processed_dats, f)
+            except Exception as e:
+              print(e)
+              continue
