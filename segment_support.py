@@ -213,6 +213,14 @@ def generate_fluorescence_labels(pair_dat, mask):
             max_d = get_long_axis(blobs, blob_id)
             if max_d < 60:
                 positives[np.where(blobs == blob_id)] = 0
+
+    blobs = measure.label(negatives, background=0)
+    for blob_id, ct in zip(*np.unique(blobs, return_counts=True)):
+        if blob_id == 0:
+            continue
+        elif ct < 200:
+            negatives[np.where(blobs == blob_id)] = 0
+
     return positives - negatives + 1
 
 
@@ -249,9 +257,9 @@ def adjust_contrast(pair_dat, mask, position_code=None, linear_align=False):
         ms = [np.mean(pc_mat[np.where(quantized_dist_mat == i)]) for i in range(1, 7)]
         stds = [np.std(pc_mat[np.where(quantized_dist_mat == i)]) for i in range(1, 7)]
 
-        ms_fit = Ridge(alpha=5e5)
+        ms_fit = Ridge(alpha=5e4)
         ms_fit.fit(np.array(dists).reshape((-1, 1)), np.array(ms).reshape((-1, 1)))
-        std_fit = Ridge(alpha=5e5)
+        std_fit = Ridge(alpha=5e4)
         std_fit.fit(np.array(dists).reshape((-1, 1)), np.array(stds).reshape((-1, 1)))
 
         all_dist_vals = np.unique(dist_mat).reshape((-1, 1))
@@ -265,6 +273,7 @@ def adjust_contrast(pair_dat, mask, position_code=None, linear_align=False):
         std_mat = np.ones_like(pc_mat) * np.std(pc_mat.flatten())
     
     pc_adjusted = mask * (pc_mat - mean_mat)/std_mat
+    pc_adjusted = np.clip(pc_adjusted, -3, 3)
     return pc_adjusted
 
 
@@ -277,7 +286,7 @@ def generate_weight(mask, position_code):
     return weight * mask
 
 
-def preprocess(dats):
+def preprocess(dats, linear_align=True):
     Xs = []
     ys = []
     ws = []
@@ -289,7 +298,7 @@ def preprocess(dats):
             mask = generate_mask(pair_dat)
         else:
             mask = np.ones_like(pair_dat[0])
-        pc_adjusted = adjust_contrast(pair_dat, mask, position_code, linear_align=True)
+        pc_adjusted = adjust_contrast(pair_dat, mask, position_code, linear_align=linear_align)
         weight = generate_weight(mask, position_code)
         
         fluorescence = generate_fluorescence_labels(pair_dat, mask)
@@ -427,33 +436,3 @@ def generate_ordered_patches(input_dat_pairs,
             x_center += x_size
     return data
 """
-
-
-if __name__ == '__main__':
-  dat_fs = os.listdir('data')
-  for f_name in dat_fs:
-    f_name = f_name.split('.')[0]
-    if not 'processed' in f_name:
-      print(f_name)
-      dats = pickle.load(open('./data/%s.pkl' % f_name, 'rb'))
-      if f_name.startswith('ex2'):
-        wells = set(well_id(k) for k in dats)
-        for w in wells:
-          try:
-            well_dats = {k:v for k,v in dats.items() if well_id(k) == w}
-            processed_dats = preprocess(well_dats)
-            with open('./data/%s_processed_%s.pkl' % (f_name, w), 'wb') as f:
-              pickle.dump(processed_dats, f)
-          except Exception as e:
-            print(e)
-            continue
-      else:
-        pos_code = '5'
-        try:
-          pos_code_dats = {k:v for k,v in dats.items() if position_code(k) == pos_code}
-          processed_dats = preprocess(pos_code_dats)
-          with open('./data/%s_processed_%s.pkl' % (f_name, pos_code), 'wb') as f:
-            pickle.dump(processed_dats, f)
-        except Exception as e:
-          print(e)
-          continue
