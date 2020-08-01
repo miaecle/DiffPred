@@ -313,6 +313,38 @@ def preprocess(dats, linear_align=True):
     return Xs, ys, ws, names
 
 
+def assemble_for_training(dat_fs, target_size=(306, 228)):
+    all_Xs = []
+    all_ys = []
+    all_ws = []
+    all_names = []
+
+    for f in dat_fs:
+        Xs, ys, ws, names = pickle.load(open(f, 'rb'))
+        all_names.extend(names)
+        for X, y, w in zip(Xs, ys, ws):
+            _X = cv2.resize(X, target_size)
+            _y = cv2.resize(y, target_size)
+            _w = cv2.resize(w, target_size)
+
+            _y[np.where((_y > 0) & (_y < 1))] = 1
+            _y[np.where((_y > 1) & (_y < 2))] = 1
+
+            _w[np.where(_y) == 1] = 0
+            _y[np.where(_y) == 1] = 0
+            _y[np.where(_y) == 2] = 1
+
+
+            all_Xs.append(_X.astype(float))
+            all_ys.append(_y.astype(int))
+            all_ws.append(_w.astype(float))
+
+    all_Xs = np.stack(all_Xs, 0)
+    all_ys = np.stack(all_ys, 0)
+    all_ws = np.stack(all_ws, 0)
+    return all_Xs, all_ys, all_ws, all_names
+
+
 """
 def rotate_image(mat, angle, image_center=None):
     # angle in degrees
