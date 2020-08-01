@@ -13,11 +13,60 @@ import cmath
 from scipy import optimize
 from scipy.signal import convolve2d
 from scipy.interpolate import interp1d, UnivariateSpline
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from skimage import measure
 import matplotlib.pyplot as plt
 plt.switch_backend('AGG')
 
 CHANNEL_MAX = 65535
+
+
+def rotate(coords, angle):
+    cs = np.cos(angle)
+    sn = np.sin(angle)
+
+    x = coords[0] * cs - coords[1] * sn;
+    y = coords[0] * sn + coords[1] * cs;
+    return x, y
+
+
+def smooth(x, window_len=3, window='hanning'):    
+    w = np.ones(window_len, 'd')
+    y = np.convolve(w/w.sum(), x, mode='same')
+    return y
+
+
+def well_id(pair):
+    f_name = pair[0].split('/')[-1]
+    f_name = f_name.replace('-', ' ').replace('_', ' ')
+    return f_name.split()[0]
+
+
+def position_code(pair):
+    return pair[0].split('/')[-1].split('_')[3]
+
+
+def generate_dist_mat(mask, position_code):
+    light_center = {
+        '1': (1356, 1836), 
+        '2': (1356, 612),
+        '3': (1356, -612),
+        '4': (452, 1836),
+        '5': (452, 612),
+        '6': (452, -612),
+        '7': (-452, 1836),
+        '8': (-452, 612),
+        '9': (-452, -612)
+    }
+    center = np.array(light_center[position_code])
+    dist_mat1 = np.stack([np.arange(mask.shape[0])] * mask.shape[1], 1)
+    dist_mat2 = np.stack([np.arange(mask.shape[1])] * mask.shape[0], 0)
+    dist_mat = np.stack([dist_mat1, dist_mat2], 2)
+
+    dist_mat = np.sqrt(((dist_mat - center.reshape((1, 1, 2)))**2).sum(2))
+    dist_mat = dist_mat * mask
+    return dist_mat
+
 
 def get_center(edge):
     # Deprecated, calculate plate center based on edge
@@ -34,13 +83,6 @@ def get_center(edge):
     R = calc_R(*center).mean()
     return center, R
 
-def rotate(coords, angle):
-    cs = np.cos(angle)
-    sn = np.sin(angle)
-
-    x = coords[0] * cs - coords[1] * sn;
-    y = coords[0] * sn + coords[1] * cs;
-    return x, y
 
 def get_long_axis(blob_mask, blob_id):
     y, x = np.where(blob_mask == blob_id)
@@ -54,13 +96,6 @@ def get_long_axis(blob_mask, blob_id):
     _x, _y = rotate(coords, angle)
     return max(_y.max() - _y.min(), _x.max() - _x.min())
 
-def smooth(x, window_len=3, window='hanning'):    
-    w = np.ones(window_len, 'd')
-    y = np.convolve(w/w.sum(), x, mode='same')
-    return y
-
-def position_code(pair):
-    return pair[0].split('/')[-1].split('_')[3]
 
 def find_threshold(fl):
     # Find threshold between out-of-well area fl and in-well fl
@@ -105,6 +140,7 @@ def find_threshold(fl):
       p_left = x[0]
     return p_left, p_right
 
+
 def generate_mask(pair_dat, plot=False):
     fl = pair_dat[1] # Should be unnormalized uint16 values
 
@@ -120,9 +156,9 @@ def generate_mask(pair_dat, plot=False):
         plt.plot(x, hist_vals)
         plt.vlines([p_left, p_right], 0, 0.1, color='r')
     
-        # plt.clf()
-        # plt.imshow(mask)
-        # plt.show()
+        plt.clf()
+        plt.imshow(mask)
+        plt.show()
     return mask
 
 
@@ -196,49 +232,41 @@ def quantize_fluorescence(pair_dat, mask):
     fl_discretized = fl_discretized/fl_discretized.sum(2, keepdims=True)
     return fl_discretized
 
-def position_code(pair):
-    return pair[0].split('/')[-1].split('_')[3]
 
-
-def generate_dist_mat(mask, position_code):
-    light_center = {
-        '1': (1356, 1836), 
-        '2': (1356, 612),
-        '3': (1356, -612),
-        '4': (452, 1836),
-        '5': (452, 612),
-        '6': (452, -612),
-        '7': (-452, 1836),
-        '8': (-452, 612),
-        '9': (-452, -612)
-    }
-    center = np.array(light_center[position_code])
-    dist_mat1 = np.stack([np.arange(mask.shape[0])] * mask.shape[1], 1)
-    dist_mat2 = np.stack([np.arange(mask.shape[1])] * mask.shape[0], 0)
-    dist_mat = np.stack([dist_mat1, dist_mat2], 2)
-
-    dist_mat = np.sqrt(((dist_mat - center.reshape((1, 1, 2)))**2).sum(2))
-    dist_mat = dist_mat * mask
-    return dist_mat
-
-def adjust_contrast(pair_dat, mask, position_code):
+def adjust_contrast(pair_dat, mask, position_code=None, linear_align=False):
     pc_mat = pair_dat[0]
-    dist_mat = generate_dist_mat(mask, position_code)
     
-    dist_segs = np.linspace(np.min(dist_mat[np.nonzero(dist_mat)])-1e-5,
-                            np.max(dist_mat),
-                            11)
-    quantized_dist_mat = np.stack([dist_mat > seg for seg in dist_segs], 2).sum(2)
+    if linear_align:
+        # Fit a linear model on phase contrast ~ distance to image center
+        assert not position_code is None
+        dist_mat = generate_dist_mat(mask, position_code)
+        dist_segs = np.linspace(np.min(dist_mat[np.nonzero(dist_mat)])-1e-5,
+                                np.max(dist_mat),
+                                7)
+        quantized_dist_mat = np.stack([dist_mat > seg for seg in dist_segs], 2).sum(2)
+
+        dists = list((dist_segs[:-1] + dist_segs[1:])/2)
+        ms = [np.mean(pc_mat[np.where(quantized_dist_mat == i)]) for i in range(1, 7)]
+        stds = [np.std(pc_mat[np.where(quantized_dist_mat == i)]) for i in range(1, 7)]
+
+        ms_fit = Ridge(alpha=5e5)
+        ms_fit.fit(np.array(dists).reshape((-1, 1)), np.array(ms).reshape((-1, 1)))
+        std_fit = Ridge(alpha=5e5)
+        std_fit.fit(np.array(dists).reshape((-1, 1)), np.array(stds).reshape((-1, 1)))
+
+        all_dist_vals = np.unique(dist_mat).reshape((-1, 1))
+        ms_all_fit = ms_fit.predict(all_dist_vals)
+        std_all_fit = std_fit.predict(all_dist_vals)
+
+        mean_mat = ms_fit.predict(dist_mat.reshape((-1, 1))).reshape(dist_mat.shape)
+        std_mat = std_fit.predict(dist_mat.reshape((-1, 1))).reshape(dist_mat.shape)
+    else:
+        mean_mat = np.ones_like(pc_mat) * np.mean(pc_mat.flatten())
+        std_mat = np.ones_like(pc_mat) * np.std(pc_mat.flatten())
     
-    dists = list((dist_segs[:-1] + dist_segs[1:])/2)
-    ms = [np.mean(pc_mat[np.where(quantized_dist_mat == i)]) for i in range(1, 11)]
-    stds = [np.std(pc_mat[np.where(quantized_dist_mat == i)]) for i in range(1, 11)]
-    
-    ms_fit = UnivariateSpline(dists, ms, k=2)
-    std_fit = UnivariateSpline(dists, stds, k=2)
-    
-    pc_adjusted = mask * (pc_mat - ms_fit(dist_mat))/std_fit(dist_mat)
+    pc_adjusted = mask * (pc_mat - mean_mat)/std_mat
     return pc_adjusted
+
 
 def generate_weight(mask, position_code):
     dist_mat = generate_dist_mat(mask, position_code)
@@ -248,6 +276,35 @@ def generate_weight(mask, position_code):
     assert np.all(weight <= 1)
     return weight * mask
 
+
+def preprocess(dats):
+    Xs = []
+    ys = []
+    ws = []
+    names = []
+    for pair, pair_dat in dats.items():
+        pair_dat = dats[pair]
+        position_code = pair[0].split('/')[-1].split('_')[3]
+        if position_code in ['1', '3', '7', '9']:
+            mask = generate_mask(pair_dat)
+        else:
+            mask = np.ones_like(pair_dat[0])
+        pc_adjusted = adjust_contrast(pair_dat, mask, position_code, linear_align=True)
+        weight = generate_weight(mask, position_code)
+        
+        fluorescence = generate_fluorescence_labels(pair_dat, mask)
+        # discretized_fl = quantize_fluorescence(pair_dat, mask)
+        
+        Xs.append(pc_adjusted)
+        ys.append(fluorescence)
+        ws.append(weight)
+        names.append(pair[0])
+        if len(names) % 100 == 0:
+            print("featurized %d inputs" % len(names))
+    return Xs, ys, ws, names
+
+
+"""
 def rotate_image(mat, angle, image_center=None):
     # angle in degrees
     height, width = mat.shape[:2]
@@ -369,47 +426,34 @@ def generate_ordered_patches(input_dat_pairs,
                 y_center += y_size
             x_center += x_size
     return data
+"""
 
-def preprocess(dats):
-    Xs = []
-    ys = []
-    ws = []
-    names = []
-    for pair, pair_dat in dats.items():
-        pair_dat = dats[pair]
-        position_code = pair[0].split('/')[-1].split('_')[3]
-        if position_code in ['1', '3', '7', '9']:
-            mask = generate_mask(pair_dat)
-        else:
-            mask = np.ones_like(pair_dat[0])
-        pc_adjusted = adjust_contrast(pair_dat, mask, position_code)
-        weight = generate_weight(mask, position_code)
-        
-        fluorescence = generate_fluorescence_labels(pair_dat, mask)
-        # discretized_fl = quantize_fluorescence(pair_dat, mask)
-        
-        Xs.append(pc_adjusted)
-        ys.append(fluorescence)
-        ws.append(weight)
-        names.append(pair[0])
-        if len(names) % 100 == 0:
-            print("featurized %d inputs" % len(names))
-    return Xs, ys, ws, names
 
 if __name__ == '__main__':
-    dat_fs = os.listdir('data')
-    for f_name in dat_fs:
-      f_name = f_name.split('.')[0]
-      if not 'processed' in f_name:
-        print(f_name)
-        dats = pickle.load(open('./data/%s.pkl' % f_name, 'rb'))
-        for pos_code in [str(i) for i in range(1, 10)]:
-            print(pos_code)
-            try:
-              pos_code_dats = {k:v for k,v in dats.items() if position_code(k) == pos_code}
-              processed_dats = preprocess(pos_code_dats)
-              with open('./data/%s_processed_%s.pkl' % (f_name, pos_code), 'wb') as f:
-                pickle.dump(processed_dats, f)
-            except Exception as e:
-              print(e)
-              continue
+  dat_fs = os.listdir('data')
+  for f_name in dat_fs:
+    f_name = f_name.split('.')[0]
+    if not 'processed' in f_name:
+      print(f_name)
+      dats = pickle.load(open('./data/%s.pkl' % f_name, 'rb'))
+      if f_name.startswith('ex2'):
+        wells = set(well_id(k) for k in dats)
+        for w in wells:
+          try:
+            well_dats = {k:v for k,v in dats.items() if well_id(k) == w}
+            processed_dats = preprocess(well_dats)
+            with open('./data/%s_processed_%s.pkl' % (f_name, w), 'wb') as f:
+              pickle.dump(processed_dats, f)
+          except Exception as e:
+            print(e)
+            continue
+      else:
+        pos_code = '5'
+        try:
+          pos_code_dats = {k:v for k,v in dats.items() if position_code(k) == pos_code}
+          processed_dats = preprocess(pos_code_dats)
+          with open('./data/%s_processed_%s.pkl' % (f_name, pos_code), 'wb') as f:
+            pickle.dump(processed_dats, f)
+        except Exception as e:
+          print(e)
+          continue
