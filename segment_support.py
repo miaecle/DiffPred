@@ -313,7 +313,7 @@ def preprocess(dats, linear_align=True):
     return Xs, ys, ws, names
 
 
-def assemble_for_training(dat_fs, target_size=(306, 228)):
+def assemble_for_training(dat_fs, target_size=(228, 306)):
     all_Xs = []
     all_ys = []
     all_ws = []
