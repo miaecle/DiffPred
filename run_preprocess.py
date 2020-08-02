@@ -21,16 +21,36 @@ from data_loader import *
 
 ### Assemble for training ###
 processed_fs = ['data/linear_aligned_middle_patch/%s' % f \
-                for f in os.listdir('data/linear_aligned_middle_patch') if 'processed' in f]
-X, y, w, names = assemble_for_training(processed_fs, (288, 384))
-with open('data/linear_aligned_middle_patch/merged_X.pkl', 'wb') as f:
-    pickle.dump(X, f)
-with open('data/linear_aligned_middle_patch/merged_y.pkl', 'wb') as f:
-    pickle.dump(y, f)
-with open('data/linear_aligned_middle_patch/merged_w.pkl', 'wb') as f:
-    pickle.dump(w, f)
-with open('data/linear_aligned_middle_patch/merged_names.pkl', 'wb') as f:
-    pickle.dump(names, f)
+                for f in os.listdir('data/linear_aligned_middle_patch')]
+if True:
+    X, y, w, names = assemble_for_training(processed_fs, (384, 288))
+
+np.random.seed(123)
+random_perf = np.arange(len(X), dtype=int)
+np.random.shuffle(random_perf)
+
+X = pickle.load(open('data/linear_aligned_middle_patch/merged/merged_X.pkl', 'rb'))
+for i in range(np.ceil(len(X)/100).astype(int)):
+    print(i)
+    with open('data/linear_aligned_middle_patch/merged/merged_X_%d.pkl' % i, 'wb') as f:
+        pickle.dump({i*100+j: X[random_perf[i*100+j]] for j in range(100) if (i*100+j) < len(X)}, f)
+
+y = pickle.load(open('data/linear_aligned_middle_patch/merged/merged_y.pkl', 'rb'))
+for i in range(np.ceil(len(X)/100).astype(int)):
+    print(i)
+    with open('data/linear_aligned_middle_patch/merged/merged_y_%d.pkl' % i, 'wb') as f:
+        pickle.dump({i*100+j: y[random_perf[i*100+j]] for j in range(100) if (i*100+j) < len(X)}, f)
+
+w = pickle.load(open('data/linear_aligned_middle_patch/merged/merged_w.pkl', 'rb'))
+for i in range(np.ceil(len(X)/100).astype(int)):
+    print(i)
+    with open('data/linear_aligned_middle_patch/merged/merged_w_%d.pkl' % i, 'wb') as f:
+        pickle.dump({i*100+j: w[random_perf[i*100+j]] for j in range(100) if (i*100+j) < len(X)}, f)
+
+names = pickle.load(open('data/linear_aligned_middle_patch/merged/merged_names.pkl', 'rb'))
+names_perfed = {i: names[random_perf[i]] for i in range(len(X))}
+with open('data/linear_aligned_middle_patch/merged/merged_names_perfed.pkl', 'wb') as f:
+    pickle.dump(names_perfed, f)
 
 
 # ### Sample figures ###

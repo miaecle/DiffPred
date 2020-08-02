@@ -75,49 +75,32 @@ class Segment(object):
     self.model.compile(optimizer='Adam', 
                        loss=self.loss_func,
                        metrics=[])
-
-  def prepare_inputs(self, X, y=None, w=None):
-    if w is None:
-      w = np.ones(list(X.shape[:-1]) + [1])
-    if not y is None:
-      _y = np.zeros(list(X.shape[:-1]) + [self.n_classes+1])
-    
-      _w = np.zeros_like(w)
-      for i in range(self.n_classes):
-        _y[..., i] = (y == i)
-        _w += w * (y == i) * self.class_weights[i]
-      _y[..., -1] = _w
-    else:
-      _y = None
-    return X, _y
     
   def fit(self, 
-          train_data,
-          valid_data=None,
-          batch_size=8, 
+          train_gen,
+          valid_gen=None,
           n_epochs=10,
           **kwargs):
 
     if not os.path.exists(self.model_path):
       os.mkdir(self.model_path)
-    _X, _y = self.prepare_inputs(*train_data)
 
-    if valid_data is not None:
-      valid_X, valid_y = self.prepare_inputs(*valid_data)
-      self.valid_score_callback.valid_data = (valid_X, valid_y)
+    if valid_gen is not None:
+      self.valid_score_callback.valid_data = valid_gen
       
-    self.model.fit(x=_X, 
-                   y=_y,
-                   batch_size=batch_size,
-                   epochs=n_epochs,
-                   verbose=1,
-                   callbacks=self.call_backs + [self.valid_score_callback],
-                   validation_data=(valid_X, valid_y),
-                   **kwargs)
+    self.model.fit_generator(train_gen,
+                             steps_per_epoch=len(train_gen), 
+                             epochs=n_epochs,
+                             verbose=1,
+                             callbacks=self.call_backs + [self.valid_score_callback],
+                             validation_data=valid_gen,
+                             validation_steps=len(valid_gen),
+                             shuffle=False, 
+                             initial_epoch=0,
+                             **kwargs)
 
-  def predict(self, data):
-    X, _ = self.prepare_inputs(*data)
-    y_pred = self.model.predict(X)
+  def predict(self, gen):
+    y_pred = self.model.predict_generator(gen)
     y_pred = scipy.special.softmax(y_pred, -1)
     return y_pred
 

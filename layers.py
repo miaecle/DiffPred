@@ -45,14 +45,20 @@ class ValidMetrics(keras.callbacks.Callback):
 
   def on_epoch_end(self, epoch, logs={}):
     if self.valid_data is not None:
-      y_pred = self.model.predict(self.valid_data[0])
-      y_pred = scipy.special.softmax(y_pred, -1)
-      y_true = self.valid_data[1][:, :, :, :-1]
+      y_preds = []
+      y_trues = []
+      for batch in self.valid_data:
+        y_pred = self.model.predict(batch[0])
+        y_pred = scipy.special.softmax(y_pred, -1)
+        y_true = batch[1][:, :, :, :-1]
+        w = batch[1][:, :, :, -1]
+        y_preds.append(y_pred[np.nonzero(w)])
+        y_trues.append(y_true[np.nonzero(w)])
 
-      y_pred = y_pred.reshape((-1, 2))
-      y_true = y_true.reshape((-1, 2))
-      roc = roc_auc_score(y_true, y_pred)
-      f1 = roc_auc_score(y_true[:, 1], y_pred[:, 1] > 0.5)
+      y_preds = np.concatenate(y_preds, 0).reshape((-1, 2))
+      y_trues = np.concatenate(y_trues, 0).reshape((-1, 2))
+      roc = roc_auc_score(y_trues, y_preds)
+      f1 = roc_auc_score(y_trues[:, 1], y_preds[:, 1] > 0.5)
       print('\r valid-roc-auc: %f  valid-f1: %f\n' % (roc, f1))
     if self.test_data is not None:
 #       y_pred = self.model.predict(self.test_data[0])[:, :, :, 1]
