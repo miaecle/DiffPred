@@ -21,10 +21,11 @@ from segment_support import preprocess
 
 class Segment(object):
   def __init__(self,
-               input_shape=(256, 256, 1),
+               input_shape=(288, 384, 1),
                unet_feat=32,
                fc_layers=[64, 32],
-               n_classes=1,
+               n_classes=2,
+               class_weights=[1, 10],
                freeze_encoder=False,
                model_path=None,
                **kwargs):
@@ -32,6 +33,8 @@ class Segment(object):
     self.unet_feat = unet_feat
     self.fc_layers = fc_layers
     self.n_classes = n_classes
+    self.class_weights = class_weights
+    assert len(self.class_weights) == self.n_classes
 
     self.freeze_encoder = freeze_encoder
     if model_path is None:
@@ -43,34 +46,29 @@ class Segment(object):
                        #keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
     self.valid_score_callback = ValidMetrics()
 
-    self.loss_func = l2_loss()
+    self.loss_func = weighted_binary_cross_entropy(n_classes=n_classes)
     self.build_model()
   
   def build_model(self):
     self.input = Input(shape=self.input_shape, dtype='float32')
     self.pre_conv = Dense(3, activation=None, name='pre_conv')(self.input)
     
-    backbone = segmentation_models.backbones.get_backbone(
-        'resnet34',
+    self.unet = segmentation_models.models.unet.Unet(
+        backbone_name='resnet34',
         input_shape=list(self.input_shape[:2]) + [3],
-        weights='imagenet',
-        include_top=False)
-    
-    if self.freeze_encoder:
-      for layer in backbone.layers:
-        if not isinstance(layer, BatchNormalization):
-          layer.trainable=False    
-    skip_connection_layers = segmentation_models.backbones.get_feature_layers('resnet34', n=4)
-    self.unet = segmentation_models.unet.builder.build_unet(
-        backbone,
-        self.n_classes,
-        skip_connection_layers,
-        decoder_filters=(256, 128, 64, 32, 16),
-        block_type='upsampling',
+        classes=self.n_classes,
         activation='linear',
-        n_upsample_blocks=5,
-        upsample_rates=(2, 2, 2, 2, 2),
-        use_batchnorm=True)
+        encoder_weights='imagenet',
+        encoder_freeze=False,
+        encoder_features='default',
+        decoder_block_type='upsampling',
+        decoder_filters=(256, 128, 64, 32, 16),
+        decoder_use_batchnorm=True,
+        backend=keras.backend,
+        layers=keras.layers,
+        models=keras.models,
+        utils=keras.utils
+    )
     output = self.unet(self.pre_conv)
     
     self.model = Model(self.input, output)
@@ -78,38 +76,49 @@ class Segment(object):
                        loss=self.loss_func,
                        metrics=[])
 
+  def prepare_inputs(self, X, y=None, w=None):
+    if w is None:
+      w = np.ones(list(X.shape[:-1]) + [1])
+    if not y is None:
+      _y = np.zeros(list(X.shape[:-1]) + [self.n_classes+1])
+    
+      _w = np.zeros_like(w)
+      for i in range(self.n_classes):
+        _y[..., i] = (y == i)
+        _w += w * (y == i) * self.class_weights[i]
+      _y[..., -1] = _w
+    else:
+      _y = None
+    return X, _y
+    
   def fit(self, 
-          patches,
+          train_data,
+          valid_data=None,
           batch_size=8, 
           n_epochs=10,
-          valid_patches=None,
           **kwargs):
 
     if not os.path.exists(self.model_path):
       os.mkdir(self.model_path)
-    X, y = preprocess(patches)
-    validation_data = None
-    if valid_patches is not None:
-      validation_data = preprocess(valid_patches)
-      self.valid_score_callback.valid_data = validation_data
+    _X, _y = self.prepare_inputs(*train_data)
+
+    if valid_data is not None:
+      valid_X, valid_y = self.prepare_inputs(*valid_data)
+      self.valid_score_callback.valid_data = (valid_X, valid_y)
       
-    self.model.fit(x=X, 
-                   y=y,
+    self.model.fit(x=_X, 
+                   y=_y,
                    batch_size=batch_size,
                    epochs=n_epochs,
                    verbose=1,
                    callbacks=self.call_backs + [self.valid_score_callback],
-                   validation_data=validation_data,
+                   validation_data=(valid_X, valid_y),
                    **kwargs)
 
-  def predict(self, patches):
-    if patches.__class__ is list:
-      X, _ = preprocess(patches)
-      y_pred = self.model.predict(X)
-    elif patches.__class__ is np.ndarray:
-      y_pred = self.model.predict(patches)
-    else:
-      raise ValueError("Input format not supported")
+  def predict(self, data):
+    X, _ = self.prepare_inputs(*data)
+    y_pred = self.model.predict(X)
+    y_pred = scipy.special.softmax(y_pred, -1)
     return y_pred
 
   def save(self, path):

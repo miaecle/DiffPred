@@ -313,7 +313,7 @@ def preprocess(dats, linear_align=True):
     return Xs, ys, ws, names
 
 
-def assemble_for_training(dat_fs, target_size=(228, 306)):
+def assemble_for_training(dat_fs, target_size=(384, 288)):
     all_Xs = []
     all_ys = []
     all_ws = []
@@ -330,16 +330,15 @@ def assemble_for_training(dat_fs, target_size=(228, 306)):
             _y[np.where((_y > 0) & (_y < 1))] = 1
             _y[np.where((_y > 1) & (_y < 2))] = 1
 
-            _w[np.where(_y) == 1] = 0
-            _y[np.where(_y) == 1] = 0
-            _y[np.where(_y) == 2] = 1
-
+            _w[np.where(_y == 1)] = 0
+            _y[np.where(_y == 1)] = 0
+            _y[np.where(_y == 2)] = 1
 
             all_Xs.append(_X.astype(float))
             all_ys.append(_y.astype(int))
             all_ws.append(_w.astype(float))
 
-    all_Xs = np.stack(all_Xs, 0)
+    all_Xs = np.expand_dims(np.stack(all_Xs, 0), 3)
     all_ys = np.stack(all_ys, 0)
     all_ws = np.stack(all_ws, 0)
     return all_Xs, all_ys, all_ws, all_names
