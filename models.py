@@ -18,6 +18,7 @@ from keras.models import Model, load_model
 from keras.layers import Dense, Layer, Input, BatchNormalization, Conv2D, Lambda
 from layers import weighted_binary_cross_entropy, ValidMetrics, l2_loss
 from segment_support import preprocess
+from data_generator import CustomGenerator
 
 class Segment(object):
   def __init__(self,
@@ -42,8 +43,8 @@ class Segment(object):
     else:
       self.model_path = model_path
     self.call_backs = [keras.callbacks.TerminateOnNaN(),
-                 keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7)]
-                       #keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
+                       keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
+                       keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
     self.valid_score_callback = ValidMetrics()
 
     self.loss_func = weighted_binary_cross_entropy(n_classes=n_classes)
@@ -94,16 +95,33 @@ class Segment(object):
                              verbose=1,
                              callbacks=self.call_backs + [self.valid_score_callback],
                              validation_data=valid_gen,
-                             validation_steps=len(valid_gen),
                              shuffle=False, 
                              initial_epoch=0,
                              **kwargs)
 
-  def predict(self, gen):
+  def predict_on_generator(self, gen):
     y_pred = self.model.predict_generator(gen)
     y_pred = scipy.special.softmax(y_pred, -1)
     return y_pred
 
+  def predict_on_X(self, X):
+    y_pred = self.model.predict(X)
+    y_pred = scipy.special.softmax(y_pred, -1)
+    return y_pred
+        
+  def predict(self, inputs):
+    if isinstance(inputs, (np.ndarray, np.generic)) and tuple(inputs.shape[1:]) == self.input_shape:
+      preds = self.predict_on_X(inputs)
+    elif isinstance(inputs, tuple) and tuple(inputs[0].shape[1:]) == self.input_shape:
+      preds = self.predict_on_X(inputs[0])
+    elif isinstance(inputs, CustomGenerator):
+      preds = self.predict_on_generator(inputs)
+    else:
+      print("Data type not supported")
+      return None
+    return preds
+                    
+    
   def save(self, path):
     self.model.save_weights(path)
   

@@ -44,7 +44,11 @@ class ValidMetrics(keras.callbacks.Callback):
     self.test_data = test_data
 
   def on_epoch_end(self, epoch, logs={}):
+    if epoch % 5 != 4:
+      # Run evaluation on epoch 4, 9, ...
+      return
     if self.valid_data is not None:
+      self.valid_data.clean_cache(force=True)
       y_preds = []
       y_trues = []
       for batch in self.valid_data:
@@ -54,12 +58,16 @@ class ValidMetrics(keras.callbacks.Callback):
         w = batch[1][:, :, :, -1]
         y_preds.append(y_pred[np.nonzero(w)])
         y_trues.append(y_true[np.nonzero(w)])
+        
+      _y_preds = np.concatenate(y_preds, 0).reshape((-1, 2))
+      _y_trues = np.concatenate(y_trues, 0).reshape((-1, 2))
 
-      y_preds = np.concatenate(y_preds, 0).reshape((-1, 2))
-      y_trues = np.concatenate(y_trues, 0).reshape((-1, 2))
-      roc = roc_auc_score(y_trues, y_preds)
-      f1 = roc_auc_score(y_trues[:, 1], y_preds[:, 1] > 0.5)
-      print('\r valid-roc-auc: %f  valid-f1: %f\n' % (roc, f1))
+      all_intersection = ((_y_preds[:, 1] > 0.5) * _y_trues[:, 1]).sum()
+      all_union = (np.sign((_y_preds[:, 1] > 0.5) + _y_trues[:, 1])).sum()
+      iou = all_intersection/all_union
+      auc = roc_auc_score(_y_trues, _y_preds)
+      f1 = f1_score(_y_trues[:, 1], _y_preds[:, 1] > 0.5)
+      print('\r valid-roc-auc: %f  valid-f1: %f  valid-iou: %f\n' % (auc, f1, iou))
     if self.test_data is not None:
 #       y_pred = self.model.predict(self.test_data[0])[:, :, :, 1]
 #       y_true = self.test_data[1][:, :, :, 1] > 0.5

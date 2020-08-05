@@ -77,7 +77,18 @@ def get_keys(fs):
     elif fs.__class__ is list:
         return [get_name(f[0]) for f in fs]
 
-    
+def get_ex_day(name):
+    n = name.split('/')[3]
+    n = n.replace('-', ' ').replace('_', ' ')
+    ds_sep = n.split()
+    day = None
+    for d in ds_sep:
+        if d.startswith('D'):
+            day = d
+    if day is None:
+        day = 'Dunknown'
+    return (name.split('/')[2], day)
+
 if __name__ == '__main__':
     pairs = sorted(load_all_pairs(path='predict_gfp_raw'))
     ds1 = set([tuple(p[0].split('/')[2:-1]) for p in pairs])
