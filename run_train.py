@@ -15,11 +15,11 @@ valid_inds = np.array([i for i, n in perfed_names.items() if n.split('/')[2].sta
 train_gen = CustomGenerator(X_filenames, y_filenames, w_filenames, name_file, batch_size=8, selected_inds=train_inds)
 valid_gen = CustomGenerator(X_filenames, y_filenames, w_filenames, name_file, batch_size=8, selected_inds=valid_inds)
 
-model = Segment(model_path='model_save')
+model = Segment()
 
 model.fit(train_gen,
           valid_gen=valid_gen,
-          n_epochs=100)
+          n_epochs=20)
 
-model.save('./temp.modelsave')
+model.save('./baseline3.model')
 
