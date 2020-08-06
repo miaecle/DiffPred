@@ -12,14 +12,14 @@ perfed_names = pickle.load(open(name_file, 'rb'))
 train_inds = np.array([i for i, n in perfed_names.items() if not n.split('/')[2].startswith('ex7')])
 valid_inds = np.array([i for i, n in perfed_names.items() if n.split('/')[2].startswith('ex7')])
 
-train_gen = CustomGenerator(X_filenames, y_filenames, w_filenames, name_file, batch_size=8, selected_inds=train_inds)
-valid_gen = CustomGenerator(X_filenames, y_filenames, w_filenames, name_file, batch_size=8, selected_inds=valid_inds)
+train_gen = CustomGenerator(X_filenames, y_filenames, w_filenames, name_file, include_day=True, batch_size=8, selected_inds=train_inds)
+valid_gen = CustomGenerator(X_filenames, y_filenames, w_filenames, name_file, include_day=True, batch_size=8, selected_inds=valid_inds)
 
-model = Segment()
+model = Segment(input_shape=(288, 384, 2) )
 
 model.fit(train_gen,
           valid_gen=valid_gen,
           n_epochs=20)
 
-model.save('./baseline3.model')
+model.save('./baseline_plus_day3.model')
 
