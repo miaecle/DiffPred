@@ -64,18 +64,18 @@ def load_image_pair(pair):
     assert len(set(d.shape for d in dats)) == 1
     return dats
 
-def get_name(f):
+def get_well(f):
     f = f.split('/')[-1].split('.')[0]
     f = f.split('_')
     return (f[0], f[3])
 
 def get_keys(fs):
     if fs.__class__ is str:
-        return get_name(fs)
+        return get_well(fs)
     elif fs.__class__ is tuple and len(fs) == 2:
-        return get_name(fs[0])
+        return get_well(fs[0])
     elif fs.__class__ is list:
-        return [get_name(f[0]) for f in fs]
+        return [get_well(f[0]) for f in fs]
 
 def get_ex_day(name):
     n = name.split('/')[3]
