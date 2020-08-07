@@ -277,8 +277,11 @@ def adjust_contrast(pair_dat, mask, position_code=None, linear_align=False):
     return pc_adjusted
 
 
-def generate_weight(mask, position_code):
-    dist_mat = generate_dist_mat(mask, position_code)
+def generate_weight(mask, position_code, linear_align=True):
+    if linear_align:
+        dist_mat = generate_dist_mat(mask, position_code)
+    else:
+        dist_mat = np.zeros_like(mask)
     weight_constant = (dist_mat < 1100) * 1
     weight_edge = np.clip(1900 - dist_mat, 0, 800)/800 * (dist_mat >= 1100)
     weight = weight_constant + weight_edge
@@ -294,12 +297,12 @@ def preprocess(dats, linear_align=True):
     for pair, pair_dat in dats.items():
         pair_dat = dats[pair]
         position_code = pair[0].split('/')[-1].split('_')[3]
-        if position_code in ['1', '3', '7', '9']:
+        if linear_align and position_code in ['1', '3', '7', '9']:
             mask = generate_mask(pair_dat)
         else:
             mask = np.ones_like(pair_dat[0])
         pc_adjusted = adjust_contrast(pair_dat, mask, position_code, linear_align=linear_align)
-        weight = generate_weight(mask, position_code)
+        weight = generate_weight(mask, position_code, linear_align=linear_align)
         
         fluorescence = generate_fluorescence_labels(pair_dat, mask)
         # discretized_fl = quantize_fluorescence(pair_dat, mask)
@@ -313,16 +316,19 @@ def preprocess(dats, linear_align=True):
     return Xs, ys, ws, names
 
 
-def assemble_for_training(dat_fs, target_size=(384, 288)):
-    all_Xs = []
-    all_ys = []
-    all_ws = []
-    all_names = []
+def assemble_for_training(dat_fs, target_size=(384, 288), save_path=None, validity_check=None):
+    all_Xs = {}
+    all_ys = {}
+    all_ws = {}
+    all_names = {}
 
-    for f in dat_fs:
-        Xs, ys, ws, names = pickle.load(open(f, 'rb'))
-        all_names.extend(names)
-        for X, y, w in zip(Xs, ys, ws):
+    ind = 0
+    file_ind = 0
+    for dat_f in dat_fs:
+        Xs, ys, ws, names = pickle.load(open(dat_f, 'rb'))
+        for X, y, w, name in zip(Xs, ys, ws, names):
+            if validity_check is not None and not validity_check(name):
+                continue
             _X = cv2.resize(X, target_size)
             _y = cv2.resize(y, target_size)
             _w = cv2.resize(w, target_size)
@@ -334,14 +340,41 @@ def assemble_for_training(dat_fs, target_size=(384, 288)):
             _y[np.where(_y == 1)] = 0
             _y[np.where(_y == 2)] = 1
 
-            all_Xs.append(_X.astype(float))
-            all_ys.append(_y.astype(int))
-            all_ws.append(_w.astype(float))
+            all_Xs[ind] = np.expand_dims(_X, 2).astype(float)
+            all_ys[ind] = _y.astype(int)
+            all_ws[ind] = _w.astype(float)
+            all_names[ind] = name
+            ind += 1
+            if save_path is not None and len(all_Xs) >= 100:
+                with open(os.path.join(save_path, 'X_%d.pkl' % file_ind), 'wb') as f:
+                    pickle.dump(all_Xs, f)
+                with open(os.path.join(save_path, 'y_%d.pkl' % file_ind), 'wb') as f:
+                    pickle.dump(all_ys, f)
+                with open(os.path.join(save_path, 'w_%d.pkl' % file_ind), 'wb') as f:
+                    pickle.dump(all_ws, f)
+                with open(os.path.join(save_path, 'names.pkl'), 'wb') as f:
+                    pickle.dump(all_names, f)
+                file_ind += 1
+                all_Xs = {}
+                all_ys = {}
+                all_ws = {}
+        print("%s: %d" % (dat_f, ind))
+    if save_path is not None and len(all_Xs) > 0:
+        with open(os.path.join(save_path, 'X_%d.pkl' % file_ind), 'wb') as f:
+            pickle.dump(all_Xs, f)
+        with open(os.path.join(save_path, 'y_%d.pkl' % file_ind), 'wb') as f:
+            pickle.dump(all_ys, f)
+        with open(os.path.join(save_path, 'w_%d.pkl' % file_ind), 'wb') as f:
+            pickle.dump(all_ws, f)
+        with open(os.path.join(save_path, 'names.pkl'), 'wb') as f:
+            pickle.dump(all_names, f)
+        file_ind += 1
+        all_Xs = {}
+        all_ys = {}
+        all_ws = {}
 
-    all_Xs = np.expand_dims(np.stack(all_Xs, 0), 3)
-    all_ys = np.stack(all_ys, 0)
-    all_ws = np.stack(all_ws, 0)
     return all_Xs, all_ys, all_ws, all_names
+
 
 
 """

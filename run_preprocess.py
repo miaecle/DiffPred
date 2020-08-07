@@ -1,59 +1,65 @@
 from segment_support import *
 from data_loader import *
 
+"""
 ### Preprocess ###
-data_path = 'data'
+data_path = '../iPSC_data'
 dat_fs = [f for f in os.listdir(data_path) if f.startswith('ex')]
+
 for f_name in dat_fs:
   f_name = f_name.split('.')[0]
   if not 'processed' in f_name:
     print(f_name)
-    dats = pickle.load(open(data_path + '/%s.pkl' % f_name, 'rb'))
     if not f_name.startswith('ex2'): # ex2 is a different setting
-      for pos_code in ['2', '4', '5', '6', '8']:
-        try:
-          pos_code_dats = {k:v for k,v in dats.items() if position_code(k) == pos_code}
-          processed_dats = preprocess(pos_code_dats)
-          with open(data_path + '/linear_aligned_middle_patch/%s_processed_%s.pkl' % (f_name, pos_code), 'wb') as f:
-            pickle.dump(processed_dats, f)
-        except Exception as e:
-          print(e)
-          continue
-
+      pass
+      # dats = pickle.load(open(data_path + '/%s.pkl' % f_name, 'rb'))
+      # for pos_code in ['2', '4', '5', '6', '8']:
+      #   try:
+      #     pos_code_dats = {k:v for k,v in dats.items() if position_code(k) == pos_code}
+      #     processed_dats = preprocess(pos_code_dats, linear_align=True)
+      #     with open(data_path + '/linear_aligned_patches/%s_processed_%s.pkl' % (f_name, pos_code), 'wb') as f:
+      #       pickle.dump(processed_dats, f)
+      #   except Exception as e:
+      #     print(e)
+      #     continue
+    else:
+      dats = pickle.load(open(data_path + '/%s.pkl' % f_name, 'rb'))
+      for well in ['A1', 'A2', 'A3', 'B2', 'B3']:
+        print(well)
+        pos_code_dats = {k:v for k,v in dats.items() if \
+            get_well(k[0])[0] == well and \
+            not get_well(k[0])[1] in ['1', '2', '16', 
+                                      '14', '15', '30', 
+                                      '196', '211', '212', 
+                                      '210', '224', '225']}
+        processed_dats = preprocess(pos_code_dats, linear_align=False)
+        with open(data_path + '/linear_aligned_patches/%s_processed_%s.pkl' % (f_name, well), 'wb') as f:
+          pickle.dump(processed_dats, f)
 """
+
 ### Assemble for training ###
-processed_fs = ['data/linear_aligned_middle_patch/%s' % f \
-                for f in os.listdir('data/linear_aligned_middle_patch')]
-if True:
-    X, y, w, names = assemble_for_training(processed_fs, (384, 288))
 
-np.random.seed(123)
-random_perf = np.arange(len(X), dtype=int)
-np.random.shuffle(random_perf)
+data_path = '../iPSC_data'
 
-X = pickle.load(open('data/linear_aligned_middle_patch/merged/merged_X.pkl', 'rb'))
-for i in range(np.ceil(len(X)/100).astype(int)):
-    print(i)
-    with open('data/linear_aligned_middle_patch/merged/merged_X_%d.pkl' % i, 'wb') as f:
-        pickle.dump({i*100+j: X[random_perf[i*100+j]] for j in range(100) if (i*100+j) < len(X)}, f)
+processed_fs = [data_path + '/linear_aligned_patches/%s' % f \
+                for f in os.listdir(data_path + '/linear_aligned_patches') \
+                if 'processed' in f]
 
-y = pickle.load(open('data/linear_aligned_middle_patch/merged/merged_y.pkl', 'rb'))
-for i in range(np.ceil(len(X)/100).astype(int)):
-    print(i)
-    with open('data/linear_aligned_middle_patch/merged/merged_y_%d.pkl' % i, 'wb') as f:
-        pickle.dump({i*100+j: y[random_perf[i*100+j]] for j in range(100) if (i*100+j) < len(X)}, f)
+pairs = sorted(load_all_pairs(path=data_path + '/predict_gfp_raw'))
+valid_names = set(get_ex_day(p[0]) + get_well(p[0]) for p in pairs)
 
-w = pickle.load(open('data/linear_aligned_middle_patch/merged/merged_w.pkl', 'rb'))
-for i in range(np.ceil(len(X)/100).astype(int)):
-    print(i)
-    with open('data/linear_aligned_middle_patch/merged/merged_w_%d.pkl' % i, 'wb') as f:
-        pickle.dump({i*100+j: w[random_perf[i*100+j]] for j in range(100) if (i*100+j) < len(X)}, f)
+def check_valid(name):
+  return (get_ex_day(name) + get_well(name) in valid_names)
 
-names = pickle.load(open('data/linear_aligned_middle_patch/merged/merged_names.pkl', 'rb'))
-names_perfed = {i: names[random_perf[i]] for i in range(len(X))}
-with open('data/linear_aligned_middle_patch/merged/merged_names_perfed.pkl', 'wb') as f:
-    pickle.dump(names_perfed, f)
-"""
+X, y, w, names = assemble_for_training(processed_fs,
+                                       (384, 288),
+                                       save_path=data_path + '/linear_aligned_patches/merged_all',
+                                       validity_check=check_valid)
+
+X, y, w, names = assemble_for_training([f for f in processed_fs if 'ex2' in f or 'processed_5' in f],
+                                       (384, 288),
+                                       save_path=data_path + '/linear_aligned_patches/merged_center',
+                                       validity_check=check_valid)
 
 """
 ### Sample figures ###
