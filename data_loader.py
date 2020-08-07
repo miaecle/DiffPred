@@ -77,17 +77,25 @@ def get_keys(fs):
     elif fs.__class__ is list:
         return [get_well(f[0]) for f in fs]
 
+
 def get_ex_day(name):
-    n = name.split('/')[3]
-    n = n.replace('-', ' ').replace('_', ' ')
-    ds_sep = n.split()
+    n = name.split('/')
+    for i, seg in enumerate(n):
+      if seg.startswith('ex'):
+        ex_id = seg
+        break
+    detail = n[i+1]
+    detail = detail.replace('-', ' ').replace('_', ' ')
+    ds_sep = detail.split()
     day = None
     for d in ds_sep:
         if d.startswith('D'):
             day = d
+            break
     if day is None:
         day = 'Dunknown'
-    return (name.split('/')[2], day)
+    return (ex_id, day)
+
 
 if __name__ == '__main__':
     pairs = sorted(load_all_pairs(path='predict_gfp_raw'))
