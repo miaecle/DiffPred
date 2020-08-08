@@ -289,7 +289,7 @@ def generate_weight(mask, position_code, linear_align=True):
     return weight * mask
 
 
-def preprocess(dats, linear_align=True):
+def preprocess(dats, linear_align=True, label='segmentation'):
     Xs = []
     ys = []
     ws = []
@@ -304,8 +304,12 @@ def preprocess(dats, linear_align=True):
         pc_adjusted = adjust_contrast(pair_dat, mask, position_code, linear_align=linear_align)
         weight = generate_weight(mask, position_code, linear_align=linear_align)
         
-        fluorescence = generate_fluorescence_labels(pair_dat, mask)
-        # discretized_fl = quantize_fluorescence(pair_dat, mask)
+        if label == 'segmentation':
+            fluorescence = generate_fluorescence_labels(pair_dat, mask)
+        elif label == 'discretized':
+            fluorescence = quantize_fluorescence(pair_dat, mask)
+        else:
+            raise ValueError("label type not supported")
         
         Xs.append(pc_adjusted)
         ys.append(fluorescence)

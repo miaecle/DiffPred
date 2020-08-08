@@ -1,7 +1,6 @@
 from segment_support import *
 from data_loader import *
 
-"""
 ### Preprocess ###
 data_path = '../iPSC_data'
 dat_fs = [f for f in os.listdir(data_path) if f.startswith('ex')]
@@ -11,17 +10,16 @@ for f_name in dat_fs:
   if not 'processed' in f_name:
     print(f_name)
     if not f_name.startswith('ex2'): # ex2 is a different setting
-      pass
-      # dats = pickle.load(open(data_path + '/%s.pkl' % f_name, 'rb'))
-      # for pos_code in ['2', '4', '5', '6', '8']:
-      #   try:
-      #     pos_code_dats = {k:v for k,v in dats.items() if position_code(k) == pos_code}
-      #     processed_dats = preprocess(pos_code_dats, linear_align=True)
-      #     with open(data_path + '/linear_aligned_patches/%s_processed_%s.pkl' % (f_name, pos_code), 'wb') as f:
-      #       pickle.dump(processed_dats, f)
-      #   except Exception as e:
-      #     print(e)
-      #     continue
+      dats = pickle.load(open(data_path + '/%s.pkl' % f_name, 'rb'))
+      for pos_code in ['2', '4', '5', '6', '8']:
+        try:
+          pos_code_dats = {k:v for k,v in dats.items() if position_code(k) == pos_code}
+          processed_dats = preprocess(pos_code_dats, linear_align=True, label='discretized')
+          with open(data_path + '/discretized_fl/%s_processed_%s.pkl' % (f_name, pos_code), 'wb') as f:
+            pickle.dump(processed_dats, f)
+        except Exception as e:
+          print(e)
+          continue
     else:
       dats = pickle.load(open(data_path + '/%s.pkl' % f_name, 'rb'))
       for well in ['A1', 'A2', 'A3', 'B2', 'B3']:
@@ -32,11 +30,11 @@ for f_name in dat_fs:
                                       '14', '15', '30', 
                                       '196', '211', '212', 
                                       '210', '224', '225']}
-        processed_dats = preprocess(pos_code_dats, linear_align=False)
-        with open(data_path + '/linear_aligned_patches/%s_processed_%s.pkl' % (f_name, well), 'wb') as f:
+        processed_dats = preprocess(pos_code_dats, linear_align=False, label='discretized')
+        with open(data_path + '/discretized_fl/%s_processed_%s.pkl' % (f_name, well), 'wb') as f:
           pickle.dump(processed_dats, f)
-"""
 
+"""
 ### Assemble for training ###
 
 data_path = '../iPSC_data'
@@ -60,7 +58,7 @@ X, y, w, names = assemble_for_training([f for f in processed_fs if 'ex2' in f or
                                        (384, 288),
                                        save_path=data_path + '/linear_aligned_patches/merged_center',
                                        validity_check=check_valid)
-
+"""
 """
 ### Sample figures ###
 processed_fs = [f for f in os.listdir('data/linear_aligned_middle_patch') if 'processed' in f]
