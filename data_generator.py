@@ -53,35 +53,28 @@ class CustomGenerator(keras.utils.Sequence) :
         if i >= len(self.selected_inds):
             break
         ind = self.selected_inds[i]
-        if not ind in self.cache_X:
-            self.add_to_cache(ind)
-        if ind in self.cache_X and ind in self.cache_y and ind in self.cache_w:
-            batch_X.append(self.cache_X[ind])
-            batch_y.append(self.cache_y[ind])
-            batch_w.append(self.cache_w[ind])
-        else:
-            # In case cache doesn't work
-            sample_X, sample_y, sample_w, _ = self.load_ind(ind)
-            batch_X.append(sample_X)
-            batch_y.append(sample_y)
-            batch_w.append(sample_w)
+        sample_X, sample_y, sample_w, _ = self.load_ind(ind)
+        batch_X.append(sample_X)
+        batch_y.append(sample_y)
+        batch_w.append(sample_w)
         batch_names.append(self.names[ind])
 
     batch_X = np.stack(batch_X, 0)
     batch_y = np.stack(batch_y, 0)
     batch_w = np.stack(batch_w, 0)
-
-    self.clean_cache()
     return self.prepare_inputs(batch_X, batch_y, batch_w, batch_names)
 
   def load_ind(self, ind):
+    self.add_to_cache(ind)
     sample_name = self.names[ind]
     if ind in self.cache_X and ind in self.cache_y and ind in self.cache_w:
         return self.cache_X[ind], self.cache_y[ind], self.cache_w[ind], sample_name
-    f_ind = ind // self.sample_per_file
-    sample_X = pickle.load(open(self.X_filenames[f_ind], 'rb'))[ind]
-    sample_y = pickle.load(open(self.y_filenames[f_ind], 'rb'))[ind]
-    sample_w = pickle.load(open(self.w_filenames[f_ind], 'rb'))[ind]
+    else:
+        f_ind = ind // self.sample_per_file
+        sample_X = pickle.load(open(self.X_filenames[f_ind], 'rb'))[ind]
+        sample_y = pickle.load(open(self.y_filenames[f_ind], 'rb'))[ind]
+        sample_w = pickle.load(open(self.w_filenames[f_ind], 'rb'))[ind]
+    self.clean_cache()
     return sample_X, sample_y, sample_w, sample_name
 
   def prepare_inputs(self, X, y=None, w=None, names=None):
@@ -105,6 +98,8 @@ class CustomGenerator(keras.utils.Sequence) :
     return _X, _y
 
   def add_to_cache(self, ind):
+    if ind in self.cache_X and ind in self.cache_y and ind in self.cache_w:
+        return
     f_ind = ind // self.sample_per_file
     self.cache_X.update(pickle.load(open(self.X_filenames[f_ind], 'rb')))
     self.cache_y.update(pickle.load(open(self.y_filenames[f_ind], 'rb')))
@@ -117,3 +112,45 @@ class CustomGenerator(keras.utils.Sequence) :
         self.cache_y = {}
         self.cache_w = {}
     return
+
+  def reorder_save(self, inds, save_path=None):
+    assert np.max(inds) < self.N
+    all_Xs = {}
+    all_ys = {}
+    all_ws = {}
+    all_names = {}
+
+    file_ind = 0
+    for i, ind in enumerate(inds):
+        sample_X, sample_y, sample_w, sample_name = self.load_ind(ind)
+        all_Xs[i] = sample_X
+        all_ys[i] = sample_y
+        all_ws[i] = sample_w
+        all_names[i] = sample_name
+        if save_path is not None and len(all_Xs) >= 100:
+            with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
+                pickle.dump(all_Xs, f)
+            with open(save_path + 'y_%d.pkl' % file_ind, 'wb') as f:
+                pickle.dump(all_ys, f)
+            with open(save_path + 'w_%d.pkl' % file_ind, 'wb') as f:
+                pickle.dump(all_ws, f)
+            with open(save_path + 'names.pkl', 'wb') as f:
+                pickle.dump(all_names, f)
+            file_ind += 1
+            all_Xs = {}
+            all_ys = {}
+            all_ws = {}
+    if save_path is not None and len(all_Xs) > 0:
+        with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
+            pickle.dump(all_Xs, f)
+        with open(save_path + 'y_%d.pkl' % file_ind, 'wb') as f:
+            pickle.dump(all_ys, f)
+        with open(save_path + 'w_%d.pkl' % file_ind, 'wb') as f:
+            pickle.dump(all_ws, f)
+        with open(save_path + 'names.pkl', 'wb') as f:
+            pickle.dump(all_names, f)
+        file_ind += 1
+        all_Xs = {}
+        all_ys = {}
+        all_ws = {}
+    return all_Xs, all_ys, all_ws, all_names

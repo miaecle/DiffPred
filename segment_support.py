@@ -350,13 +350,13 @@ def assemble_for_training(dat_fs, target_size=(384, 288), save_path=None, validi
             all_names[ind] = name
             ind += 1
             if save_path is not None and len(all_Xs) >= 100:
-                with open(os.path.join(save_path, 'X_%d.pkl' % file_ind), 'wb') as f:
+                with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
                     pickle.dump(all_Xs, f)
-                with open(os.path.join(save_path, 'y_%d.pkl' % file_ind), 'wb') as f:
+                with open(save_path + 'y_%d.pkl' % file_ind, 'wb') as f:
                     pickle.dump(all_ys, f)
-                with open(os.path.join(save_path, 'w_%d.pkl' % file_ind), 'wb') as f:
+                with open(save_path + 'w_%d.pkl' % file_ind, 'wb') as f:
                     pickle.dump(all_ws, f)
-                with open(os.path.join(save_path, 'names.pkl'), 'wb') as f:
+                with open(save_path + 'names.pkl', 'wb') as f:
                     pickle.dump(all_names, f)
                 file_ind += 1
                 all_Xs = {}
@@ -364,13 +364,13 @@ def assemble_for_training(dat_fs, target_size=(384, 288), save_path=None, validi
                 all_ws = {}
         print("%s: %d" % (dat_f, ind))
     if save_path is not None and len(all_Xs) > 0:
-        with open(os.path.join(save_path, 'X_%d.pkl' % file_ind), 'wb') as f:
+        with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
             pickle.dump(all_Xs, f)
-        with open(os.path.join(save_path, 'y_%d.pkl' % file_ind), 'wb') as f:
+        with open(save_path + 'y_%d.pkl' % file_ind, 'wb') as f:
             pickle.dump(all_ys, f)
-        with open(os.path.join(save_path, 'w_%d.pkl' % file_ind), 'wb') as f:
+        with open(save_path + 'w_%d.pkl' % file_ind, 'wb') as f:
             pickle.dump(all_ws, f)
-        with open(os.path.join(save_path, 'names.pkl'), 'wb') as f:
+        with open(save_path + 'names.pkl', 'wb') as f:
             pickle.dump(all_names, f)
         file_ind += 1
         all_Xs = {}
@@ -378,7 +378,6 @@ def assemble_for_training(dat_fs, target_size=(384, 288), save_path=None, validi
         all_ws = {}
 
     return all_Xs, all_ys, all_ws, all_names
-
 
 
 """
