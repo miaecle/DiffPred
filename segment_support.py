@@ -283,7 +283,7 @@ def generate_weight(mask, position_code, linear_align=True):
     else:
         dist_mat = np.zeros_like(mask)
     weight_constant = (dist_mat < 1100) * 1
-    weight_edge = np.clip(1900 - dist_mat, 0, 800)/800 * (dist_mat >= 1100)
+    weight_edge = np.clip(2300 - dist_mat, 0, 1200)/1200 * (dist_mat >= 1100)
     weight = weight_constant + weight_edge
     assert np.all(weight <= 1)
     return weight * mask
@@ -320,7 +320,11 @@ def preprocess(dats, linear_align=True, label='segmentation'):
     return Xs, ys, ws, names
 
 
-def assemble_for_training(dat_fs, target_size=(384, 288), save_path=None, validity_check=None):
+def assemble_for_training(dat_fs,
+                          target_size=(384, 288),
+                          save_path=None, 
+                          validity_check=None,
+                          label='segmentation'):
     all_Xs = {}
     all_ys = {}
     all_ws = {}
@@ -334,19 +338,21 @@ def assemble_for_training(dat_fs, target_size=(384, 288), save_path=None, validi
             if validity_check is not None and not validity_check(name):
                 continue
             _X = cv2.resize(X, target_size)
+            all_Xs[ind] = np.expand_dims(_X, 2).astype(float)
             _y = cv2.resize(y, target_size)
             _w = cv2.resize(w, target_size)
+            if label == 'segmentation':
+                _y[np.where((_y > 0) & (_y < 1))] = 1
+                _y[np.where((_y > 1) & (_y < 2))] = 1
+                _w[np.where(_y == 1)] = 0
+                _y[np.where(_y == 1)] = 0
+                _y[np.where(_y == 2)] = 1
+                all_ys[ind] = _y.astype(int)
+                all_ws[ind] = _w.astype(float)
+            elif label == 'discretized':
+                all_ys[ind] = _y.astype(float)
+                all_ws[ind] = _w.astype(float)
 
-            _y[np.where((_y > 0) & (_y < 1))] = 1
-            _y[np.where((_y > 1) & (_y < 2))] = 1
-
-            _w[np.where(_y == 1)] = 0
-            _y[np.where(_y == 1)] = 0
-            _y[np.where(_y == 2)] = 1
-
-            all_Xs[ind] = np.expand_dims(_X, 2).astype(float)
-            all_ys[ind] = _y.astype(int)
-            all_ws[ind] = _w.astype(float)
             all_names[ind] = name
             ind += 1
             if save_path is not None and len(all_Xs) >= 100:

@@ -127,6 +127,7 @@ class CustomGenerator(keras.utils.Sequence) :
         all_ys[i] = sample_y
         all_ws[i] = sample_w
         all_names[i] = sample_name
+        self.clean_cache()
         if save_path is not None and len(all_Xs) >= 100:
             with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
                 pickle.dump(all_Xs, f)
