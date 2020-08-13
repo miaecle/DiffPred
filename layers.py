@@ -44,30 +44,32 @@ class ValidMetrics(keras.callbacks.Callback):
     self.test_data = test_data
 
   def on_epoch_end(self, epoch, logs={}):
-    if epoch % 5 != 4:
+    #if epoch % 5 != 4:
       # Run evaluation on epoch 4, 9, ...
-      return
+      #return
     if self.valid_data is not None:
       self.valid_data.clean_cache(force=True)
       y_preds = []
       y_trues = []
+      tp = 0
+      fp = 0
+      fn = 0
       for batch in self.valid_data:
         y_pred = self.model.predict(batch[0])
         y_pred = scipy.special.softmax(y_pred, -1)
         y_true = batch[1][:, :, :, :-1]
         w = batch[1][:, :, :, -1]
-        y_preds.append(y_pred[np.nonzero(w)])
-        y_trues.append(y_true[np.nonzero(w)])
-        
-      _y_preds = np.concatenate(y_preds, 0).reshape((-1, 2))
-      _y_trues = np.concatenate(y_trues, 0).reshape((-1, 2))
+        y_pred = y_pred[np.nonzero(w)].reshape((-1, 2))
+        y_true = y_true[np.nonzero(w)].reshape((-1, 2))
+        tp += ((y_pred[:, 1] > 0.5) * y_true[:, 1]).sum()
+        fp += ((y_pred[:, 1] > 0.5) * y_true[:, 0]).sum()
+        fn += ((y_pred[:, 1] < 0.5) * y_true[:, 1]).sum()
 
-      all_intersection = ((_y_preds[:, 1] > 0.5) * _y_trues[:, 1]).sum()
-      all_union = (np.sign((_y_preds[:, 1] > 0.5) + _y_trues[:, 1])).sum()
-      iou = all_intersection/all_union
-      auc = roc_auc_score(_y_trues, _y_preds)
-      f1 = f1_score(_y_trues[:, 1], _y_preds[:, 1] > 0.5)
-      print('\r valid-roc-auc: %f  valid-f1: %f  valid-iou: %f\n' % (auc, f1, iou))
+      iou = tp/(tp + fp + fn)
+      prec = tp/(tp + fp)
+      recall = tp/(tp + fn)
+      f1 = 2/(1/(prec + 1e-5) + 1/(recall + 1e-5))
+      print('\r valid-prec: %.3f  valid-recall: %.3f  valid-f1: %.3f  valid-iou: %.3f\n' % (prec, recall, f1, iou))
     if self.test_data is not None:
 #       y_pred = self.model.predict(self.test_data[0])[:, :, :, 1]
 #       y_true = self.test_data[1][:, :, :, 1] > 0.5

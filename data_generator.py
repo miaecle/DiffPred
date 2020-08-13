@@ -79,7 +79,12 @@ class CustomGenerator(keras.utils.Sequence) :
 
   def prepare_inputs(self, X, y=None, w=None, names=None):
     if self.include_day:
-        day_nums = np.array([float(get_ex_day(name)[1][1:]) for name in names]).reshape((-1, 1, 1, 1))
+        day_array = []
+        for name in names:
+            day = get_ex_day(name)[1][1:]
+            day = float(day) if day != 'unknown' else 20 # ex2 is default to be in day 20
+            day_array.append(day)
+        day_nums = np.array(day_array).reshape((-1, 1, 1, 1))
         _X = np.concatenate([X, np.ones_like(X) * day_nums], 3)
     else:
         _X = X
@@ -101,9 +106,9 @@ class CustomGenerator(keras.utils.Sequence) :
     if ind in self.cache_X and ind in self.cache_y and ind in self.cache_w:
         return
     f_ind = ind // self.sample_per_file
-    self.cache_X.update(pickle.load(open(self.X_filenames[f_ind], 'rb')))
-    self.cache_y.update(pickle.load(open(self.y_filenames[f_ind], 'rb')))
-    self.cache_w.update(pickle.load(open(self.w_filenames[f_ind], 'rb')))
+    self.cache_X = pickle.load(open(self.X_filenames[f_ind], 'rb'))
+    self.cache_y = pickle.load(open(self.y_filenames[f_ind], 'rb'))
+    self.cache_w = pickle.load(open(self.w_filenames[f_ind], 'rb'))
     return
 
   def clean_cache(self, force=False):
@@ -154,4 +159,10 @@ class CustomGenerator(keras.utils.Sequence) :
         all_Xs = {}
         all_ys = {}
         all_ws = {}
-    return all_Xs, all_ys, all_ws, all_names
+    if save_path:
+        return [save_path + 'X_%d.pkl' % i for i in range(file_ind)],\
+               [save_path + 'y_%d.pkl' % i for i in range(file_ind)],\
+               [save_path + 'w_%d.pkl' % i for i in range(file_ind)],\
+               save_path + 'names.pkl'
+    else:
+        return all_Xs, all_ys, all_ws, all_names
