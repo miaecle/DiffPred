@@ -14,7 +14,7 @@ class CustomGenerator(keras.utils.Sequence) :
                include_day=False,
                batch_size=8,
                n_classes=2,
-               class_weights=[1, 10],
+               class_weights=[1, 3],
                selected_inds=None,
                sample_per_file=100):
     self.X_filenames = X_filenames

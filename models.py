@@ -5,7 +5,6 @@ Created on Wed Feb  6 13:22:55 2019
 
 @author: zqwu
 """
-
 import segmentation_models
 import tensorflow as tf
 import numpy as np
@@ -28,6 +27,7 @@ class Segment(object):
                n_classes=2,
                class_weights=[1, 10],
                freeze_encoder=False,
+               model_structure='unet',
                model_path=None,
                **kwargs):
     self.input_shape = input_shape
@@ -37,6 +37,7 @@ class Segment(object):
     self.class_weights = class_weights
     assert len(self.class_weights) == self.n_classes
 
+    self.structure = model_structure
     self.freeze_encoder = freeze_encoder
     if model_path is None:
       self.model_path = tempfile.mkdtemp()
@@ -54,24 +55,44 @@ class Segment(object):
     self.input = Input(shape=self.input_shape, dtype='float32')
     self.pre_conv = Dense(3, activation=None, name='pre_conv')(self.input)
     
-    self.unet = segmentation_models.models.unet.Unet(
-        backbone_name='resnet34',
-        input_shape=list(self.input_shape[:2]) + [3],
-        classes=self.n_classes,
-        activation='linear',
-        encoder_weights='imagenet',
-        encoder_freeze=False,
-        encoder_features='default',
-        decoder_block_type='upsampling',
-        decoder_filters=(256, 128, 64, 32, 16),
-        decoder_use_batchnorm=True,
-        backend=keras.backend,
-        layers=keras.layers,
-        models=keras.models,
-        utils=keras.utils
-    )
-    output = self.unet(self.pre_conv)
-    
+    if self.structure == 'unet':
+        self.unet = segmentation_models.models.unet.Unet(
+            backbone_name='resnet34',
+            input_shape=list(self.input_shape[:2]) + [3],
+            classes=self.n_classes,
+            activation='linear',
+            encoder_weights='imagenet',
+            encoder_freeze=False,
+            encoder_features='default',
+            decoder_block_type='upsampling',
+            decoder_filters=(256, 128, 64, 32, 16),
+            decoder_use_batchnorm=True,
+            backend=keras.backend,
+            layers=keras.layers,
+            models=keras.models,
+            utils=keras.utils
+        )
+        output = self.unet(self.pre_conv)
+    elif self.structure == 'pspnet':
+        self.pspnet = segmentation_models.models.pspnet.PSPNet(
+            backbone_name='resnet34',
+            input_shape=list(self.input_shape[:2]) + [3],
+            classes=self.n_classes,
+            activation='linear',
+            encoder_weights='imagenet',
+            encoder_freeze=False,
+            downsample_factor=8,
+            psp_conv_filters=512,
+            psp_pooling_type='avg',
+            psp_use_batchnorm=True,
+            psp_dropout=None,
+            backend=keras.backend,
+            layers=keras.layers,
+            models=keras.models,
+            utils=keras.utils
+        )
+        output = self.pspnet(self.pre_conv)
+
     self.model = Model(self.input, output)
     self.model.compile(optimizer='Adam', 
                        loss=self.loss_func,
