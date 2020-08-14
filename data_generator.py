@@ -15,6 +15,7 @@ class CustomGenerator(keras.utils.Sequence) :
                batch_size=8,
                n_classes=2,
                class_weights=[1, 3],
+               extra_weights=None,
                selected_inds=None,
                sample_per_file=100):
     self.X_filenames = X_filenames
@@ -30,6 +31,7 @@ class CustomGenerator(keras.utils.Sequence) :
     self.n_classes = n_classes
     self.sample_per_file = sample_per_file
     self.class_weights = class_weights
+    self.extra_weights = extra_weights
 
     if selected_inds is None:
         self.selected_inds = np.arange(self.N)
@@ -97,6 +99,8 @@ class CustomGenerator(keras.utils.Sequence) :
         for i in range(self.n_classes):
             _y[..., i] = (y == i)
             _w += w * (y == i) * self.class_weights[i]
+        if not self.extra_weights is None:
+            _w = self.extra_weights(_X, _y, _w)
         _y[..., -1] = _w
     else:
         _y = None
@@ -166,3 +170,14 @@ class CustomGenerator(keras.utils.Sequence) :
                save_path + 'names.pkl'
     else:
         return all_Xs, all_ys, all_ws, all_names
+
+def enhance_weight_fp(_X, _y, _w, ratio=5):
+    for i in range(_X.shape[0]):
+        X = _X[i, :, :, 0]
+        y = _y[i, :, :, :2]
+        if y[:, :, 1].sum() > 0:
+            continue
+        thr = np.median(X) - 2 * np.std(X)
+        _w[i][np.where(X < thr)] *= ratio
+    return _w
+
