@@ -2,7 +2,17 @@ import numpy as np
 import keras
 import os
 import pickle
-from data_loader import get_ex_day
+from data_loader import get_ex_day, get_well
+
+def enhance_weight_fp(_X, _y, _w, ratio=5):
+    for i in range(_X.shape[0]):
+        X = _X[i, :, :, 0]
+        y = _y[i, :, :, :2]
+        if y[:, :, 1].sum() > 0:
+            continue
+        thr = np.median(X) - 2 * np.std(X)
+        _w[i][np.where(X < thr)] *= ratio
+    return _w
 
 class CustomGenerator(keras.utils.Sequence) :
   def __init__(self, 
@@ -17,7 +27,9 @@ class CustomGenerator(keras.utils.Sequence) :
                class_weights=[1, 3],
                extra_weights=None,
                selected_inds=None,
-               sample_per_file=100):
+               sample_per_file=100,
+               allow_size=3,
+               **kwargs):
     self.X_filenames = X_filenames
     self.y_filenames = y_filenames
     self.w_filenames = w_filenames
@@ -41,6 +53,7 @@ class CustomGenerator(keras.utils.Sequence) :
     self.cache_X = {}
     self.cache_y = {}
     self.cache_w = {}
+    self.allow_size = allow_size
     
     
   def __len__(self):
@@ -55,11 +68,11 @@ class CustomGenerator(keras.utils.Sequence) :
         if i >= len(self.selected_inds):
             break
         ind = self.selected_inds[i]
-        sample_X, sample_y, sample_w, _ = self.load_ind(ind)
+        sample_X, sample_y, sample_w, sample_name = self.load_ind(ind)
         batch_X.append(sample_X)
         batch_y.append(sample_y)
         batch_w.append(sample_w)
-        batch_names.append(self.names[ind])
+        batch_names.append(sample_name)
 
     batch_X = np.stack(batch_X, 0)
     batch_y = np.stack(batch_y, 0)
@@ -76,7 +89,6 @@ class CustomGenerator(keras.utils.Sequence) :
         sample_X = pickle.load(open(self.X_filenames[f_ind], 'rb'))[ind]
         sample_y = pickle.load(open(self.y_filenames[f_ind], 'rb'))[ind]
         sample_w = pickle.load(open(self.w_filenames[f_ind], 'rb'))[ind]
-    self.clean_cache()
     return sample_X, sample_y, sample_w, sample_name
 
   def prepare_inputs(self, X, y=None, w=None, names=None):
@@ -110,16 +122,14 @@ class CustomGenerator(keras.utils.Sequence) :
     if ind in self.cache_X and ind in self.cache_y and ind in self.cache_w:
         return
     f_ind = ind // self.sample_per_file
-    self.cache_X = pickle.load(open(self.X_filenames[f_ind], 'rb'))
-    self.cache_y = pickle.load(open(self.y_filenames[f_ind], 'rb'))
-    self.cache_w = pickle.load(open(self.w_filenames[f_ind], 'rb'))
-    return
-
-  def clean_cache(self, force=False):
-    if force or len(self.cache_X) > 2 * self.sample_per_file + 1:
-        self.cache_X = {}
-        self.cache_y = {}
-        self.cache_w = {}
+    if len(self.cache_X) > (self.allow_size * self.sample_per_file + 1):
+        self.cache_X = pickle.load(open(self.X_filenames[f_ind], 'rb'))
+        self.cache_y = pickle.load(open(self.y_filenames[f_ind], 'rb'))
+        self.cache_w = pickle.load(open(self.w_filenames[f_ind], 'rb'))
+    else:
+        self.cache_X.update(pickle.load(open(self.X_filenames[f_ind], 'rb')))
+        self.cache_y.update(pickle.load(open(self.y_filenames[f_ind], 'rb')))
+        self.cache_w.update(pickle.load(open(self.w_filenames[f_ind], 'rb')))
     return
 
   def reorder_save(self, inds, save_path=None):
@@ -136,7 +146,6 @@ class CustomGenerator(keras.utils.Sequence) :
         all_ys[i] = sample_y
         all_ws[i] = sample_w
         all_names[i] = sample_name
-        self.clean_cache()
         if save_path is not None and len(all_Xs) >= 100:
             with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
                 pickle.dump(all_Xs, f)
@@ -171,13 +180,114 @@ class CustomGenerator(keras.utils.Sequence) :
     else:
         return all_Xs, all_ys, all_ws, all_names
 
-def enhance_weight_fp(_X, _y, _w, ratio=5):
-    for i in range(_X.shape[0]):
-        X = _X[i, :, :, 0]
-        y = _y[i, :, :, :2]
-        if y[:, :, 1].sum() > 0:
+
+
+
+class PairGenerator(CustomGenerator) :
+  def __init__(self,
+               *args,
+               time_interval=[6, 10],
+               **kwargs):
+
+    super().__init__(*args, **kwargs)
+    self.time_interval = time_interval
+    if 'seed' in kwargs:
+        np.random.seed(kwargs['seed'])
+    self.selected_pair_inds = self.make_pairs()
+
+  def make_pairs(self):
+    infos = {k: get_ex_day(v) + get_well(v) for k, v in self.names.items() if k in self.selected_inds}
+    infos_reverse_mapping = {v: k for k, v in infos.items()}
+    valid_pairs = []
+    for ind_i in sorted(infos):
+        d = infos[ind_i]
+        if d[1] == 'Dunknown':
             continue
-        thr = np.median(X) - 2 * np.std(X)
-        _w[i][np.where(X < thr)] *= ratio
-    return _w
+        for t in range(self.time_interval[0], self.time_interval[1]+1):
+            new_d = (d[0], 'D%d' % (int(d[1][1:])+t), d[2], d[3])
+            if new_d in infos_reverse_mapping:
+                ind_j = infos_reverse_mapping[new_d]
+                valid_pairs.append((ind_i, ind_j))
+
+    def get_pair_group(pair):
+        return (pair[0] // self.sample_per_file, pair[1] // self.sample_per_file)
+    pair_groups = sorted(set(get_pair_group(p) for p in valid_pairs))
+    np.random.shuffle(pair_groups)
+    valid_pairs = sorted(valid_pairs, key=lambda x: pair_groups.index(get_pair_group(x)))
+    return valid_pairs
+
+  def __len__(self):
+    return (np.ceil(len(self.selected_pair_inds) / float(self.batch_size))).astype(np.int)
+  
+  def __getitem__(self, idx):
+    batch_X = []
+    batch_y = []
+    batch_w = []
+    batch_names = []
+    for i in range(idx * self.batch_size, (idx + 1) * self.batch_size):
+        if i >= len(self.selected_pair_inds):
+            break
+        ind_pair = self.selected_pair_inds[i]
+        sample_X_pre, sample_y_pre, sample_w_pre, _ = self.load_ind(ind_pair[0])
+        sample_X_post, sample_y_post, sample_w_post, _ = self.load_ind(ind_pair[1])
+
+
+        sample_X = np.concatenate([sample_X_pre, sample_X_post], 2)
+        sample_y = np.stack([sample_y_pre, sample_y_post], 2)
+        sample_w = np.stack([sample_w_pre, sample_w_post], 2)
+        batch_X.append(sample_X)
+        batch_y.append(sample_y)
+        batch_w.append(sample_w)
+        batch_names.append(tuple(self.names[ind] for ind in ind_pair))
+
+    batch_X = np.stack(batch_X, 0)
+    batch_y = np.stack(batch_y, 0)
+    batch_w = np.stack(batch_w, 0)
+    return self.prepare_inputs(batch_X, batch_y, batch_w, batch_names)
+
+  def prepare_inputs(self, X, y=None, w=None, names=None):
+    if self.include_day:
+        day_array = []
+        for name in names:
+            day_pre = float(get_ex_day(name[0])[1][1:])
+            day_post = float(get_ex_day(name[1])[1][1:])
+            day_array.append([day_pre, day_post])
+        day_nums = np.array(day_array).reshape((-1, 1, 1, 2))
+        _X = np.stack([X[..., 0],
+                       np.ones_like(X[..., 0]) * day_nums[..., 0], # PRE
+                       X[..., 1],
+                       np.ones_like(X[..., 1]) * day_nums[..., 1]], 3) # POST
+    else:
+        _X = X
+    
+    if w is None:
+        w = np.ones(list(X.shape[:-1]) + [2])
+
+    if not y is None:
+        y_pre = y[..., 0]
+        w_pre = w[..., 0]
+        _y_pre = np.zeros(list(X.shape[:-1]) + [self.n_classes+1])
+        _w_pre = np.zeros_like(w_pre)
+        for i in range(self.n_classes):
+            _y_pre[..., i] = (y_pre == i)
+            _w_pre += w_pre * (y_pre == i) * self.class_weights[i]
+        if not self.extra_weights is None:
+            _w_pre = self.extra_weights(_X[..., :2], _y_pre, _w_pre)
+        _y_pre[..., -1] = _w_pre
+
+        y_post = y[..., 1]
+        w_post = w[..., 1]
+        _y_post = np.zeros(list(X.shape[:-1]) + [self.n_classes+1])
+        _w_post = np.zeros_like(w_post)
+        for i in range(self.n_classes):
+            _y_post[..., i] = (y_post == i)
+            _w_post += w_post * (y_post == i) * self.class_weights[i]
+        if not self.extra_weights is None:
+            _w_post = self.extra_weights(_X[..., :2], _y_post, _w_post)
+        _y_post[..., -1] = _w_post
+
+        _y = np.concatenate([_y_pre, _y_post], 3)
+    else:
+        _y = None
+    return _X, _y
 

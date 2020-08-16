@@ -26,6 +26,7 @@ class Segment(object):
                fc_layers=[64, 32],
                n_classes=2,
                class_weights=[1, 10],
+               encoder_weights='imagenet',
                freeze_encoder=False,
                model_structure='unet',
                model_path=None,
@@ -38,6 +39,7 @@ class Segment(object):
     assert len(self.class_weights) == self.n_classes
 
     self.structure = model_structure
+    self.encoder_weights = encoder_weights
     self.freeze_encoder = freeze_encoder
     if model_path is None:
       self.model_path = tempfile.mkdtemp()
@@ -61,7 +63,7 @@ class Segment(object):
             input_shape=list(self.input_shape[:2]) + [3],
             classes=self.n_classes,
             activation='linear',
-            encoder_weights='imagenet',
+            encoder_weights=self.encoder_weights,
             encoder_freeze=False,
             encoder_features='default',
             decoder_block_type='upsampling',
@@ -79,7 +81,7 @@ class Segment(object):
             input_shape=list(self.input_shape[:2]) + [3],
             classes=self.n_classes,
             activation='linear',
-            encoder_weights='imagenet',
+            encoder_weights=self.encoder_weights,
             encoder_freeze=False,
             downsample_factor=8,
             psp_conv_filters=512,
@@ -92,6 +94,27 @@ class Segment(object):
             utils=keras.utils
         )
         output = self.pspnet(self.pre_conv)
+    elif self.structure == 'fpn':
+        self.fpn = segmentation_models.models.fpn.FPN(
+            backbone_name='resnet34',
+            input_shape=list(self.input_shape[:2]) + [3],
+            classes=self.n_classes,
+            activation='linear',
+            encoder_weights=self.encoder_weights,
+            encoder_freeze=False,
+            encoder_features='default',
+            pyramid_block_filters=256,
+            pyramid_use_batchnorm=True,
+            pyramid_aggregation='concat',
+            pyramid_dropout=None,
+            backend=keras.backend,
+            layers=keras.layers,
+            models=keras.models,
+            utils=keras.utils
+            )
+        output = self.fpn(self.pre_conv)
+    else:
+        raise ValueError("Structure not supported")
 
     self.model = Model(self.input, output)
     self.model.compile(optimizer='Adam', 
