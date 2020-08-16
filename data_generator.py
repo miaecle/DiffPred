@@ -186,10 +186,12 @@ class CustomGenerator(keras.utils.Sequence) :
 class PairGenerator(CustomGenerator) :
   def __init__(self,
                *args,
+               output_mode={'pc': ['pre'], 'fl': ['post']},
                time_interval=[6, 10],
                **kwargs):
 
     super().__init__(*args, **kwargs)
+    self.output_mode = output_mode
     self.time_interval = time_interval
     if 'seed' in kwargs:
         np.random.seed(kwargs['seed'])
@@ -231,7 +233,6 @@ class PairGenerator(CustomGenerator) :
         sample_X_pre, sample_y_pre, sample_w_pre, _ = self.load_ind(ind_pair[0])
         sample_X_post, sample_y_post, sample_w_post, _ = self.load_ind(ind_pair[1])
 
-
         sample_X = np.concatenate([sample_X_pre, sample_X_post], 2)
         sample_y = np.stack([sample_y_pre, sample_y_post], 2)
         sample_w = np.stack([sample_w_pre, sample_w_post], 2)
@@ -246,6 +247,16 @@ class PairGenerator(CustomGenerator) :
     return self.prepare_inputs(batch_X, batch_y, batch_w, batch_names)
 
   def prepare_inputs(self, X, y=None, w=None, names=None):
+    """
+    X, y, w: batch * length * width * (pre+post)
+    """
+    _X = []
+    if 'pre' in self.output_mode['pc']:
+        _X.append(X[..., 0])
+    if 'post' in self.output_mode['pc']:
+        _X.append(X[..., 1])
+    _X = np.stack(_X, 3)
+
     if self.include_day:
         day_array = []
         for name in names:
@@ -253,41 +264,35 @@ class PairGenerator(CustomGenerator) :
             day_post = float(get_ex_day(name[1])[1][1:])
             day_array.append([day_pre, day_post])
         day_nums = np.array(day_array).reshape((-1, 1, 1, 2))
-        _X = np.stack([X[..., 0],
-                       np.ones_like(X[..., 0]) * day_nums[..., 0], # PRE
-                       X[..., 1],
-                       np.ones_like(X[..., 1]) * day_nums[..., 1]], 3) # POST
-    else:
-        _X = X
+        day_nums = day_nums * np.ones_like(_X[..., :1])
+        _X = np.concatenate([_X, day_nums], 3)
     
     if w is None:
         w = np.ones(list(X.shape[:-1]) + [2])
 
     if not y is None:
-        y_pre = y[..., 0]
-        w_pre = w[..., 0]
-        _y_pre = np.zeros(list(X.shape[:-1]) + [self.n_classes+1])
-        _w_pre = np.zeros_like(w_pre)
-        for i in range(self.n_classes):
-            _y_pre[..., i] = (y_pre == i)
-            _w_pre += w_pre * (y_pre == i) * self.class_weights[i]
-        if not self.extra_weights is None:
-            _w_pre = self.extra_weights(_X[..., :2], _y_pre, _w_pre)
-        _y_pre[..., -1] = _w_pre
-
-        y_post = y[..., 1]
-        w_post = w[..., 1]
-        _y_post = np.zeros(list(X.shape[:-1]) + [self.n_classes+1])
-        _w_post = np.zeros_like(w_post)
-        for i in range(self.n_classes):
-            _y_post[..., i] = (y_post == i)
-            _w_post += w_post * (y_post == i) * self.class_weights[i]
-        if not self.extra_weights is None:
-            _w_post = self.extra_weights(_X[..., :2], _y_post, _w_post)
-        _y_post[..., -1] = _w_post
-
+        _y = []
+        if 'pre' in self.output_mode['fl']:
+            _y_pre = np.zeros(list(X.shape[:-1]) + [self.n_classes+1])
+            _w_pre = np.zeros_like(w[..., 0])
+            for i in range(self.n_classes):
+                _y_pre[..., i] = (y[..., 0] == i)
+                _w_pre += w[..., 0] * (y[..., 0] == i) * self.class_weights[i]
+            if not self.extra_weights is None:
+                _w_pre = self.extra_weights(_X[..., 0], _y_pre, _w_pre)
+            _y_pre[..., -1] = _w_pre
+            _y.append(_y_pre)
+        if 'post' in self.output_mode['fl']:
+            _y_post = np.zeros(list(X.shape[:-1]) + [self.n_classes+1])
+            _w_post = np.zeros_like(w[..., 1])
+            for i in range(self.n_classes):
+                _y_post[..., i] = (y[..., 1] == i)
+                _w_post += w[..., 1] * (y[..., 1] == i) * self.class_weights[i]
+            if not self.extra_weights is None:
+                _w_post = self.extra_weights(_X[..., 1], _y_post, _w_post)
+            _y_post[..., -1] = _w_post
+            _y.append(_y_post)
         _y = np.concatenate([_y_pre, _y_post], 3)
     else:
         _y = None
     return _X, _y
-

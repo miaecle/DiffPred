@@ -48,7 +48,6 @@ class ValidMetrics(keras.callbacks.Callback):
       # Run evaluation on epoch 4, 9, ...
       #return
     if self.valid_data is not None:
-      self.valid_data.clean_cache(force=True)
       y_preds = []
       y_trues = []
       tp = 0
@@ -71,11 +70,6 @@ class ValidMetrics(keras.callbacks.Callback):
       f1 = 2/(1/(prec + 1e-5) + 1/(recall + 1e-5))
       print('\r valid-prec: %.3f  valid-recall: %.3f  valid-f1: %.3f  valid-iou: %.3f\n' % (prec, recall, f1, iou))
     if self.test_data is not None:
-#       y_pred = self.model.predict(self.test_data[0])[:, :, :, 1]
-#       y_true = self.test_data[1][:, :, :, 1] > 0.5
-#       roc = roc_auc_score(y_true.flatten(), y_pred.flatten())
-#       f1 = f1_score(y_true.flatten(), y_pred.flatten()>0.5)
-#       print('\r test-roc-auc: %f  test-f1: %f\n' % (roc, f1))
       pass
     return
  
