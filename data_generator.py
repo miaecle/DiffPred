@@ -214,7 +214,7 @@ class PairGenerator(CustomGenerator) :
     def get_pair_group(pair):
         return (pair[0] // self.sample_per_file, pair[1] // self.sample_per_file)
     pair_groups = sorted(set(get_pair_group(p) for p in valid_pairs))
-    np.random.shuffle(pair_groups)
+    # np.random.shuffle(pair_groups)
     valid_pairs = sorted(valid_pairs, key=lambda x: pair_groups.index(get_pair_group(x)))
     return valid_pairs
 
@@ -279,7 +279,7 @@ class PairGenerator(CustomGenerator) :
                 _y_pre[..., i] = (y[..., 0] == i)
                 _w_pre += w[..., 0] * (y[..., 0] == i) * self.class_weights[i]
             if not self.extra_weights is None:
-                _w_pre = self.extra_weights(_X[..., 0], _y_pre, _w_pre)
+                _w_pre = self.extra_weights(_X[..., 0:1], _y_pre, _w_pre)
             _y_pre[..., -1] = _w_pre
             _y.append(_y_pre)
         if 'post' in self.output_mode['fl']:
@@ -289,10 +289,90 @@ class PairGenerator(CustomGenerator) :
                 _y_post[..., i] = (y[..., 1] == i)
                 _w_post += w[..., 1] * (y[..., 1] == i) * self.class_weights[i]
             if not self.extra_weights is None:
-                _w_post = self.extra_weights(_X[..., 1], _y_post, _w_post)
+                _w_post = self.extra_weights(_X[..., 1:2], _y_post, _w_post)
             _y_post[..., -1] = _w_post
             _y.append(_y_post)
-        _y = np.concatenate([_y_pre, _y_post], 3)
+        _y = np.concatenate(_y, 3)
     else:
         _y = None
+    return _X, _y
+
+class ClassificationGenerator(PairGenerator) :
+  def __init__(self,
+               *args,
+               label_file=None,
+               **kwargs):
+    super().__init__(*args, **kwargs)
+    self.label_file = label_file
+    self.labels = pickle.load(open(self.label_file, 'rb'))
+
+  def make_pairs(self):
+    infos = {k: get_ex_day(v) + get_well(v) for k, v in self.names.items() if k in self.selected_inds}
+    infos_reverse_mapping = {v: k for k, v in infos.items()}
+    valid_pairs = []
+    for ind_i in sorted(infos):
+        d = infos[ind_i]
+        if d[1] == 'Dunknown':
+            continue
+        for t in range(self.time_interval[0], self.time_interval[1]+1):
+          if int(d[1][1:]) < 10:
+            new_d = (d[0], 'D%d' % (int(d[1][1:])+t), d[2], d[3])
+            if new_d in infos_reverse_mapping:
+                ind_j = infos_reverse_mapping[new_d]
+                valid_pairs.append((ind_i, ind_j))
+
+    def get_pair_group(pair):
+        return pair[0] // self.sample_per_file
+    pair_groups = sorted(set(get_pair_group(p) for p in valid_pairs))
+    np.random.shuffle(pair_groups)
+    valid_pairs = sorted(valid_pairs, key=lambda x: pair_groups.index(get_pair_group(x)))
+    return valid_pairs
+
+  def __getitem__(self, idx):
+    batch_X = []
+    batch_y = []
+    batch_w = []
+    batch_names = []
+    batch_labels = []
+    for i in range(idx * self.batch_size, (idx + 1) * self.batch_size):
+        if i >= len(self.selected_pair_inds):
+            break
+        ind_pair = self.selected_pair_inds[i]
+        sample_X, _, _, sample_name = self.load_ind(ind_pair[0])
+        name_post = self.names[ind_pair[1]]
+
+        # Customized label
+        label_post = self.labels[ind_pair[1]]
+        if label_post[0] > 500:
+            sample_y = 1
+            sample_w = 1
+        elif label_post[0] == 0 and label_post[1] < 600:
+            sample_y = 0
+            sample_w = 1
+        else:
+            sample_y = 0
+            sample_w = 0
+
+        batch_X.append(sample_X)
+        batch_y.append(sample_y)
+        batch_w.append(sample_w)
+        batch_names.append((sample_name, name_post))
+
+    batch_X = np.stack(batch_X, 0)
+    batch_y = np.array(batch_y)
+    batch_w = np.array(batch_w)
+    return self.prepare_inputs(batch_X, batch_y, batch_w, batch_names)
+
+  def prepare_inputs(self, X, y=None, w=None, names=None, labels=None):
+    _X = X
+    if self.include_day:
+        day_array = []
+        for name in names:
+            day_pre = float(get_ex_day(name[0])[1][1:])
+            day_post = float(get_ex_day(name[1])[1][1:])
+            day_array.append([day_pre, day_post])
+        day_nums = np.array(day_array).reshape((-1, 1, 1, 2))
+        day_nums = day_nums * np.ones_like(_X[..., :1])
+        _X = np.concatenate([_X, day_nums], 3)
+    _y = np.stack([1-y, y, w], 1)
     return _X, _y

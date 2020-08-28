@@ -6,6 +6,7 @@ Created on Wed Feb  6 13:22:55 2019
 @author: zqwu
 """
 import segmentation_models
+import classification_models
 import tensorflow as tf
 import numpy as np
 import keras
@@ -14,8 +15,10 @@ import os
 import scipy
 from keras import backend as K
 from keras.models import Model, load_model
+from keras import layers
 from keras.layers import Dense, Layer, Input, BatchNormalization, Conv2D, Lambda
-from layers import weighted_binary_cross_entropy, ValidMetrics, l2_loss
+from layers import weighted_binary_cross_entropy, classification_binary_cross_entropy
+from layers import ValidMetrics, ClassificationValidMetrics, l2_loss
 from segment_support import preprocess
 from data_generator import CustomGenerator
 
@@ -46,7 +49,7 @@ class Segment(object):
     else:
       self.model_path = model_path
     self.call_backs = [keras.callbacks.TerminateOnNaN(),
-                       keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
+                       #keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
                        keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
     self.valid_score_callback = ValidMetrics()
 
@@ -117,6 +120,9 @@ class Segment(object):
         raise ValueError("Structure not supported")
 
     self.model = Model(self.input, output)
+    self.compile()
+
+  def compile(self):
     self.model.compile(optimizer='Adam', 
                        loss=self.loss_func,
                        metrics=[])
@@ -171,3 +177,58 @@ class Segment(object):
   
   def load(self, path):
     self.model.load_weights(path)
+
+
+
+
+class Classify(Segment):
+  def __init__(self,
+               input_shape=(288, 384, 1),
+               fc_layers=[1024, 128],
+               n_classes=2,
+               class_weights=[1, 1],
+               encoder_weights='imagenet',
+               model_path=None,
+               **kwargs):
+    self.input_shape = input_shape
+    self.fc_layers = fc_layers
+    self.n_classes = n_classes
+    self.class_weights = class_weights
+    assert len(self.class_weights) == self.n_classes
+
+    self.encoder_weights = encoder_weights
+    if model_path is None:
+      self.model_path = tempfile.mkdtemp()
+    else:
+      self.model_path = model_path
+    self.call_backs = [keras.callbacks.TerminateOnNaN(),
+                       keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
+                       keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
+    self.valid_score_callback = ClassificationValidMetrics()
+
+    self.loss_func = classification_binary_cross_entropy(n_classes=n_classes)
+    self.build_model()
+
+  def build_model(self):
+    self.input = Input(shape=self.input_shape, dtype='float32')
+    self.pre_conv = Dense(3, activation=None, name='pre_conv')(self.input)
+
+    self.resnet = classification_models.models.resnet.ResNet34(
+            input_shape=list(self.input_shape[:2]) + [3],
+            classes=self.n_classes,
+            include_top=False,
+            weights=self.encoder_weights,
+            backend=keras.backend,
+            layers=keras.layers,
+            models=keras.models,
+            utils=keras.utils
+        )
+    output = self.resnet(self.pre_conv)
+
+    output = layers.GlobalAveragePooling2D(name='pool1')(output)
+    for i, l in enumerate(self.fc_layers):
+      output = Dense(l, name='fc%d' % i)(output)
+    output = Dense(self.n_classes, name='fc_output')(output)
+
+    self.model = Model(self.input, output)
+    self.compile()
