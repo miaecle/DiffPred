@@ -14,6 +14,26 @@ def enhance_weight_fp(_X, _y, _w, ratio=5):
         _w[i][np.where(X < thr)] *= ratio
     return _w
 
+def binaried_fluorescence_label(y, w):
+    if isinstance(y, int):
+        y_ct = y
+        w_ct = w
+    elif isinstance(y, np.ndarray):
+        y_ct = np.where(y == 1)[0].size
+        w_ct = np.where(np.sign(w) == 0)[0].size
+    else:
+        raise ValueError("Data type not supported")
+    if y_ct > 500:
+        sample_y = 1
+        sample_w = 1
+    elif y_ct == 0 and w_ct < 600:
+        sample_y = 0
+        sample_w = 1
+    else:
+        sample_y = 0
+        sample_w = 0
+    return sample_y, sample_w
+
 class CustomGenerator(keras.utils.Sequence) :
   def __init__(self, 
                X_filenames, 
@@ -181,8 +201,6 @@ class CustomGenerator(keras.utils.Sequence) :
         return all_Xs, all_ys, all_ws, all_names
 
 
-
-
 class PairGenerator(CustomGenerator) :
   def __init__(self,
                *args,
@@ -195,28 +213,8 @@ class PairGenerator(CustomGenerator) :
     self.time_interval = time_interval
     if 'seed' in kwargs:
         np.random.seed(kwargs['seed'])
-    self.selected_pair_inds = self.make_pairs()
-
-  def make_pairs(self):
-    infos = {k: get_ex_day(v) + get_well(v) for k, v in self.names.items() if k in self.selected_inds}
-    infos_reverse_mapping = {v: k for k, v in infos.items()}
-    valid_pairs = []
-    for ind_i in sorted(infos):
-        d = infos[ind_i]
-        if d[1] == 'Dunknown':
-            continue
-        for t in range(self.time_interval[0], self.time_interval[1]+1):
-            new_d = (d[0], 'D%d' % (int(d[1][1:])+t), d[2], d[3])
-            if new_d in infos_reverse_mapping:
-                ind_j = infos_reverse_mapping[new_d]
-                valid_pairs.append((ind_i, ind_j))
-
-    def get_pair_group(pair):
-        return (pair[0] // self.sample_per_file, pair[1] // self.sample_per_file)
-    pair_groups = sorted(set(get_pair_group(p) for p in valid_pairs))
-    # np.random.shuffle(pair_groups)
-    valid_pairs = sorted(valid_pairs, key=lambda x: pair_groups.index(get_pair_group(x)))
-    return valid_pairs
+    pair_inds = self.get_all_pairs()
+    self.selected_pair_inds = self.reorder_pair_inds(pair_inds)
 
   def __len__(self):
     return (np.ceil(len(self.selected_pair_inds) / float(self.batch_size))).astype(np.int)
@@ -297,16 +295,7 @@ class PairGenerator(CustomGenerator) :
         _y = None
     return _X, _y
 
-class ClassificationGenerator(PairGenerator) :
-  def __init__(self,
-               *args,
-               label_file=None,
-               **kwargs):
-    super().__init__(*args, **kwargs)
-    self.label_file = label_file
-    self.labels = pickle.load(open(self.label_file, 'rb'))
-
-  def make_pairs(self):
+  def get_all_pairs(self):
     infos = {k: get_ex_day(v) + get_well(v) for k, v in self.names.items() if k in self.selected_inds}
     infos_reverse_mapping = {v: k for k, v in infos.items()}
     valid_pairs = []
@@ -315,18 +304,27 @@ class ClassificationGenerator(PairGenerator) :
         if d[1] == 'Dunknown':
             continue
         for t in range(self.time_interval[0], self.time_interval[1]+1):
-          if int(d[1][1:]) < 10:
             new_d = (d[0], 'D%d' % (int(d[1][1:])+t), d[2], d[3])
             if new_d in infos_reverse_mapping:
                 ind_j = infos_reverse_mapping[new_d]
                 valid_pairs.append((ind_i, ind_j))
-
-    def get_pair_group(pair):
-        return pair[0] // self.sample_per_file
-    pair_groups = sorted(set(get_pair_group(p) for p in valid_pairs))
-    np.random.shuffle(pair_groups)
-    valid_pairs = sorted(valid_pairs, key=lambda x: pair_groups.index(get_pair_group(x)))
     return valid_pairs
+  
+  def reorder_pair_inds(self, pairs):
+    def get_pair_group(pair):
+        return (pair[0] // self.sample_per_file, pair[1] // self.sample_per_file)
+    pair_groups = sorted(set(get_pair_group(p) for p in pairs))
+    np.random.shuffle(pair_groups)
+    return sorted(pairs, key=lambda x: pair_groups.index(get_pair_group(x)))
+
+class ClassificationGenerator(PairGenerator) :
+  def __init__(self,
+               *args,
+               label_file=None,
+               **kwargs):
+    super().__init__(*args, **kwargs)
+    self.label_file = label_file
+    self.labels = pickle.load(open(self.label_file, 'rb'))
 
   def __getitem__(self, idx):
     batch_X = []
@@ -343,15 +341,7 @@ class ClassificationGenerator(PairGenerator) :
 
         # Customized label
         label_post = self.labels[ind_pair[1]]
-        if label_post[0] > 500:
-            sample_y = 1
-            sample_w = 1
-        elif label_post[0] == 0 and label_post[1] < 600:
-            sample_y = 0
-            sample_w = 1
-        else:
-            sample_y = 0
-            sample_w = 0
+        sample_y, sample_w = binaried_fluorescence_label(*label_post)
 
         batch_X.append(sample_X)
         batch_y.append(sample_y)
@@ -376,3 +366,10 @@ class ClassificationGenerator(PairGenerator) :
         _X = np.concatenate([_X, day_nums], 3)
     _y = np.stack([1-y, y, w], 1)
     return _X, _y
+
+  def reorder_pair_inds(self, pairs):
+    def get_pair_group(pair):
+        return pair[0] // self.sample_per_file
+    pair_groups = sorted(set(get_pair_group(p) for p in pairs))
+    np.random.shuffle(pair_groups)
+    return sorted(pairs, key=lambda x: pair_groups.index(get_pair_group(x)))
