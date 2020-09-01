@@ -3,6 +3,7 @@ import keras
 import os
 import pickle
 from data_loader import get_ex_day, get_well
+from data_augmentation import Augment
 
 def enhance_weight_fp(_X, _y, _w, ratio=5):
     for i in range(_X.shape[0]):
@@ -40,6 +41,7 @@ class CustomGenerator(keras.utils.Sequence) :
                y_filenames, 
                w_filenames,
                name_file,
+               augment=False,
                N=None,
                include_day=False,
                batch_size=8,
@@ -54,6 +56,10 @@ class CustomGenerator(keras.utils.Sequence) :
     self.y_filenames = y_filenames
     self.w_filenames = w_filenames
     self.names = pickle.load(open(name_file, 'rb'))
+    if augment:
+        self.augment = Augment()
+    else:
+        self.augment = None
     self.batch_size = batch_size
     if N is None:
         self.N = len(self.names)
@@ -99,16 +105,22 @@ class CustomGenerator(keras.utils.Sequence) :
     batch_w = np.stack(batch_w, 0)
     return self.prepare_inputs(batch_X, batch_y, batch_w, batch_names)
 
-  def load_ind(self, ind):
+  def load_ind(self, ind, force_augment_off=False, random_seed=None):
     self.add_to_cache(ind)
     sample_name = self.names[ind]
     if ind in self.cache_X and ind in self.cache_y and ind in self.cache_w:
-        return self.cache_X[ind], self.cache_y[ind], self.cache_w[ind], sample_name
+        sample_X = self.cache_X[ind]
+        sample_y = self.cache_y[ind]
+        sample_w = self.cache_w[ind]
     else:
         f_ind = ind // self.sample_per_file
         sample_X = pickle.load(open(self.X_filenames[f_ind], 'rb'))[ind]
         sample_y = pickle.load(open(self.y_filenames[f_ind], 'rb'))[ind]
         sample_w = pickle.load(open(self.w_filenames[f_ind], 'rb'))[ind]
+    if not force_augment_off and not self.augment is None:
+        if not random_seed is None:
+           np.random.seed(random_seed) 
+        sample_X, sample_y, sample_w = self.augment(sample_X, sample_y, sample_w)
     return sample_X, sample_y, sample_w, sample_name
 
   def prepare_inputs(self, X, y=None, w=None, names=None):
@@ -161,7 +173,7 @@ class CustomGenerator(keras.utils.Sequence) :
 
     file_ind = 0
     for i, ind in enumerate(inds):
-        sample_X, sample_y, sample_w, sample_name = self.load_ind(ind)
+        sample_X, sample_y, sample_w, sample_name = self.load_ind(ind, force_augment_off=True)
         all_Xs[i] = sample_X
         all_ys[i] = sample_y
         all_ws[i] = sample_w
@@ -228,8 +240,9 @@ class PairGenerator(CustomGenerator) :
         if i >= len(self.selected_pair_inds):
             break
         ind_pair = self.selected_pair_inds[i]
-        sample_X_pre, sample_y_pre, sample_w_pre, _ = self.load_ind(ind_pair[0])
-        sample_X_post, sample_y_post, sample_w_post, _ = self.load_ind(ind_pair[1])
+        seed = int(np.random.rand() * 1e9)
+        sample_X_pre, sample_y_pre, sample_w_pre, _ = self.load_ind(ind_pair[0], random_seed=seed)
+        sample_X_post, sample_y_post, sample_w_post, _ = self.load_ind(ind_pair[1], random_seed=seed)
 
         sample_X = np.concatenate([sample_X_pre, sample_X_post], 2)
         sample_y = np.stack([sample_y_pre, sample_y_post], 2)
