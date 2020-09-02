@@ -12,9 +12,50 @@ import scipy
 import keras
 from keras import backend as K
 from keras.models import Model, load_model
+from keras import layers
 from keras.layers import Dense, Layer, Input
 from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score
 
+def Conv2dBn(filters,
+             kernel_size,
+             strides=(1, 1),
+             padding='valid',
+             activation='linear',
+             kernel_initializer='glorot_uniform',
+             bias_initializer='zeros',
+             use_batchnorm=False,
+             name=None,
+             **kwargs):
+
+    if name is None:
+        block_name = ''
+    else:
+        block_name = name
+
+    conv_name = block_name + '_conv'
+    act_name = block_name + '_' + activation
+    bn_name = block_name + '_bn'
+    bn_axis = 3
+
+    def wrapper(input_tensor):
+        x = layers.Conv2D(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            activation=None,
+            use_bias=not (use_batchnorm),
+            kernel_initializer=kernel_initializer,
+            bias_initializer=bias_initializer,
+            name=conv_name,
+        )(input_tensor)
+        if use_batchnorm:
+            x = layers.BatchNormalization(axis=bn_axis, name=bn_name)(x)
+        if activation:
+            x = layers.Activation(activation, name=act_name)(x)
+        return x
+
+    return wrapper
 
 class weighted_binary_cross_entropy(object):
   def __init__(self, n_classes=2):

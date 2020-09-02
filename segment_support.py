@@ -241,6 +241,27 @@ def quantize_fluorescence(pair_dat, mask):
     return fl_discretized
 
 
+def binarized_fluorescence_label(y, w):
+    if isinstance(y, int):
+        y_ct = y
+        w_ct = w
+    elif isinstance(y, np.ndarray):
+        y_ct = np.where(y == 1)[0].size
+        w_ct = np.where(np.sign(w) == 0)[0].size
+    else:
+        raise ValueError("Data type not supported")
+    if y_ct > 500:
+        sample_y = 1
+        sample_w = 1
+    elif y_ct == 0 and w_ct < 600:
+        sample_y = 0
+        sample_w = 1
+    else:
+        sample_y = 0
+        sample_w = 0
+    return sample_y, sample_w
+
+
 def adjust_contrast(pair_dat, mask, position_code=None, linear_align=False):
     pc_mat = pair_dat[0]
     
