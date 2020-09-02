@@ -174,7 +174,12 @@ class CustomGenerator(keras.utils.Sequence) :
 
         # Classify labels
         if not labels is None:
-            _y2 = np.stack([1 - labels[:, 0], labels[:, 0], labels[:, 1]], 1) # Label N*2 + Weight N*1
+            _y2 = np.zeros((labels.shape[0], self.n_classify_classes + 1))
+            _w2 = np.zeros_like(labels[:, 1])
+            for i in range(self.n_classify_classes):
+                _y2[..., i] = (labels[:, 0] == i)
+                _w2 += labels[:, 1] * (labels[:, 0] == i) * self.classify_class_weights[i]
+            _y2[..., -1] = _w2
         else:
             _y2 = None
 
@@ -358,7 +363,12 @@ class PairGenerator(CustomGenerator) :
         # Classify labels
         if not labels is None:
             # 0: pre-y, 1: pre-w, 2: post-y, 3: post-w
-            _y2 = np.stack([1 - labels[:, 2], labels[:, 2], labels[:, 3]], 1) # Label N*2 + Weight N*1
+            _y2 = np.zeros((labels.shape[0], self.n_classify_classes + 1))
+            _w2 = np.zeros_like(labels[:, 3])
+            for i in range(self.n_classify_classes):
+                _y2[..., i] = (labels[:, 2] == i)
+                _w2 += labels[:, 3] * (labels[:, 2] == i) * self.classify_class_weights[i]
+            _y2[..., -1] = _w2
         else:
             _y2 = None
 
