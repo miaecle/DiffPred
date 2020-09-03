@@ -64,8 +64,8 @@ class weighted_binary_cross_entropy(object):
     self.__name__ = "weighted_binary_cross_entropy"
     
   def __call__(self, y_true, y_pred):
-    w = y_true[:, :, :, -1]
-    y_true = y_true[:, :, :, :-1]
+    w = y_true[..., -1]
+    y_true = y_true[..., :-1]
     loss = self.loss_fn(y_true, y_pred, sample_weight=w)
     return loss
 
@@ -107,27 +107,15 @@ class GradualDefreeze(keras.callbacks.Callback):
     return
 
 
-class ClassificationValidMetrics(keras.callbacks.Callback):
-  def __init__(self, valid_data=None, test_data=None):
-    self.valid_data = valid_data
-    self.test_data = test_data
-
-  def on_epoch_end(self, epoch, logs={}):
-    if self.valid_data is not None:
-      _ = evaluate_classification(self.valid_data, self)
-    if self.test_data is not None:
-      pass
-    return
-
-
 class ValidMetrics(keras.callbacks.Callback):
-  def __init__(self, valid_data=None, test_data=None):
+  def __init__(self, eval_fn, valid_data=None, test_data=None):
+    self.eval_fn = eval_fn
     self.valid_data = valid_data
     self.test_data = test_data
 
   def on_epoch_end(self, epoch, logs={}):
     if self.valid_data is not None:
-      _ = evaluate_segmentation(self.valid_data, self)
+      _ = self.eval_fn(self.valid_data, self)
     if self.test_data is not None:
       pass
     return
@@ -206,6 +194,69 @@ def evaluate_segmentation(data, model):
   return prec, recall, f1, iou, err_ct1, err_ct2
 
 
+def evaluate_segmentation_and_classification(data, model):
+  """
+  data: CustomGenerator, PairGenerator, etc.
+  model: ClassifyOnSegment
+  """
+  classify_y_preds = []
+  classify_y_trues = []
+  tp = 0
+  fp = 0
+  fn = 0
+  total_ct = 0
+  err_ct1 = 0 # Overall false positives
+  err_ct2 = 0 # Overall false negatives
+  thr = 0.01 * (288 * 384)
+  for batch in data:
+    y_pred, y_pred_classify = model.model.predict(batch[0])
+    y_true, y_true_classify = batch[1]
+
+    y_pred = scipy.special.softmax(y_pred, -1)
+    y_pred_classify = scipy.special.softmax(y_pred_classify, -1)
+    
+    y_true = y_true[:, :, :, :-1]
+    w = y_true[:, :, :, -1]
+
+    classify_valid_inds = np.nonzero(y_true_classify[:, -1])
+    classify_y_trues.append(y_true_classify[classify_valid_inds][:, :2])
+    classify_y_preds.append(y_pred_classify[classify_valid_inds])
+
+    assert y_pred.shape[0] == y_true.shape[0] == w.shape[0]
+    for _y_pred, _y_true, _w in zip(y_pred, y_true, w):
+      _y_pred = _y_pred[np.nonzero(_w)].reshape((-1, 2))
+      _y_true = _y_true[np.nonzero(_w)].reshape((-1, 2))
+      _tp = ((_y_pred[:, 1] > 0.5) * _y_true[:, 1]).sum()
+      _fp = ((_y_pred[:, 1] > 0.5) * _y_true[:, 0]).sum()
+      _fn = ((_y_pred[:, 1] <= 0.5) * _y_true[:, 1]).sum()
+
+      tp += _tp
+      fp += _fp
+      fn += _fn
+      total_ct += 1
+      if _y_pred.shape[0] > (0.99*288*384) and (_tp + _fn) < thr and _fp > thr:
+        err_ct1 += 1
+      if _fn > thr and (_tp + _fp) < thr:
+        err_ct2 += 1
+
+  iou = tp/(tp + fp + fn)
+  prec = tp/(tp + fp)
+  recall = tp/(tp + fn)
+  f1 = 2/(1/(prec + 1e-5) + 1/(recall + 1e-5))
+  print("Precision: %.3f\tRecall: %.3f\tF1: %.3f\tIOU: %.3f\tFP: %d/%d\tFN: %d/%d" %
+        (prec, recall, f1, iou, err_ct1, total_ct, err_ct2, total_ct))
+
+  classify_y_trues = np.concatenate(classify_y_trues, 0)
+  classify_y_preds = np.concatenate(classify_y_preds, 0)
+  auc = roc_auc_score(classify_y_trues, classify_y_preds)
+  prec = precision_score(classify_y_trues[:, 1], classify_y_preds[:, 1] > 0.5)
+  recall = recall_score(classify_y_trues[:, 1], classify_y_preds[:, 1] > 0.5)
+  f1 = f1_score(classify_y_trues[:, 1], classify_y_preds[:, 1] > 0.5)
+  print("Precision: %.3f\tRecall: %.3f\tF1: %.3f\tAUC: %.3f" %
+      (prec, recall, f1, auc))
+  return
+
+
 def evaluate_classification_with_segment_model(data, model, thr=800):
   """
   data: CustomGenerator, PairGenerator, etc.
@@ -272,7 +323,11 @@ def load_partial_weights(model, model2):
             if not len(l_weights) == len(l_weights2):
                 unmatched.append((l_ind, l_name))
                 continue
-            model.model.layers[main_module_ind].layers[l_ind].set_weights(l_weights2)
+            try:
+                model.model.layers[main_module_ind].layers[l_ind].set_weights(l_weights2)
+            except Exception as e:
+                print(e)
+                unmatched.append((l_ind, l_name))
     print("Unmatched: %s" % str(unmatched))
     return model
 

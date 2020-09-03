@@ -242,12 +242,12 @@ def quantize_fluorescence(pair_dat, mask):
 
 
 def binarized_fluorescence_label(y, w):
-    if isinstance(y, int):
-        y_ct = y
-        w_ct = w
-    elif isinstance(y, np.ndarray):
+    if isinstance(y, np.ndarray):
         y_ct = np.where(y == 1)[0].size
         w_ct = np.where(np.sign(w) == 0)[0].size
+    elif np.all(int(y) == y):
+        y_ct = y
+        w_ct = w
     else:
         raise ValueError("Data type not supported")
     if y_ct > 500:

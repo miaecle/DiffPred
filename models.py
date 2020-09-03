@@ -18,8 +18,8 @@ from keras.models import Model, load_model
 from keras import layers
 from keras.layers import Dense, Layer, Input, BatchNormalization, Conv2D, Lambda
 from layers import weighted_binary_cross_entropy, classification_binary_cross_entropy, l2_loss
-from layers import Conv2dBn, ValidMetrics, ClassificationValidMetrics
-
+from layers import Conv2dBn, ValidMetrics
+from layers import evaluate_segmentation, evaluate_classification, evaluate_segmentation_and_classification
 from segment_support import preprocess
 from data_generator import CustomGenerator
 
@@ -30,6 +30,7 @@ class Segment(object):
                class_weights=[1, 10],
                encoder_weights='imagenet',
                freeze_encoder=False,
+               eval_fn=evaluate_segmentation,
                model_structure='unet',
                model_path=None,
                **kwargs):
@@ -48,7 +49,7 @@ class Segment(object):
     self.call_backs = [keras.callbacks.TerminateOnNaN(),
                        # keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
                        keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
-    self.valid_score_callback = ValidMetrics()
+    self.valid_score_callback = ValidMetrics(eval_fn)
 
     self.loss_func = weighted_binary_cross_entropy(n_classes=n_classes)
     self.build_model()
@@ -190,6 +191,7 @@ class Classify(Segment):
                n_classes=2,
                class_weights=[1, 1],
                encoder_weights='imagenet',
+               eval_fn=evaluate_classification,
                model_structure='resnet34',
                model_path=None,
                **kwargs):
@@ -207,7 +209,7 @@ class Classify(Segment):
     self.call_backs = [keras.callbacks.TerminateOnNaN(),
                        # keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
                        keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
-    self.valid_score_callback = ClassificationValidMetrics()
+    self.valid_score_callback = ValidMetrics(eval_fn)
 
     self.loss_func = classification_binary_cross_entropy(n_classes=n_classes)
     self.build_model()
@@ -256,6 +258,7 @@ class ClassifyOnSegment(Segment):
                classify_class_weights=[1, 1],
                encoder_weights='imagenet',
                freeze_encoder=False,
+               eval_fn=evaluate_segmentation_and_classification,
                segment_model_structure='unet',
                model_path=None,
                **kwargs):
@@ -279,7 +282,7 @@ class ClassifyOnSegment(Segment):
     self.call_backs = [keras.callbacks.TerminateOnNaN(),
                        # keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
                        keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
-    # self.valid_score_callback = ClassificationValidMetrics()
+    self.valid_score_callback = ValidMetrics(eval_fn)
 
     self.loss_func = [weighted_binary_cross_entropy(n_classes=n_segment_classes),
                       classification_binary_cross_entropy(n_classes=n_classify_classes)]

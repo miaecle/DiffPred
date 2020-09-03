@@ -2,8 +2,9 @@ import numpy as np
 import keras
 import os
 import pickle
-from data_loader import get_ex_day, get_well, binarized_fluorescence_label
+from data_loader import get_ex_day, get_well
 from data_augmentation import Augment
+from segment_support import binarized_fluorescence_label
 
 
 def enhance_weight_fp(_X, _y, _w, ratio=5):
@@ -42,7 +43,7 @@ class CustomGenerator(keras.utils.Sequence) :
         self.y_filenames = y_filenames
         self.w_filenames = w_filenames
         self.names = pickle.load(open(name_file, 'rb'))
-        if not self.label_file is None:
+        if not label_file is None:
             self.labels = pickle.load(open(label_file, 'rb'))
         else:
             self.labels = None
@@ -110,7 +111,7 @@ class CustomGenerator(keras.utils.Sequence) :
                 batch_y.append(sample_y)
                 batch_w.append(sample_w)
             if not self.n_classify_classes is None:
-                batch_labels.append(self.labels[ind])
+                batch_labels.append(binarized_fluorescence_label(*self.labels[ind]))
 
         batch_X = np.stack(batch_X, 0)
         if not self.n_segment_classes is None:
@@ -214,6 +215,7 @@ class CustomGenerator(keras.utils.Sequence) :
         all_ys = {}
         all_ws = {}
         all_names = {}
+        all_labels = {}
 
         file_ind = 0
         for i, ind in enumerate(inds):
@@ -222,6 +224,7 @@ class CustomGenerator(keras.utils.Sequence) :
             all_ys[i] = sample_y
             all_ws[i] = sample_w
             all_names[i] = sample_name
+            all_labels[i] = self.labels[ind]
             if save_path is not None and len(all_Xs) >= 100:
                 with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
                     pickle.dump(all_Xs, f)
@@ -231,6 +234,8 @@ class CustomGenerator(keras.utils.Sequence) :
                     pickle.dump(all_ws, f)
                 with open(save_path + 'names.pkl', 'wb') as f:
                     pickle.dump(all_names, f)
+                with open(save_path + 'labels.pkl', 'wb') as f:
+                    pickle.dump(all_labels, f)
                 file_ind += 1
                 all_Xs = {}
                 all_ys = {}
@@ -244,6 +249,8 @@ class CustomGenerator(keras.utils.Sequence) :
                 pickle.dump(all_ws, f)
             with open(save_path + 'names.pkl', 'wb') as f:
                 pickle.dump(all_names, f)
+            with open(save_path + 'labels.pkl', 'wb') as f:
+                pickle.dump(all_labels, f)
             file_ind += 1
             all_Xs = {}
             all_ys = {}
@@ -252,9 +259,10 @@ class CustomGenerator(keras.utils.Sequence) :
             return [save_path + 'X_%d.pkl' % i for i in range(file_ind)],\
                    [save_path + 'y_%d.pkl' % i for i in range(file_ind)],\
                    [save_path + 'w_%d.pkl' % i for i in range(file_ind)],\
-                   save_path + 'names.pkl'
+                   save_path + 'names.pkl',\
+                   save_path + 'labels.pkl'
         else:
-            return all_Xs, all_ys, all_ws, all_names
+            return all_Xs, all_ys, all_ws, all_names, all_labels
 
 
 
@@ -302,18 +310,25 @@ class PairGenerator(CustomGenerator) :
                 batch_y.append(sample_y)
                 batch_w.append(sample_w)
             if not self.n_classify_classes is None:
-                batch_labels.append(self.labels[ind_pair[0]] + self.labels[ind_pair[1]])
+                batch_labels.append(
+                    binarized_fluorescence_label(*self.labels[ind_pair[0]]) + \
+                    binarized_fluorescence_label(*self.labels[ind_pair[1]]))
 
         batch_X = np.stack(batch_X, 0)
         if not self.n_segment_classes is None:
             batch_y = np.stack(batch_y, 0)
             batch_w = np.stack(batch_w, 0)
+        else:
+            batch_y = None
+            batch_w = None
         if not self.n_classify_classes is None:
             batch_labels = np.stack(batch_labels, 0)
+        else:
+            batch_labels = None
         return self.prepare_inputs(batch_X, batch_y, batch_w, batch_names, batch_labels)
 
 
-    def prepare_inputs(self, X, y=None, w=None, names=None):
+    def prepare_inputs(self, X, y=None, w=None, names=None, labels=None):
         """
         X, y, w: batch * length * width * (pre+post)
         """
@@ -412,7 +427,7 @@ class ClassificationGenerator(PairGenerator):
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
-        assert self.n_segment_classes = None
+        assert self.n_segment_classes is None
 
 
     def __getitem__(self, idx):
