@@ -210,16 +210,18 @@ def evaluate_segmentation_and_classification(data, model):
   thr = 0.01 * (288 * 384)
   for batch in data:
     y_pred, y_pred_classify = model.model.predict(batch[0])
-    y_true, y_true_classify = batch[1]
+    yw_true, yw_true_classify = batch[1]
 
     y_pred = scipy.special.softmax(y_pred, -1)
     y_pred_classify = scipy.special.softmax(y_pred_classify, -1)
     
-    y_true = y_true[:, :, :, :-1]
-    w = y_true[:, :, :, -1]
+    y_true = yw_true[..., :-1]
+    w = yw_true[..., -1]
+    y_true_classify = yw_true_classify[..., :-1]
+    w_true_classify = yw_true_classify[..., -1]
 
-    classify_valid_inds = np.nonzero(y_true_classify[:, -1])
-    classify_y_trues.append(y_true_classify[classify_valid_inds][:, :2])
+    classify_valid_inds = np.nonzero(w_true_classify)
+    classify_y_trues.append(y_true_classify[classify_valid_inds])
     classify_y_preds.append(y_pred_classify[classify_valid_inds])
 
     assert y_pred.shape[0] == y_true.shape[0] == w.shape[0]
