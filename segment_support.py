@@ -362,6 +362,8 @@ def assemble_for_training(dat_fs,
             all_Xs[ind] = np.expand_dims(_X, 2).astype(float)
             _y = cv2.resize(y, target_size)
             _w = cv2.resize(w, target_size)
+            _w[np.where(_y != _y)[:2]] = 0
+            _y[np.where(_y != _y)[:2]] = np.zeros((1, _y.shape[-1]))
             if label == 'segmentation':
                 _y[np.where((_y > 0) & (_y < 1))] = 1
                 _y[np.where((_y > 1) & (_y < 2))] = 1

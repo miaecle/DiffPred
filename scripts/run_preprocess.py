@@ -1,7 +1,7 @@
 from segment_support import *
 from data_loader import *
 from data_generator import CustomGenerator
-
+"""
 ### Preprocess ###
 data_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data'
 dat_fs = [f for f in os.listdir(data_path) if f.startswith('ex')]
@@ -47,19 +47,19 @@ for f_name in dat_fs:
 """
 
 ### Assemble for training ###
-data_root = '../iPSC_data'
-processed_fs = [data_root + '/linear_aligned_patches/%s' % f \
-                for f in os.listdir(data_root + '/linear_aligned_patches/') \
+data_root = '/oak/stanford/groups/jamesz/zqwu/iPSC_data'
+processed_fs = [data_root + '/discretized_fl/%s' % f \
+                for f in os.listdir(data_root + '/discretized_fl/') \
                 if 'processed' in f]
 
-pairs = sorted(load_all_pairs(path=data_root + '/predict_gfp_raw'))
+pairs = sorted(load_all_pairs(path='../iPSC_data/predict_gfp_raw'))
 valid_names = set(get_ex_day(p[0]) + get_well(p[0]) for p in pairs)
 
 def check_valid(name):
   return (get_ex_day(name) + get_well(name) in valid_names)
 
-data_path = data_root + '/linear_aligned_patches/merged_all/'
-_ = assemble_for_training(processed_fs, (384, 288), save_path=data_path, validity_check=check_valid, label='segmentation')
+data_path = data_root + '/discretized_fl/merged_all_in_order/'
+#_ = assemble_for_training(processed_fs, (384, 288), save_path=data_path, validity_check=check_valid, label='discretized')
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('X')])
 data_gen = CustomGenerator([os.path.join(data_path, 'X_%d.pkl' % i) for i in range(n_fs)],
                            [os.path.join(data_path, 'y_%d.pkl' % i) for i in range(n_fs)],
@@ -69,16 +69,16 @@ data_gen = CustomGenerator([os.path.join(data_path, 'X_%d.pkl' % i) for i in ran
                            batch_size=8)
 np.random.seed(123)
 permuted_inds = np.random.choice(np.arange(data_gen.N), (data_gen.N,), replace=False)
-_ = data_gen.reorder_save(permuted_inds, save_path=data_path+'permuted_')
+data_path2 = data_root + '/discretized_fl/merged_all/'
+_ = data_gen.reorder_save(permuted_inds, save_path=data_path2 + 'permuted_')
 
 
-
-data_path = data_root + '/linear_aligned_patches/merged_center/'
+data_path = data_root + '/discretized_fl/merged_center/'
 _ = assemble_for_training([f for f in processed_fs if 'ex2' in f or 'processed_5' in f], 
                           (384, 288), 
                           save_path=data_path, 
                           validity_check=check_valid,
-                          label='segmentation')
+                          label='discretized')
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('X')])
 data_gen = CustomGenerator([os.path.join(data_path, 'X_%d.pkl' % i) for i in range(n_fs)],
                            [os.path.join(data_path, 'y_%d.pkl' % i) for i in range(n_fs)],
@@ -91,7 +91,6 @@ permuted_inds = np.random.choice(np.arange(data_gen.N), (data_gen.N,), replace=F
 _ = data_gen.reorder_save(permuted_inds, save_path=data_path+'permuted_')
 
 
-"""
 """
 ### Sample figures ###
 processed_fs = [f for f in os.listdir('data/linear_aligned_middle_patch') if 'processed' in f]

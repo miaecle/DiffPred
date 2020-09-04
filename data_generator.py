@@ -215,7 +215,10 @@ class CustomGenerator(keras.utils.Sequence) :
         all_ys = {}
         all_ws = {}
         all_names = {}
-        all_labels = {}
+        if not self.labels is None:
+            all_labels = {}
+        else:
+            all_labels = None
 
         file_ind = 0
         for i, ind in enumerate(inds):
@@ -224,7 +227,8 @@ class CustomGenerator(keras.utils.Sequence) :
             all_ys[i] = sample_y
             all_ws[i] = sample_w
             all_names[i] = sample_name
-            all_labels[i] = self.labels[ind]
+            if not self.labels is None:
+                all_labels[i] = self.labels[ind]
             if save_path is not None and len(all_Xs) >= 100:
                 with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
                     pickle.dump(all_Xs, f)
@@ -234,8 +238,9 @@ class CustomGenerator(keras.utils.Sequence) :
                     pickle.dump(all_ws, f)
                 with open(save_path + 'names.pkl', 'wb') as f:
                     pickle.dump(all_names, f)
-                with open(save_path + 'labels.pkl', 'wb') as f:
-                    pickle.dump(all_labels, f)
+                if not self.labels is None:
+                    with open(save_path + 'labels.pkl', 'wb') as f:
+                        pickle.dump(all_labels, f)
                 file_ind += 1
                 all_Xs = {}
                 all_ys = {}
@@ -249,18 +254,21 @@ class CustomGenerator(keras.utils.Sequence) :
                 pickle.dump(all_ws, f)
             with open(save_path + 'names.pkl', 'wb') as f:
                 pickle.dump(all_names, f)
-            with open(save_path + 'labels.pkl', 'wb') as f:
-                pickle.dump(all_labels, f)
+            if not self.labels is None:
+                with open(save_path + 'labels.pkl', 'wb') as f:
+                    pickle.dump(all_labels, f)
             file_ind += 1
             all_Xs = {}
             all_ys = {}
             all_ws = {}
         if save_path:
-            return [save_path + 'X_%d.pkl' % i for i in range(file_ind)],\
-                   [save_path + 'y_%d.pkl' % i for i in range(file_ind)],\
-                   [save_path + 'w_%d.pkl' % i for i in range(file_ind)],\
-                   save_path + 'names.pkl',\
-                   save_path + 'labels.pkl'
+            paths = ([save_path + 'X_%d.pkl' % i for i in range(file_ind)],\
+                     [save_path + 'y_%d.pkl' % i for i in range(file_ind)],\
+                     [save_path + 'w_%d.pkl' % i for i in range(file_ind)],\
+                     save_path + 'names.pkl')
+            if not self.labels is None:
+                paths = paths + (save_path + 'labels.pkl',)
+            return paths
         else:
             return all_Xs, all_ys, all_ws, all_names, all_labels
 
