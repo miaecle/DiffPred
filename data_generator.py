@@ -180,7 +180,7 @@ class CustomGenerator(keras.utils.Sequence) :
             for i in range(self.n_classify_classes):
                 _y2[..., i] = (labels[:, 0] == i)
                 _w2 += labels[:, 1] * (labels[:, 0] == i) * self.classify_class_weights[i]
-            _y2[..., -1] = _w2
+            _y2[..., -1] = (_w2) * 0.2  # Hardcoded weight ratio for segmentation/classification task
         else:
             _y2 = None
 
