@@ -158,6 +158,12 @@ class CustomGenerator(keras.utils.Sequence) :
 
 
     def prepare_inputs(self, X, y=None, w=None, names=None, labels=None):
+        _X = self.prepare_features(X, names=names)
+        _labels = self.prepare_labels(y=y, w=w, labels=labels)
+        return _X, _labels
+
+
+    def prepare_features(self, X, names=None):
         if self.include_day:
             day_array = []
             for name in names:
@@ -165,10 +171,12 @@ class CustomGenerator(keras.utils.Sequence) :
                 day = float(day) if day != 'unknown' else 20 # ex2 is default to be in day 20
                 day_array.append(day)
             day_nums = np.array(day_array).reshape((-1, 1, 1, 1))
-            _X = np.concatenate([X, np.ones_like(X) * day_nums], 3)
+            return np.concatenate([X, np.ones_like(X) * day_nums], 3)
         else:
-            _X = X
-        
+            return X
+
+
+    def prepare_labels(self, y=None, w=None, labels=None):
         # Segment labels
         if not y is None:
             _y = np.zeros(list(X.shape[:-1]) + [self.n_segment_classes+1])
@@ -194,11 +202,11 @@ class CustomGenerator(keras.utils.Sequence) :
             _y2 = None
 
         if not y is None and not labels is None:
-            return _X, [_y, _y2]
+            return [_y, _y2]
         elif y is None and not labels is None:
-            return _X, _y2
+            return _y2
         elif not y is None and labels is None:
-            return _X, _y
+            return _y
         else:
             raise ValueError
 
@@ -282,139 +290,7 @@ class CustomGenerator(keras.utils.Sequence) :
             return all_Xs, all_ys, all_ws, all_names, all_labels
 
 
-
-class PairGenerator(CustomGenerator) :
-    def __init__(self,
-                 *args,
-                 output_mode={'pc': ['pre'], 'fl': ['post']},
-                 time_interval=[6, 10],
-                 **kwargs):
-
-        super().__init__(*args, **kwargs)
-        self.output_mode = output_mode
-        self.time_interval = time_interval
-        if 'seed' in kwargs:
-            np.random.seed(kwargs['seed'])
-        pair_inds = self.get_all_pairs()
-        self.selected_pair_inds = self.reorder_pair_inds(pair_inds)
-
-
-    def __len__(self):
-        return (np.ceil(len(self.selected_pair_inds) / float(self.batch_size))).astype(np.int)
-
-
-    def __getitem__(self, idx):
-        batch_X = []
-        batch_y = []
-        batch_w = []
-        batch_names = []
-        batch_labels = []
-        for i in range(idx * self.batch_size, (idx + 1) * self.batch_size):
-            if i >= len(self.selected_pair_inds):
-                break
-            ind_pair = self.selected_pair_inds[i]
-            seed = int(np.random.rand() * 1e9)
-            sample_X_pre, sample_y_pre, sample_w_pre, sample_name_pre = self.load_ind(ind_pair[0], random_seed=seed)
-            sample_X_post, sample_y_post, sample_w_post, sample_name_post = self.load_ind(ind_pair[1], random_seed=seed)
-
-            batch_names.append((sample_name_pre, sample_name_post))
-            sample_X = np.concatenate([sample_X_pre, sample_X_post], 2)
-            batch_X.append(sample_X)
-
-            if not self.n_segment_classes is None:
-                sample_y = np.stack([sample_y_pre, sample_y_post], 2)
-                sample_w = np.stack([sample_w_pre, sample_w_post], 2)
-                batch_y.append(sample_y)
-                batch_w.append(sample_w)
-            if not self.n_classify_classes is None:
-                batch_labels.append(
-                    binarized_fluorescence_label(*self.labels[ind_pair[0]]) + \
-                    binarized_fluorescence_label(*self.labels[ind_pair[1]]))
-
-        batch_X = np.stack(batch_X, 0)
-        if not self.n_segment_classes is None:
-            batch_y = np.stack(batch_y, 0)
-            batch_w = np.stack(batch_w, 0)
-        else:
-            batch_y = None
-            batch_w = None
-        if not self.n_classify_classes is None:
-            batch_labels = np.stack(batch_labels, 0)
-        else:
-            batch_labels = None
-        return self.prepare_inputs(batch_X, batch_y, batch_w, batch_names, batch_labels)
-
-
-    def prepare_inputs(self, X, y=None, w=None, names=None, labels=None):
-        """
-        X, y, w: batch * length * width * (pre+post)
-        """
-        _X = []
-        if 'pre' in self.output_mode['pc']:
-            _X.append(X[..., 0])
-        if 'post' in self.output_mode['pc']:
-            _X.append(X[..., 1])
-        _X = np.stack(_X, 3)
-        if self.include_day:
-            day_array = []
-            for name in names:
-                day_pre = float(get_ex_day(name[0])[1][1:])
-                day_post = float(get_ex_day(name[1])[1][1:])
-                day_array.append([day_pre, day_post - day_pre])
-            day_nums = np.array(day_array).reshape((-1, 1, 1, 2))
-            day_nums = day_nums * np.ones_like(_X[..., :1])
-            _X = np.concatenate([_X, day_nums], 3)
-        
-        # Segment labels
-        if not y is None:
-            _y = []
-            if 'pre' in self.output_mode['fl']:
-                _y_pre = np.zeros(list(X.shape[:-1]) + [self.n_segment_classes+1])
-                _w_pre = np.zeros_like(w[..., 0])
-                for i in range(self.n_segment_classes):
-                    _y_pre[..., i] = (y[..., 0] == i)
-                    _w_pre += w[..., 0] * (y[..., 0] == i) * self.segment_class_weights[i]
-                if not self.segment_extra_weights is None:
-                    _w_pre = self.segment_extra_weights(X[..., 0:1], _y_pre, _w_pre)
-                _y_pre[..., -1] = _w_pre
-                _y.append(_y_pre)
-            if 'post' in self.output_mode['fl']:
-                _y_post = np.zeros(list(X.shape[:-1]) + [self.n_segment_classes+1])
-                _w_post = np.zeros_like(w[..., 1])
-                for i in range(self.n_segment_classes):
-                    _y_post[..., i] = (y[..., 1] == i)
-                    _w_post += w[..., 1] * (y[..., 1] == i) * self.segment_class_weights[i]
-                if not self.segment_extra_weights is None:
-                    _w_post = self.segment_extra_weights(X[..., 1:2], _y_post, _w_post)
-                _y_post[..., -1] = _w_post
-                _y.append(_y_post)
-            _y = np.concatenate(_y, 3)
-        else:
-            _y = None
-
-        # Classify labels
-        if not labels is None:
-            # 0: pre-y, 1: pre-w, 2: post-y, 3: post-w
-            _y2 = np.zeros((labels.shape[0], self.n_classify_classes + 1))
-            _w2 = np.zeros_like(labels[:, 3], dtype=float)
-            for i in range(self.n_classify_classes):
-                _y2[..., i] = (labels[:, 2] == i)
-                _w2 += labels[:, 3] * (labels[:, 2] == i) * self.classify_class_weights[i]
-            _y2[..., -1] = _w2
-        else:
-            _y2 = None
-
-        if not y is None and not labels is None:
-            return _X, [_y, _y2]
-        elif y is None and not labels is None:
-            return _X, _y2
-        elif not y is None and labels is None:
-            return _X, _y
-        else:
-            raise ValueError
-
-
-    def get_all_pairs(self):
+    def get_all_pairs(self, time_interval=[1, 3]):
         infos = {k: get_ex_day(v) + get_well(v) for k, v in self.names.items() if k in self.selected_inds}
         infos_reverse_mapping = {v: k for k, v in infos.items()}
         valid_pairs = []
@@ -422,7 +298,7 @@ class PairGenerator(CustomGenerator) :
             d = infos[ind_i]
             if d[1] == 'Dunknown':
                 continue
-            for t in range(self.time_interval[0], self.time_interval[1]+1):
+            for t in range(time_interval[0], time_interval[1]+1):
                 new_d = (d[0], 'D%d' % (int(d[1][1:])+t), d[2], d[3])
                 if new_d in infos_reverse_mapping:
                     ind_j = infos_reverse_mapping[new_d]
@@ -430,46 +306,87 @@ class PairGenerator(CustomGenerator) :
         return valid_pairs
 
 
-    def reorder_pair_inds(self, pairs):
-        def get_pair_group(pair):
-            return (pair[0] // self.sample_per_file, pair[1] // self.sample_per_file)
-        pair_groups = sorted(set(get_pair_group(p) for p in pairs))
-        np.random.shuffle(pair_groups)
-        return sorted(pairs, key=lambda x: pair_groups.index(get_pair_group(x)))
+    def cross_pair_save(self, time_interval=[1, 3], save_path=None):
+        valid_pairs = self.get_all_pairs(time_interval=time_interval)
+        np.random.shuffle(valid_pairs)
+
+        all_Xs = {}
+        all_ys = {}
+        all_ws = {}
+        all_names = {}
+        if not self.labels is None:
+            all_labels = {}
+        else:
+            all_labels = None
+
+        file_ind = 0
+        for i, pair in enumerate(valid_pairs):
+            sample_X, _, _, sample_name_pre = self.load_ind(pair[0], force_augment_off=True)
+            _, sample_y, sample_w, sample_name_post = self.load_ind(pair[1], force_augment_off=True)
+            all_Xs[i] = sample_X
+            all_ys[i] = sample_y
+            all_ws[i] = sample_w
+            all_names[i] = (sample_name_pre, sample_name_post)
+            if not self.labels is None:
+                all_labels[i] = self.labels[pair[1]]
+            if save_path is not None and len(all_Xs) >= 100:
+                with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
+                    pickle.dump(all_Xs, f)
+                with open(save_path + 'y_%d.pkl' % file_ind, 'wb') as f:
+                    pickle.dump(all_ys, f)
+                with open(save_path + 'w_%d.pkl' % file_ind, 'wb') as f:
+                    pickle.dump(all_ws, f)
+                with open(save_path + 'names.pkl', 'wb') as f:
+                    pickle.dump(all_names, f)
+                if not self.labels is None:
+                    with open(save_path + 'labels.pkl', 'wb') as f:
+                        pickle.dump(all_labels, f)
+                file_ind += 1
+                all_Xs = {}
+                all_ys = {}
+                all_ws = {}
+        if save_path is not None and len(all_Xs) > 0:
+            with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
+                pickle.dump(all_Xs, f)
+            with open(save_path + 'y_%d.pkl' % file_ind, 'wb') as f:
+                pickle.dump(all_ys, f)
+            with open(save_path + 'w_%d.pkl' % file_ind, 'wb') as f:
+                pickle.dump(all_ws, f)
+            with open(save_path + 'names.pkl', 'wb') as f:
+                pickle.dump(all_names, f)
+            if not self.labels is None:
+                with open(save_path + 'labels.pkl', 'wb') as f:
+                    pickle.dump(all_labels, f)
+            file_ind += 1
+            all_Xs = {}
+            all_ys = {}
+            all_ws = {}
+        if save_path:
+            paths = ([save_path + 'X_%d.pkl' % i for i in range(file_ind)],\
+                     [save_path + 'y_%d.pkl' % i for i in range(file_ind)],\
+                     [save_path + 'w_%d.pkl' % i for i in range(file_ind)],\
+                     save_path + 'names.pkl')
+            if not self.labels is None:
+                paths = paths + (save_path + 'labels.pkl',)
+            return paths
+        else:
+            return all_Xs, all_ys, all_ws, all_names, all_labels
 
 
 
-class ClassificationGenerator(PairGenerator):
-    def __init__(self,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        assert self.n_segment_classes is None
+class PairGenerator(CustomGenerator) :
 
-
-    def __getitem__(self, idx):
-        batch_X = []
-        batch_names = []
-        batch_labels = []
-        for i in range(idx * self.batch_size, (idx + 1) * self.batch_size):
-            if i >= len(self.selected_pair_inds):
-                break
-            ind_pair = self.selected_pair_inds[i]
-            sample_X_pre, _, _, _ = self.load_ind(ind_pair[0])
-
-            batch_names.append((self.names[ind_pair[0]], self.names[ind_pair[1]]))
-            sample_X = np.concatenate([sample_X_pre, sample_X_post], 2)
-            batch_X.append(sample_X)
-            batch_labels.append(self.labels[ind_pair[0]] + self.labels[ind_pair[1]])
-
-        batch_X = np.stack(batch_X, 0)
-        batch_labels = np.stack(batch_labels, 0)
-        return self.prepare_inputs(batch_X, None, None, batch_names, batch_labels)
-
-
-    def reorder_pair_inds(self, pairs):
-        def get_pair_group(pair):
-            return pair[0] // self.sample_per_file
-        pair_groups = sorted(set(get_pair_group(p) for p in pairs))
-        np.random.shuffle(pair_groups)
-        return sorted(pairs, key=lambda x: pair_groups.index(get_pair_group(x)))
+    def prepare_features(self, X, names=None):
+        if self.include_day:
+            day_array = []
+            for name in names:
+                day_pre = get_ex_day(name[0])[1][1:]
+                day_post = get_ex_day(name[0])[1][1:]
+                day_pre = float(day_pre)
+                day_post = float(day_post)
+                day_array.append((day_pre, day_post - day_pre))
+            day_nums = np.array(day_array).reshape((-1, 1, 1, 2))
+            _X = np.concatenate([X, np.ones_like(X[..., 0:1]) * day_nums], 3)
+        else:
+            _X = X
+        return _X
