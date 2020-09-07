@@ -306,7 +306,6 @@ def evaluate_classification_with_segment_model(data, model, thr=800):
 
 
 def load_partial_weights(model, model2):
-    # Only applicable to Segment/Classify models
     main_module_ind = 2
     main_module = model.model.layers[main_module_ind]
     main_module2 = model2.model.layers[2]
@@ -330,7 +329,44 @@ def load_partial_weights(model, model2):
             except Exception as e:
                 print(e)
                 unmatched.append((l_ind, l_name))
+
+    layer_names = [l.name for l in model.model.layers]
+    layer_names2 = [l.name for l in model2.model.layers]
+    for l_ind, l_name in enumerate(layer_names):
+        if l_ind == main_module_ind:
+            continue
+        if len(model.model.layers[l_ind].weights) == 0:
+            continue
+        if l_name in layer_names2:
+            l_ind2 = layer_names2.index(l_name)
+            l_weights = model.model.layers[l_ind].get_weights()
+            l_weights2 = model2.model.layers[l_ind2].get_weights()
+            if not len(l_weights) == len(l_weights2):
+                unmatched.append((l_ind, l_name))
+                continue
+            try:
+                model.model.layers[l_ind].set_weights(l_weights2)
+            except Exception as e:
+                print(e)
+                unmatched.append((l_ind, l_name))
+
     print("Unmatched: %s" % str(unmatched))
+    return model
+
+
+def fill_first_layer(model, model2):
+    """
+    Hardcoded function that copies pre conv weight from model2 (3*2) to model (3*3)
+    """
+    pre_conv_ind = [i for i, l in enumerate(model.model.layers) if 'pre_conv' in l.name][0]
+    pre_conv_weight = model.model.layers[pre_conv_ind].get_weights()
+
+    pre_conv_ind2 = [i for i, l in enumerate(model2.model.layers) if 'pre_conv' in l.name][0]
+    pre_conv_weight2 = model2.model.layers[pre_conv_ind2].get_weights()
+    w, bias = pre_conv_weight2
+
+    assembled_w = np.stack([w[0], w[1], np.zeros_like(w[1])], 0)
+    model.model.layers[pre_conv_ind].set_weights([assembled_w, bias])
     return model
 
 

@@ -27,7 +27,6 @@ class Segment(object):
   def __init__(self,
                input_shape=(288, 384, 1),
                n_classes=2,
-               class_weights=[1, 10],
                encoder_weights='imagenet',
                freeze_encoder=False,
                eval_fn=evaluate_segmentation,
@@ -36,8 +35,6 @@ class Segment(object):
                **kwargs):
     self.input_shape = input_shape
     self.n_classes = n_classes
-    self.class_weights = class_weights
-    assert len(self.class_weights) == self.n_classes
 
     self.structure = model_structure
     self.encoder_weights = encoder_weights
@@ -189,7 +186,6 @@ class Classify(Segment):
                input_shape=(288, 384, 1),
                fc_layers=[1024, 128],
                n_classes=2,
-               class_weights=[1, 1],
                encoder_weights='imagenet',
                eval_fn=evaluate_classification,
                model_structure='resnet34',
@@ -198,8 +194,6 @@ class Classify(Segment):
     self.input_shape = input_shape
     self.fc_layers = fc_layers
     self.n_classes = n_classes
-    self.class_weights = class_weights
-    assert len(self.class_weights) == self.n_classes
 
     self.encoder_weights = encoder_weights
     if model_path is None:
@@ -254,8 +248,6 @@ class ClassifyOnSegment(Segment):
                fc_layers=[64, 32],
                n_segment_classes=2,
                n_classify_classes=2,
-               segment_class_weights=[1, 10],
-               classify_class_weights=[1, 1],
                encoder_weights='imagenet',
                freeze_encoder=False,
                eval_fn=evaluate_segmentation_and_classification,
@@ -268,10 +260,6 @@ class ClassifyOnSegment(Segment):
 
     self.n_segment_classes = n_segment_classes
     self.n_classify_classes = n_classify_classes
-    self.segment_class_weights = segment_class_weights
-    self.classify_class_weights = classify_class_weights
-    assert len(self.segment_class_weights) == self.n_segment_classes
-    assert len(self.classify_class_weights) == self.n_classify_classes
 
     self.encoder_weights = encoder_weights
     self.structure = segment_model_structure

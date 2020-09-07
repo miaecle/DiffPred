@@ -29,6 +29,7 @@ class CustomGenerator(keras.utils.Sequence) :
                  augment=False,
                  N=None,
                  selected_inds=None,
+                 shuffle_inds=False,
                  include_day=True,
                  batch_size=8,
                  n_segment_classes=2,
@@ -65,9 +66,8 @@ class CustomGenerator(keras.utils.Sequence) :
         else:
             self.N = N
         if selected_inds is None:
-            self.selected_inds = np.arange(self.N)
-        else:
-            self.selected_inds = selected_inds
+            selected_inds = np.arange(self.N)
+        self.selected_inds = self.reorder_inds(selected_inds, shuffle_inds=shuffle_inds)
 
         # Label details
         self.n_segment_classes = n_segment_classes
@@ -148,6 +148,15 @@ class CustomGenerator(keras.utils.Sequence) :
         return sample_X, sample_y, sample_w, sample_name
 
 
+    def reorder_inds(self, inds, shuffle_inds=False):
+        def get_group(ind):
+            return ind // self.sample_per_file
+        groups = sorted(set(get_group(i) for i in inds))
+        if shuffle_inds:
+            np.random.shuffle(groups)
+        return sorted(inds, key=lambda x: groups.index(get_group(x)))
+
+
     def prepare_inputs(self, X, y=None, w=None, names=None, labels=None):
         if self.include_day:
             day_array = []
@@ -176,11 +185,11 @@ class CustomGenerator(keras.utils.Sequence) :
         # Classify labels
         if not labels is None:
             _y2 = np.zeros((labels.shape[0], self.n_classify_classes + 1))
-            _w2 = np.zeros_like(labels[:, 1])
+            _w2 = np.zeros_like(labels[:, 1], dtype=float)
             for i in range(self.n_classify_classes):
                 _y2[..., i] = (labels[:, 0] == i)
                 _w2 += labels[:, 1] * (labels[:, 0] == i) * self.classify_class_weights[i]
-            _y2[..., -1] = (_w2) * 0.2  # Hardcoded weight ratio for segmentation/classification task
+            _y2[..., -1] = _w2
         else:
             _y2 = None
 
@@ -351,11 +360,11 @@ class PairGenerator(CustomGenerator) :
             for name in names:
                 day_pre = float(get_ex_day(name[0])[1][1:])
                 day_post = float(get_ex_day(name[1])[1][1:])
-                day_array.append([day_pre, day_post])
+                day_array.append([day_pre, day_post - day_pre])
             day_nums = np.array(day_array).reshape((-1, 1, 1, 2))
             day_nums = day_nums * np.ones_like(_X[..., :1])
             _X = np.concatenate([_X, day_nums], 3)
-
+        
         # Segment labels
         if not y is None:
             _y = []
@@ -387,7 +396,7 @@ class PairGenerator(CustomGenerator) :
         if not labels is None:
             # 0: pre-y, 1: pre-w, 2: post-y, 3: post-w
             _y2 = np.zeros((labels.shape[0], self.n_classify_classes + 1))
-            _w2 = np.zeros_like(labels[:, 3])
+            _w2 = np.zeros_like(labels[:, 3], dtype=float)
             for i in range(self.n_classify_classes):
                 _y2[..., i] = (labels[:, 2] == i)
                 _w2 += labels[:, 3] * (labels[:, 2] == i) * self.classify_class_weights[i]
