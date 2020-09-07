@@ -306,8 +306,10 @@ class CustomGenerator(keras.utils.Sequence) :
         return valid_pairs
 
 
-    def cross_pair_save(self, time_interval=[1, 3], save_path=None):
+    def cross_pair_save(self, time_interval=[1, 3], seed=None, save_path=None):
         valid_pairs = self.get_all_pairs(time_interval=time_interval)
+        if not seed is None:
+            np.random.seed(seed)
         np.random.shuffle(valid_pairs)
 
         all_Xs = {}
