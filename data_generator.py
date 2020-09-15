@@ -159,7 +159,7 @@ class CustomGenerator(keras.utils.Sequence) :
 
     def prepare_inputs(self, X, y=None, w=None, names=None, labels=None):
         _X = self.prepare_features(X, names=names)
-        _labels = self.prepare_labels(y=y, w=w, labels=labels)
+        _labels = self.prepare_labels(_X, y=y, w=w, labels=labels)
         return _X, _labels
 
 
@@ -176,10 +176,10 @@ class CustomGenerator(keras.utils.Sequence) :
             return X
 
 
-    def prepare_labels(self, y=None, w=None, labels=None):
+    def prepare_labels(self, _X, y=None, w=None, labels=None):
         # Segment labels
         if not y is None:
-            _y = np.zeros(list(X.shape[:-1]) + [self.n_segment_classes+1])
+            _y = np.zeros(list(_X.shape[:-1]) + [self.n_segment_classes+1])
             _w = np.zeros_like(w)
             for i in range(self.n_segment_classes):
                 _y[..., i] = (y == i)
@@ -383,7 +383,7 @@ class PairGenerator(CustomGenerator) :
             day_array = []
             for name in names:
                 day_pre = get_ex_day(name[0])[1][1:]
-                day_post = get_ex_day(name[0])[1][1:]
+                day_post = get_ex_day(name[1])[1][1:]
                 day_pre = float(day_pre)
                 day_post = float(day_post)
                 day_array.append((day_pre, day_post - day_pre))
