@@ -238,7 +238,7 @@ def quantize_fluorescence(pair_dat, mask):
     fl_discretized = [np.exp(-((fl - seg)/(0.8*interval_seg))**2) for seg in segs]
     fl_discretized = np.stack(fl_discretized, 2)
     fl_discretized = fl_discretized/fl_discretized.sum(2, keepdims=True)
-    return fl_discretized
+    return fl_discretized.astype('float16')
 
 
 def binarized_fluorescence_label(y, w):
