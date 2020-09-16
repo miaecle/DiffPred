@@ -17,7 +17,8 @@ def enhance_weight_fp(_X, _y, _w, ratio=5):
     return _w
 
 
-def binarized_fluorescence_label((y, w)):
+def binarized_fluorescence_label(inputs):
+    y, w = inputs
     if isinstance(y, np.ndarray):
         y_ct = np.where(y == 1)[0].size
         w_ct = np.where(np.sign(w) == 0)[0].size
