@@ -17,7 +17,7 @@ from keras import backend as K
 from keras.models import Model, load_model
 from keras import layers
 from keras.layers import Dense, Layer, Input, BatchNormalization, Conv2D, Lambda
-from layers import weighted_binary_cross_entropy, classification_binary_cross_entropy, l2_loss
+from layers import weighted_binary_cross_entropy, l2_loss
 from layers import Conv2dBn, ValidMetrics
 from layers import evaluate_segmentation, evaluate_classification, evaluate_segmentation_and_classification
 from segment_support import preprocess
@@ -205,7 +205,7 @@ class Classify(Segment):
                        keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
     self.valid_score_callback = ValidMetrics(eval_fn)
 
-    self.loss_func = classification_binary_cross_entropy(n_classes=n_classes)
+    self.loss_func = weighted_binary_cross_entropy(n_classes=n_classes)
     self.build_model()
     self.compile()
 
@@ -273,7 +273,7 @@ class ClassifyOnSegment(Segment):
     self.valid_score_callback = ValidMetrics(eval_fn)
 
     self.loss_func = [weighted_binary_cross_entropy(n_classes=n_segment_classes),
-                      classification_binary_cross_entropy(n_classes=n_classify_classes)]
+                      weighted_binary_cross_entropy(n_classes=n_classify_classes)]
     self.build_model()
     self.compile()
 

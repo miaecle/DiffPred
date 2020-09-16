@@ -4,7 +4,6 @@ import os
 import pickle
 from data_loader import get_ex_day, get_well
 from data_augmentation import Augment
-from segment_support import binarized_fluorescence_label
 
 
 def enhance_weight_fp(_X, _y, _w, ratio=5):
@@ -16,6 +15,27 @@ def enhance_weight_fp(_X, _y, _w, ratio=5):
         thr = np.median(X) - 2 * np.std(X)
         _w[i][np.where(X < thr)] *= ratio
     return _w
+
+
+def binarized_fluorescence_label((y, w)):
+    if isinstance(y, np.ndarray):
+        y_ct = np.where(y == 1)[0].size
+        w_ct = np.where(np.sign(w) == 0)[0].size
+    elif np.all(int(y) == y):
+        y_ct = y
+        w_ct = w
+    else:
+        raise ValueError("Data type not supported")
+    if y_ct > 500:
+        sample_y = 1
+        sample_w = 1
+    elif y_ct == 0 and w_ct < 600:
+        sample_y = 0
+        sample_w = 1
+    else:
+        sample_y = 0
+        sample_w = 0
+    return sample_y, sample_w
 
 
 
@@ -35,8 +55,10 @@ class CustomGenerator(keras.utils.Sequence) :
                  n_segment_classes=2,
                  segment_class_weights=[1, 3],
                  segment_extra_weights=None,
+                 segment_label_type='segmentation',
                  n_classify_classes=None,
                  classify_class_weights=None,
+                 classify_label_fn=None,
                  sample_per_file=100,
                  allow_size=3,
                  **kwargs):
@@ -51,7 +73,7 @@ class CustomGenerator(keras.utils.Sequence) :
 
         # If to apply data augmentation
         if augment:
-            self.augment = Augment()
+            self.augment = Augment(segment_label_type=segment_label_type)
         else:
             self.augment = None
 
@@ -73,11 +95,13 @@ class CustomGenerator(keras.utils.Sequence) :
         self.n_segment_classes = n_segment_classes
         self.segment_class_weights = segment_class_weights
         self.segment_extra_weights = segment_extra_weights
-        if not self.n_segment_classes is None:
+        self.segment_label_type = segment_label_type
+        if not self.n_segment_classes is None and self.segment_label_type == 'segmentation':
             assert len(self.segment_class_weights) == self.n_segment_classes
 
         self.n_classify_classes = n_classify_classes
         self.classify_class_weights = classify_class_weights
+        self.classify_label_fn = classify_label_fn
         if not self.n_classify_classes is None:
             assert len(self.classify_class_weights) == self.n_classify_classes
 
@@ -111,7 +135,10 @@ class CustomGenerator(keras.utils.Sequence) :
                 batch_y.append(sample_y)
                 batch_w.append(sample_w)
             if not self.n_classify_classes is None:
-                batch_labels.append(binarized_fluorescence_label(*self.labels[ind]))
+                if not self.classify_label_fn is None:
+                    batch_labels.append(self.classify_label_fn(self.labels[ind]))
+                else:
+                    batch_labels.append(self.labels[ind])
 
         batch_X = np.stack(batch_X, 0)
         if not self.n_segment_classes is None:
@@ -181,9 +208,14 @@ class CustomGenerator(keras.utils.Sequence) :
         if not y is None:
             _y = np.zeros(list(_X.shape[:-1]) + [self.n_segment_classes+1])
             _w = np.zeros_like(w)
-            for i in range(self.n_segment_classes):
-                _y[..., i] = (y == i)
-                _w += w * (y == i) * self.segment_class_weights[i]
+            if self.segment_label_type == 'segmentation':
+                for i in range(self.n_segment_classes):
+                    _y[..., i] = (y == i)
+                    _w += w * (y == i) * self.segment_class_weights[i]
+            elif self.segment_label_type == 'discretized_fl':
+                y = y.astype(float)
+                assert y.shape[-1] == self.n_segment_classes
+                _y[..., :self.n_segment_classes] = y
             if not self.segment_extra_weights is None:
                 _w = self.segment_extra_weights(_X, _y, _w)
             _y[..., -1] = _w
