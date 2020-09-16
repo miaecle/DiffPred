@@ -2,7 +2,7 @@ from data_loader import *
 from segment_support import *
 from models import Segment, ClassifyOnSegment
 from layers import load_partial_weights, fill_first_layer
-from data_generator import CustomGenerator, PairGenerator, enhance_weight_fp
+from data_generator import CustomGenerator, PairGenerator, enhance_weight_fp, binarized_fluorescence_label
 from scipy.stats import spearmanr, pearsonr
 
 data_path = 'data/linear_aligned_patches/cross_1-to-3/'

@@ -3,7 +3,6 @@ from segment_support import *
 from layers import *
 from models import Segment, ClassifyOnSegment
 from data_generator import CustomGenerator, enhance_weight_fp, binarized_fluorescence_label
-from segment_support import binarized_fluorescence_label
 
 data_path = 'data/linear_aligned_patches/merged_all/'
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('permuted_X')])

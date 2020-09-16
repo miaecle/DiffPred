@@ -217,6 +217,8 @@ class CustomGenerator(keras.utils.Sequence) :
                 y = y.astype(float)
                 assert y.shape[-1] == self.n_segment_classes
                 _y[..., :self.n_segment_classes] = y
+                for i in range(self.n_segment_classes):
+                    _w += w * y[..., i] * self.segment_class_weights[i]
             if not self.segment_extra_weights is None:
                 _w = self.segment_extra_weights(_X, _y, _w)
             _y[..., -1] = _w
