@@ -246,6 +246,53 @@ def evaluate_segmentation_and_classification(data, model):
   return
 
 
+def evaluate_confusion_mat(data, model):
+  """
+  data: CustomGenerator, PairGenerator, etc.
+  model: ClassifyOnSegment
+  """
+  conf_mat_seg = np.zeros((10, 10))
+  conf_mat_classify = np.zeros((10, 10))
+  for batch in data:
+    y_pred, y_pred_classify = model.model.predict(batch[0])
+    yw_true, yw_true_classify = batch[1]
+
+    y_pred = scipy.special.softmax(y_pred, -1)
+    y_pred_classify = scipy.special.softmax(y_pred_classify, -1)
+    
+    y_true = yw_true[..., :-1]
+    w = yw_true[..., -1]
+    y_true_classify = yw_true_classify[..., :-1]
+    w_true_classify = yw_true_classify[..., -1]
+
+    for c_y_pred, c_y_true, c_w in zip(y_pred_classify, y_true_classify, w_true_classify):
+      if c_w == 0:
+        continue
+      conf_mat_classify[np.argmax(c_y_true), np.argmax(c_y_pred)] += 1
+
+    assert y_pred.shape[0] == y_true.shape[0] == w.shape[0]
+    for _y_pred, _y_true, _w in zip(y_pred, y_true, w):
+      _y_pred = _y_pred[np.nonzero(_w)]
+      _y_true = _y_true[np.nonzero(_w)]
+      for i, j in zip(np.argmax(_y_true, 1), np.argmax(_y_pred, 1)):
+        conf_mat_seg[i, j] += 1
+
+
+  n_seg_classes = np.where(conf_mat_seg > 0)[0].max() + 1
+  conf_mat_seg = conf_mat_seg[:n_seg_classes, :n_seg_classes]
+
+  n_classify_classes = np.where(conf_mat_classify > 0)[0].max() + 1
+  conf_mat_classify = conf_mat_classify[:n_seg_classes, :n_seg_classes]  
+
+  conf_mat_seg = conf_mat_seg/conf_mat_seg.sum(1, keepdims=True)
+  conf_mat_classify = conf_mat_classify/conf_mat_classify.sum(1, keepdims=True)
+  print("Segmentation")
+  print(conf_mat_seg)
+  print("Classification")
+  print(conf_mat_classify)
+  return
+
+  
 def evaluate_classification_with_segment_model(data, model, thr=800):
   """
   data: CustomGenerator, PairGenerator, etc.
