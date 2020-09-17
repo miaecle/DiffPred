@@ -59,7 +59,6 @@ model = ClassifyOnSegment(
     n_classify_classes=4,
     eval_fn=evaluate_confusion_mat)
 
-model.load('./model_save/pspnet_random_0-to-0_0.model')
 model.fit(train_gen,
           valid_gen=valid_gen,
           n_epochs=50)
