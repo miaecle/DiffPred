@@ -1,3 +1,5 @@
+import os
+os.environ['KERAS_BACKEND'] = 'tensorflow'
 from data_loader import *
 from segment_support import *
 from models import Segment, ClassifyOnSegment
