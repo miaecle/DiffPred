@@ -94,7 +94,7 @@ for ind in test_gen.selected_inds:
     ind2 = [i for i, n in ref_gen.names.items() if n==name][0]
     x, y, w, _ = ref_gen.load_ind(ind2)
     phase = x
-    fl = y[..., 1]*0.333 + y[..., 2]*667 + y[..., 3]
+    fl = y[..., 1]*0.333 + y[..., 2]*0.667 + y[..., 3]
     fl_pred = seg_preds[ind]
     cl_pred = cl_preds[ind]
     fig_name = '_'.join(get_ex_day(name) + get_well(name))

@@ -277,19 +277,49 @@ def evaluate_confusion_mat(data, model):
       for i, j in zip(np.argmax(_y_true, 1), np.argmax(_y_pred, 1)):
         conf_mat_seg[i, j] += 1
 
-
   n_seg_classes = np.where(conf_mat_seg > 0)[0].max() + 1
   conf_mat_seg = conf_mat_seg[:n_seg_classes, :n_seg_classes]
 
   n_classify_classes = np.where(conf_mat_classify > 0)[0].max() + 1
-  conf_mat_classify = conf_mat_classify[:n_seg_classes, :n_seg_classes]  
+  conf_mat_classify = conf_mat_classify[:n_classify_classes, :n_classify_classes]  
 
   conf_mat_seg = conf_mat_seg/conf_mat_seg.sum(1, keepdims=True)
   conf_mat_classify = conf_mat_classify/conf_mat_classify.sum(1, keepdims=True)
   print("Segmentation")
   print(conf_mat_seg)
+  summarize_conf_mat(conf_mat_seg)
   print("Classification")
   print(conf_mat_classify)
+  summarize_conf_mat(conf_mat_classify)
+  return
+
+
+def summarize_conf_mat(conf_mat):
+  n_classes = conf_mat.shape[0]
+  conf_mat = conf_mat/conf_mat.sum(1, keepdims=True)
+  # Assuming balanced classes
+  simple_accuracy = np.mean(np.diag(conf_mat)) 
+  error1 = {} # Higher than True
+  error2 = {} # Lower than true
+  for error_level in range(1, n_classes):
+    error1[error_level] = []
+    error2[error_level] = []
+    for i in range(n_classes - error_level):
+      error1[error_level].append(conf_mat[i, i+error_level])
+      error2[error_level].append(conf_mat[i+error_level, i])
+
+  weighted_error1 = sum([level**2 * np.mean(error1[level]) for level in sorted(error1)])
+  weighted_error2 = sum([level**2 * np.mean(error2[level]) for level in sorted(error2)])
+
+  print("Accuracy:\t%.2f" % simple_accuracy)
+  output_line = ["Error (Higher pred):"] + \
+                ["%d - %.2f" % (level, np.mean(error1[level])) for level in sorted(error1)] + \
+                ["weighted - %.2f" % weighted_error1]
+  print("\t".join(output_line))
+  output_line = ["Error (Lower pred):"] + \
+                ["%d - %.2f" % (level, np.mean(error2[level])) for level in sorted(error2)] + \
+                ["weighted - %.2f" % weighted_error2]
+  print("\t".join(output_line))
   return
 
   
