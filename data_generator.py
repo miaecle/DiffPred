@@ -170,10 +170,14 @@ class CustomGenerator(keras.utils.Sequence) :
             sample_y = pickle.load(open(self.y_filenames[f_ind], 'rb'))[ind]
             sample_w = pickle.load(open(self.w_filenames[f_ind], 'rb'))[ind]
 
-        if self.segment_label_type == 'segmentation':
+        if sample_y is None:
+            pass
+        elif self.segment_label_type == 'segmentation':
             sample_y = sample_y.astype(int)
-        else:
+        elif self.segment_label_type == 'discretized':
             sample_y = sample_y.astype(float)
+        else:
+            raise ValueError
 
         if not force_augment_off and not self.augment is None:
             if not random_seed is None:

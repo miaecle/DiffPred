@@ -3,6 +3,7 @@ from data_loader import *
 from data_generator import CustomGenerator
 
 ### Preprocess ###
+print("PREPROCESS")
 data_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data'
 dat_fs = [f for f in os.listdir(data_path) if f.startswith('ex')]
 
@@ -13,13 +14,13 @@ for f_name in dat_fs:
     if not f_name.startswith('ex2'): # ex2 is a different setting
       dats = pickle.load(open(data_path + '/%s.pkl' % f_name, 'rb'))
       for pos_code in ['2', '4', '5', '6', '8']:
-        if os.path.exists(data_path + '/discretized_fl/%s_processed_%s.pkl' % (f_name, pos_code)):
+        if os.path.exists(data_path + '/linear_aligned_patches/%s_processed_%s.pkl' % (f_name, pos_code)):
           continue
         print(pos_code)
         try:
           pos_code_dats = {k:v for k,v in dats.items() if get_well(k[0])[1] == pos_code}
-          processed_dats = preprocess(pos_code_dats, linear_align=True, label='discretized')
-          with open(data_path + '/discretized_fl/%s_processed_%s.pkl' % (f_name, pos_code), 'wb') as f:
+          processed_dats = preprocess(pos_code_dats, linear_align=True, label='segmentation')
+          with open(data_path + '/linear_aligned_patches/%s_processed_%s.pkl' % (f_name, pos_code), 'wb') as f:
             pickle.dump(processed_dats, f)
         except Exception as e:
           print(e)
@@ -27,7 +28,7 @@ for f_name in dat_fs:
     else:
       dats = pickle.load(open(data_path + '/%s.pkl' % f_name, 'rb'))
       for well in ['A1', 'A2', 'A3', 'B2', 'B3']:
-        if os.path.exists(data_path + '/discretized_fl/%s_processed_%s.pkl' % (f_name, well)):
+        if os.path.exists(data_path + '/linear_aligned_patches/%s_processed_%s.pkl' % (f_name, well)):
           continue
         print(well)
         try:
@@ -37,8 +38,8 @@ for f_name in dat_fs:
                                         '14', '15', '30',
                                         '196', '211', '212',
                                         '210', '224', '225']}
-          processed_dats = preprocess(pos_code_dats, linear_align=False, label='discretized')
-          with open(data_path + '/discretized_fl/%s_processed_%s.pkl' % (f_name, well), 'wb') as f:
+          processed_dats = preprocess(pos_code_dats, linear_align=False, label='segmentation')
+          with open(data_path + '/linear_aligned_patches/%s_processed_%s.pkl' % (f_name, well), 'wb') as f:
             pickle.dump(processed_dats, f)
         except Exception as e:
           print(e)
@@ -47,19 +48,14 @@ for f_name in dat_fs:
 
 
 ### Assemble for training ###
+print("ASSEMBLE")
 data_root = '/oak/stanford/groups/jamesz/zqwu/iPSC_data'
-processed_fs = [data_root + '/discretized_fl/%s' % f \
-                for f in os.listdir(data_root + '/discretized_fl/') \
+processed_fs = [data_root + '/linear_aligned_patches/%s' % f \
+                for f in os.listdir(data_root + '/linear_aligned_patches/') \
                 if 'processed' in f]
 
-pairs = sorted(load_all_pairs(path='../iPSC_data/predict_gfp_raw'))
-valid_names = set(get_ex_day(p[0]) + get_well(p[0]) for p in pairs)
-
-def check_valid(name):
-  return (get_ex_day(name) + get_well(name) in valid_names)
-
-data_path = data_root + '/discretized_fl/merged_all_in_order/'
-#_ = assemble_for_training(processed_fs, (384, 288), save_path=data_path, validity_check=check_valid, label='discretized')
+data_path = data_root + '/linear_aligned_patches/merged_all_in_order/'
+_ = assemble_for_training(processed_fs, (384, 288), save_path=data_path, label='segmentation')
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('X')])
 data_gen = CustomGenerator([os.path.join(data_path, 'X_%d.pkl' % i) for i in range(n_fs)],
                            [os.path.join(data_path, 'y_%d.pkl' % i) for i in range(n_fs)],
@@ -69,16 +65,15 @@ data_gen = CustomGenerator([os.path.join(data_path, 'X_%d.pkl' % i) for i in ran
                            batch_size=8)
 np.random.seed(123)
 permuted_inds = np.random.choice(np.arange(data_gen.N), (data_gen.N,), replace=False)
-data_path2 = data_root + '/discretized_fl/merged_all/'
+data_path2 = data_root + '/linear_aligned_patches/merged_all/'
 _ = data_gen.reorder_save(permuted_inds, save_path=data_path2 + 'permuted_')
 
 
-data_path = data_root + '/discretized_fl/merged_center/'
+data_path = data_root + '/linear_aligned_patches/merged_center/'
 _ = assemble_for_training([f for f in processed_fs if 'ex2' in f or 'processed_5' in f], 
                           (384, 288), 
                           save_path=data_path, 
-                          validity_check=check_valid,
-                          label='discretized')
+                          label='segmentation')
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('X')])
 data_gen = CustomGenerator([os.path.join(data_path, 'X_%d.pkl' % i) for i in range(n_fs)],
                            [os.path.join(data_path, 'y_%d.pkl' % i) for i in range(n_fs)],

@@ -342,21 +342,25 @@ def assemble_for_training(dat_fs,
                 continue
             _X = cv2.resize(X, target_size)
             all_Xs[ind] = np.expand_dims(_X, 2).astype(float)
-            _y = cv2.resize(y, target_size)
-            _w = cv2.resize(w, target_size)
-            _w[np.where(_y != _y)[:2]] = 0
-            _y[np.where(_y != _y)[:2]] = np.zeros((1, _y.shape[-1]))
-            if label == 'segmentation':
-                _y[np.where((_y > 0) & (_y < 1))] = 1
-                _y[np.where((_y > 1) & (_y < 2))] = 1
-                _w[np.where(_y == 1)] = 0
-                _y[np.where(_y == 1)] = 0
-                _y[np.where(_y == 2)] = 1
-                all_ys[ind] = _y.astype(int)
-                all_ws[ind] = _w.astype(float)
-            elif label == 'discretized':
-                all_ys[ind] = _y.astype('float16') # to save space
-                all_ws[ind] = _w.astype(float)
+            if y is not None:
+                _y = cv2.resize(y, target_size)
+                _w = cv2.resize(w, target_size)
+                _w[np.where(_y != _y)[:2]] = 0
+                _y[np.where(_y != _y)[:2]] = np.zeros((1, _y.shape[-1]))
+                if label == 'segmentation':
+                    _y[np.where((_y > 0) & (_y < 1))] = 1
+                    _y[np.where((_y > 1) & (_y < 2))] = 1
+                    _w[np.where(_y == 1)] = 0
+                    _y[np.where(_y == 1)] = 0
+                    _y[np.where(_y == 2)] = 1
+                    all_ys[ind] = _y.astype(int)
+                    all_ws[ind] = _w.astype(float)
+                elif label == 'discretized':
+                    all_ys[ind] = _y.astype('float16') # to save space
+                    all_ws[ind] = _w.astype(float)
+            else:
+                all_ys[ind] = None
+                all_ws[ind] = None
 
             all_names[ind] = name
             ind += 1
