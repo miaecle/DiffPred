@@ -8,6 +8,7 @@ import pickle
 
 CHANNEL_MAX = 65535
 
+
 def n_diff(s1, s2):
     ct = 0
     for s in difflib.ndiff(s1, s2):
@@ -15,67 +16,57 @@ def n_diff(s1, s2):
             ct += 1
     return ct
 
+
 def get_all_files(path='predict_gfp_raw'):
     fs = []
     for (dirpath, dirnames, filenames) in os.walk(path):
         fs.extend([os.path.join(dirpath, f) for f in filenames])
     return fs
 
+
 def load_all_pairs(path='predict_gfp_raw'):
-    pairs = []
     fs = get_all_files(path=path)
     pcs = sorted([f for f in fs if 'Phase' in f])
     gfps = sorted([f for f in fs if 'GFP' in f])
-    pairs = []
 
+    exclusions = []
     pc_file_mapping = {}
     for f in pcs:
-        sep = f.split('_')
-        sep[-2] = '' # Channel name
-        sep[-4] = '' # Channel ID
-        sep = tuple(sep)
-        assert sep not in pc_file_mapping
-        pc_file_mapping[sep] = f
+        identifier = get_ex_day(f) + get_well(f)
+        if identifier in pc_file_mapping:
+            exclusions.append(identifier)
+        pc_file_mapping[identifier] = f
 
     gfp_file_mapping = {}
     for f in gfps:
-        sep = f.split('_')
-        sep[-2] = '' # Channel name
-        sep[-4] = '' # Channel ID
-        sep = tuple(sep)
-        assert sep not in gfp_file_mapping
-        gfp_file_mapping[sep] = f
-        if sep in pc_file_mapping:
-            pairs.append((pc_file_mapping[sep], f))
+        identifier = get_ex_day(f) + get_well(f)
+        if identifier in gfp_file_mapping:
+            exclusions.append(identifier)
+        gfp_file_mapping[identifier] = f
 
-    for p in pairs:
-        assert n_diff(p[0].split('Phase')[0], p[1].split('GFP')[0]) == 2
-
-    unmatched_pc = len(pc_file_mapping) - len(pairs)
-    unmatched_gfp = len(gfp_file_mapping) - len(pairs)
-    print("Unmatched files: %d Phase Contrast, %d GFP" % (unmatched_pc, unmatched_gfp))
+    pairs = []
+    for identifier in (gfp_file_mapping.keys() | pc_file_mapping.keys()):
+        if identifier in exclusions:
+            continue
+        p = [None, None]
+        if identifier in pc_file_mapping:
+            p[0] = pc_file_mapping[identifier]
+        if identifier in gfp_file_mapping:
+            p[1] = gfp_file_mapping[identifier]
+        if not None in p:
+            assert n_diff(p[0].split('Phase')[0], p[1].split('GFP')[0]) == 2
+        pairs.append(tuple(p))
     return pairs
+
 
 def load_image(f):
     return tifffile.imread(f)
 
+
 def load_image_pair(pair):
-    dats = [load_image(f) for f in pair]
-    assert len(set(d.shape for d in dats)) == 1
+    dats = [load_image(f) if not f is None else None for f in pair]
+    assert len(set(d.shape for d in dats if not d is None)) == 1
     return dats
-
-def get_well(f):
-    f = f.split('/')[-1].split('.')[0]
-    f = f.split('_')
-    return (f[0], f[3])
-
-def get_keys(fs):
-    if fs.__class__ is str:
-        return get_well(fs)
-    elif fs.__class__ is tuple and len(fs) == 2:
-        return get_well(fs[0])
-    elif fs.__class__ is list:
-        return [get_well(f[0]) for f in fs]
 
 
 def get_ex_day(name):
@@ -97,48 +88,35 @@ def get_ex_day(name):
     return (ex_id, day)
 
 
+def get_well(f):
+    f = f.split('/')[-1].split('.')[0]
+    f = f.split('_')
+    return (f[0], f[3])
+
+
+
 if __name__ == '__main__':
-    pairs = sorted(load_all_pairs(path='predict_gfp_raw'))
-    ds1 = set([tuple(p[0].split('/')[2:-1]) for p in pairs])
-    ds1 = set(ds for ds in ds1 if len(ds) == 2 or (len(ds) > 2 and not ds[2].endswith('Copy')))
-    mapping1 = {route: [] for route in ds1}
-    for p in pairs:
-        k = tuple(p[0].split('/')[2:-1])
-        if k in mapping1:
-            mapping1[k].append(p)
+    RAW_DATA_PATH = '../iPSC_data'
+    SAVE_PATH = '/oak/stanford/groups/jamesz/zqwu/iPSC_data'
 
-    pairs = sorted(load_all_pairs(path='predict_diff_raw'))
-    ds2 = set([tuple(p[0].split('/')[2:-1]) for p in pairs])
-    mapping2 = {route: [] for route in ds2}
-    for p in pairs:
-        mapping2[tuple(p[0].split('/')[2:-1])].append(p)
-
-    def get_ex_day(ds):
-        n = ds[1]
-        n = n.replace('-', ' ').replace('_', ' ')
-        ds_sep = n.split()
-        day = None
-        for d in ds_sep:
-            if d.startswith('D'):
-                day = d
-        if day is None:
-            day = 'Dunknown'
-        return (ds[0], day)
-
-    merged_mapping = {}
-    for ds in ds1:
-        name = get_ex_day(ds)
-        merged_mapping[name] = mapping1[ds]
-
-    for ds in ds2:
-        if not ds in mapping1:
-            name = get_ex_day(ds)
-            merged_mapping[name] = mapping2[ds]
-
-    for k in merged_mapping:
-        file_name = k[0] + '_' + k[1] + '.pkl'
-        if os.path.exists(file_name):
+    pairs = load_all_pairs(path=os.path.join(RAW_DATA_PATH, 'predict_gfp_raw'))
+    ex_day_groups = set(get_ex_day(p[0]) if not p[0] is None else get_ex_day(p[1]) for p in pairs)
+    for g in ex_day_groups:
+        save_file_name = os.path.join(SAVE_PATH, '%s_%s.pkl' % g)
+        if os.path.exists(save_file_name):
             continue
-        segment_pair_dats = {p:load_image_pair(p) for p in merged_mapping[k]}
-        with open(file_name, 'wb') as f:
-            pickle.dump(segment_pair_dats, f)
+        group_pairs = [p for p in pairs if (get_ex_day(p[0]) if not p[0] is None else get_ex_day(p[1])) == g]
+        group_pair_dats = {p: load_image_pair(p) for p in group_pairs}
+        with open(save_file_name, 'wb') as f:
+            pickle.dump(group_pair_dats, f)
+
+    pairs = load_all_pairs(path=os.path.join(RAW_DATA_PATH, 'predict_diff_raw'))
+    ex_day_groups = set(get_ex_day(p[0]) if not p[0] is None else get_ex_day(p[1]) for p in pairs)
+    for g in ex_day_groups:
+        save_file_name = os.path.join(SAVE_PATH, '%s_%s.pkl' % g)
+        if os.path.exists(save_file_name):
+            continue
+        group_pairs = [p for p in pairs if (get_ex_day(p[0]) if not p[0] is None else get_ex_day(p[1])) == g]
+        group_pair_dats = {p: load_image_pair(p) for p in group_pairs}
+        with open(save_file_name, 'wb') as f:
+            pickle.dump(group_pair_dats, f)

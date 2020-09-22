@@ -312,3 +312,15 @@ class ClassifyOnSegment(Segment):
       output = Dense(l, name='classify_head_fc%d' % i)(output)
     self.classify_out = Dense(self.n_classify_classes, name='classify_head_output')(output)
     self.model = Model(self.input, [self.segment_out, self.classify_out])
+
+
+  def predict_on_generator(self, gen):
+    y_preds = self.model.predict_generator(gen)
+    y_preds = [scipy.special.softmax(y_pred, -1) for y_pred in y_preds]
+    return y_preds
+
+
+  def predict_on_X(self, X):
+    y_preds = self.model.predict(X)
+    y_preds = [scipy.special.softmax(y_pred, -1) for y_pred in y_preds]
+    return y_preds
