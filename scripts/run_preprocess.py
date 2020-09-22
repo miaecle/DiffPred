@@ -1,7 +1,7 @@
 from segment_support import *
 from data_loader import *
 from data_generator import CustomGenerator
-"""
+
 ### Preprocess ###
 data_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data'
 dat_fs = [f for f in os.listdir(data_path) if f.startswith('ex')]
@@ -44,7 +44,7 @@ for f_name in dat_fs:
           print(e)
           continue
 
-"""
+
 
 ### Assemble for training ###
 data_root = '/oak/stanford/groups/jamesz/zqwu/iPSC_data'

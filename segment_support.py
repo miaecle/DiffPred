@@ -301,10 +301,13 @@ def preprocess(dats, linear_align=True, label='segmentation'):
             mask = generate_mask(pair_dat)
         else:
             mask = np.ones_like(pair_dat[0])
+        
         pc_adjusted = adjust_contrast(pair_dat, mask, position_code, linear_align=linear_align)
         weight = generate_weight(mask, position_code, linear_align=linear_align)
         
-        if label == 'segmentation':
+        if pair_dat[1] is None:
+            fluorescence = None
+        elif label == 'segmentation':
             fluorescence = generate_fluorescence_labels(pair_dat, mask)
         elif label == 'discretized':
             fluorescence = quantize_fluorescence(pair_dat, mask)
