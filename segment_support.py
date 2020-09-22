@@ -345,8 +345,6 @@ def assemble_for_training(dat_fs,
             if y is not None:
                 _y = cv2.resize(y, target_size)
                 _w = cv2.resize(w, target_size)
-                _w[np.where(_y != _y)[:2]] = 0
-                _y[np.where(_y != _y)[:2]] = np.zeros((1, _y.shape[-1]))
                 if label == 'segmentation':
                     _y[np.where((_y > 0) & (_y < 1))] = 1
                     _y[np.where((_y > 1) & (_y < 2))] = 1
@@ -356,6 +354,8 @@ def assemble_for_training(dat_fs,
                     all_ys[ind] = _y.astype(int)
                     all_ws[ind] = _w.astype(float)
                 elif label == 'discretized':
+                    _w[np.where(_y != _y)[:2]] = 0
+                    _y[np.where(_y != _y)[:2]] = np.zeros((1, _y.shape[-1]))
                     all_ys[ind] = _y.astype('float16') # to save space
                     all_ws[ind] = _w.astype(float)
             else:
