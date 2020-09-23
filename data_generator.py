@@ -19,6 +19,8 @@ def enhance_weight_fp(_X, _y, _w, ratio=5):
 
 def binarized_fluorescence_label(inputs):
     y, w = inputs
+    if y is None:
+        return 0, 1
     if isinstance(y, np.ndarray):
         y_ct = np.where(y == 1)[0].size
         w_ct = np.where(np.sign(w) == 0)[0].size
@@ -335,17 +337,26 @@ class CustomGenerator(keras.utils.Sequence) :
 
 
     def get_all_pairs(self, time_interval=[1, 3]):
-        infos = {k: get_ex_day(v) + get_well(v) for k, v in self.names.items() if k in self.selected_inds}
-        infos_reverse_mapping = {v: k for k, v in infos.items()}
+        valid_pcs = {}
+        valid_fls = {}
+        for k in sorted(self.names.keys()):
+            x, y, w, n = self.load_ind(k)
+            if x is not None:
+                valid_pcs[k] = get_ex_day(n) + get_well(n)
+            if y is not None:
+                valid_fls[k] = get_ex_day(n) + get_well(n)
+
+        fls_reverse_mapping = {v: k for k, v in valid_fls.items()}
+
         valid_pairs = []
-        for ind_i in sorted(infos):
-            d = infos[ind_i]
+        for ind_i in sorted(valid_pcs):
+            d = valid_pcs[ind_i]
             if d[1] == 'Dunknown':
                 continue
             for t in range(time_interval[0], time_interval[1]+1):
                 new_d = (d[0], 'D%d' % (int(d[1][1:])+t), d[2], d[3])
-                if new_d in infos_reverse_mapping:
-                    ind_j = infos_reverse_mapping[new_d]
+                if new_d in fls_reverse_mapping:
+                    ind_j = fls_reverse_mapping[new_d]
                     valid_pairs.append((ind_i, ind_j))
         return valid_pairs
 
