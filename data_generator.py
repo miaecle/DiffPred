@@ -361,11 +361,46 @@ class CustomGenerator(keras.utils.Sequence) :
         return valid_pairs
 
 
-    def cross_pair_save(self, time_interval=[1, 3], seed=None, save_path=None):
+    def shrink_pairs(self, pairs):
+        def pair_descriptor(p):
+            well_from = get_ex_day(self.names[p[0]]) + get_well(self.names[p[0]])
+            well_to = get_ex_day(self.names[p[1]]) + get_well(self.names[p[1]])
+            assert well_from[0] == well_to[0]
+            assert well_from[2:] == well_to[2:]
+            prop = tuple([well_from[0], 
+                          well_from[2], 
+                          well_from[3],
+                          int(well_from[1][1:]), 
+                          int(well_to[1][1:])])
+            return prop
+
+        def adjacent_prop(prop):
+            prop_well = prop[:3]
+            prop_day = prop[3:]
+            out_props = []
+            for d_from in range(prop_day[0]-1, prop_day[0]+2):
+                for d_to in range(prop_day[1]-1, prop_day[1]+2):
+                    out_props.append(prop_well + tuple([d_from, d_to]))
+            return out_props
+
+        valid_pairs = []
+        selected = set()
+        for p in pairs:
+            prop = pair_descriptor(p)
+            if not prop in selected:
+                valid_pairs.append(p)
+                for _prop in adjacent_prop(prop):
+                    selected.add(_prop)
+        return valid_pairs
+
+
+    def cross_pair_save(self, time_interval=[1, 3], shrink=False, seed=None, save_path=None):
         valid_pairs = self.get_all_pairs(time_interval=time_interval)
         if not seed is None:
             np.random.seed(seed)
         np.random.shuffle(valid_pairs)
+        if shrink:
+            valid_pairs = self.shrink_pairs(valid_pairs)
 
         all_Xs = {}
         all_ys = {}

@@ -23,8 +23,7 @@ kwargs = {
     'segment_extra_weights': enhance_weight_fp,
     'segment_label_type': 'segmentation',
     'n_classify_classes': 2,
-    'classify_class_weights': [0.02, 0.02],
-    'classify_label_fn': binarized_fluorescence_label
+    'classify_class_weights': [0.02, 0.02]
 }
 
 gen = CustomGenerator(X_filenames,
