@@ -378,8 +378,8 @@ class CustomGenerator(keras.utils.Sequence) :
             prop_well = prop[:3]
             prop_day = prop[3:]
             out_props = []
-            for d_from in range(prop_day[0]-1, prop_day[0]+2):
-                for d_to in range(prop_day[1]-1, prop_day[1]+2):
+            for d_from in range(prop_day[0]-2, prop_day[0]+3):
+                for d_to in range(prop_day[1]-2, prop_day[1]+3):
                     out_props.append(prop_well + tuple([d_from, d_to]))
             return out_props
 
