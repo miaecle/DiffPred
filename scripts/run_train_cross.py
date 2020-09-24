@@ -4,10 +4,10 @@ from data_loader import *
 from segment_support import *
 from models import Segment, ClassifyOnSegment
 from layers import load_partial_weights, fill_first_layer
-from data_generator import CustomGenerator, PairGenerator, enhance_weight_fp, binarized_fluorescence_label
+from data_generator import CustomGenerator, PairGenerator, enhance_weight_fp
 from scipy.stats import spearmanr, pearsonr
 
-data_path = 'data/linear_aligned_patches/cross_1-to-3/'
+data_path = 'data/linear_aligned_patches/cross_7-to-10/'
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('X')])
 
 X_filenames = [os.path.join(data_path, 'X_%d.pkl' % i) for i in range(n_fs)]
@@ -40,8 +40,7 @@ kwargs = {
     'segment_extra_weights': enhance_weight_fp,
     'segment_label_type': 'segmentation',
     'n_classify_classes': 2,
-    'classify_class_weights': [0.02, 0.02],
-    'classify_label_fn': binarized_fluorescence_label
+    'classify_class_weights': [0.02, 0.02]
 }
 
 train_gen = PairGenerator(X_filenames,
@@ -50,26 +49,33 @@ train_gen = PairGenerator(X_filenames,
                           name_file,
                           label_file=label_file,
                           augment=True,
-                          selected_inds=train_inds)
+                          selected_inds=train_inds,
+                          **kwargs)
 
-valid_filenames = train_gen.reorder_save(valid_inds, save_path=data_path+'temp_valid_')
-valid_gen = PairGenerator(*valid_filenames, **kwargs)
+n_fs = len([f for f in os.listdir(data_path) if f.startswith('temp_valid_X')])
+X_filenames = [os.path.join(data_path, 'temp_valid_X_%d.pkl' % i) for i in range(n_fs)]
+y_filenames = [os.path.join(data_path, 'temp_valid_y_%d.pkl' % i) for i in range(n_fs)]
+w_filenames = [os.path.join(data_path, 'temp_valid_w_%d.pkl' % i) for i in range(n_fs)]
+name_file = os.path.join(data_path, 'temp_valid_names.pkl')
+label_file = os.path.join(data_path, 'temp_valid_labels.pkl')
+valid_gen = PairGenerator(X_filenames,
+                          y_filenames,
+                          w_filenames,
+                          name_file,
+                          label_file=label_file,
+                          **kwargs)
 
 
 model = ClassifyOnSegment(
-    input_shape=(288, 384, 3), 
-    model_structure='pspnet', 
-    model_path='model_save', 
+    input_shape=(288, 384, 3),
+    model_structure='pspnet',
+    model_path='model_save',
     encoder_weights='imagenet',
     n_segment_classes=2,
     n_classify_classes=2)
 
-model2 = ClassifyOnSegment(input_shape=(288, 384, 2), model_structure='pspnet')
-model2.load('model_save/pspnet_ex1_0-to-0_1.model')
-model = load_partial_weights(model, model2)
-model = fill_first_layer(model, model2)
 
 model.fit(train_gen,
           valid_gen=valid_gen,
           n_epochs=50)
-model.save('./model_save/pspnet_ex1_0-to-3_0.model')
+model.save('./model_save/pspnet_random_0-to-10_1.model')
