@@ -6,6 +6,9 @@ from layers import *
 from models import Segment, ClassifyOnSegment
 from data_generator import CustomGenerator, enhance_weight_fp, binarized_fluorescence_label
 
+valid_wells = pickle.load(open('data/linear_aligned_patches/merged_all/random_valid_wells.pkl', 'rb'))
+train_wells = pickle.load(open('data/linear_aligned_patches/merged_all/random_train_wells.pkl', 'rb'))
+
 data_path = 'data/linear_aligned_patches/merged_all/'
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('permuted_X')])
 
@@ -16,12 +19,7 @@ name_file = os.path.join(data_path, 'permuted_names.pkl')
 label_file = os.path.join(data_path, 'permuted_labels.pkl')
 
 names = pickle.load(open(name_file, 'rb'))
-unique_wells = sorted(set(get_ex_day(n)[:1] + get_well(n) for n in names.values()))
-np.random.seed(123)
-np.random.shuffle(unique_wells)
-valid_wells = set(unique_wells[:int(0.2*len(unique_wells))])
 valid_inds = [i for i, n in names.items() if get_ex_day(n)[:1] + get_well(n) in valid_wells]
-train_wells = set(unique_wells[int(0.2*len(unique_wells)):])
 train_inds = [i for i, n in names.items() if get_ex_day(n)[:1] + get_well(n) in train_wells]
 print(len(train_inds))
 print(len(valid_inds))
@@ -48,7 +46,7 @@ train_gen = CustomGenerator(X_filenames,
                             selected_inds=train_inds,
                             **kwargs)
 
-valid_filenames = train_gen.reorder_save(valid_inds, save_path=data_path+'temp_valid_')
+valid_filenames = train_gen.reorder_save(valid_inds, save_path=data_path+'random_valid_')
 valid_gen = CustomGenerator(*valid_filenames, **kwargs)
 
 model = ClassifyOnSegment(

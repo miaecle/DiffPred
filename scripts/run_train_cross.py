@@ -7,21 +7,16 @@ from layers import load_partial_weights, fill_first_layer
 from data_generator import CustomGenerator, PairGenerator, enhance_weight_fp
 from scipy.stats import spearmanr, pearsonr
 
+valid_wells = pickle.load(open('data/linear_aligned_patches/merged_all/random_valid_wells.pkl', 'rb'))
+train_wells = pickle.load(open('data/linear_aligned_patches/merged_all/random_train_wells.pkl', 'rb'))
+
 data_path = 'data/linear_aligned_patches/cross_7-to-10/'
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('X')])
-
 X_filenames = [os.path.join(data_path, 'X_%d.pkl' % i) for i in range(n_fs)]
 y_filenames = [os.path.join(data_path, 'y_%d.pkl' % i) for i in range(n_fs)]
 w_filenames = [os.path.join(data_path, 'w_%d.pkl' % i) for i in range(n_fs)]
 name_file = os.path.join(data_path, 'names.pkl')
 label_file = os.path.join(data_path, 'labels.pkl')
-
-names = pickle.load(open('data/linear_aligned_patches/merged_all/permuted_names.pkl', 'rb'))
-unique_wells = sorted(set(get_ex_day(n)[:1] + get_well(n) for n in names.values()))
-np.random.seed(123)
-np.random.shuffle(unique_wells)
-valid_wells = set(unique_wells[:int(0.2*len(unique_wells))])
-train_wells = set(unique_wells[int(0.2*len(unique_wells)):])
 
 cross_names = pickle.load(open(name_file, 'rb'))
 valid_inds = [i for i, n in cross_names.items() if get_ex_day(n[0])[:1] + get_well(n[0]) in valid_wells]
@@ -52,12 +47,13 @@ train_gen = PairGenerator(X_filenames,
                           selected_inds=train_inds,
                           **kwargs)
 
-n_fs = len([f for f in os.listdir(data_path) if f.startswith('temp_valid_X')])
-X_filenames = [os.path.join(data_path, 'temp_valid_X_%d.pkl' % i) for i in range(n_fs)]
-y_filenames = [os.path.join(data_path, 'temp_valid_y_%d.pkl' % i) for i in range(n_fs)]
-w_filenames = [os.path.join(data_path, 'temp_valid_w_%d.pkl' % i) for i in range(n_fs)]
-name_file = os.path.join(data_path, 'temp_valid_names.pkl')
-label_file = os.path.join(data_path, 'temp_valid_labels.pkl')
+# valid_filenames = train_gen.reorder_save(valid_inds, save_path=data_path+'random_valid_')
+n_fs = len([f for f in os.listdir(data_path) if f.startswith('random_valid_X')])
+X_filenames = [os.path.join(data_path, 'random_valid_X_%d.pkl' % i) for i in range(n_fs)]
+y_filenames = [os.path.join(data_path, 'random_valid_y_%d.pkl' % i) for i in range(n_fs)]
+w_filenames = [os.path.join(data_path, 'random_valid_w_%d.pkl' % i) for i in range(n_fs)]
+name_file = os.path.join(data_path, 'random_valid_names.pkl')
+label_file = os.path.join(data_path, 'random_valid_labels.pkl')
 valid_gen = PairGenerator(X_filenames,
                           y_filenames,
                           w_filenames,

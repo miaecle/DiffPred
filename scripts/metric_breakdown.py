@@ -10,12 +10,12 @@ from scipy.stats import spearmanr, pearsonr
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score
 
 data_path = 'data/linear_aligned_patches/cross_7-to-10/'
-n_fs = len([f for f in os.listdir(data_path) if f.startswith('temp_valid_X')])
-X_filenames = [os.path.join(data_path, 'temp_valid_X_%d.pkl' % i) for i in range(n_fs)]
-y_filenames = [os.path.join(data_path, 'temp_valid_y_%d.pkl' % i) for i in range(n_fs)]
-w_filenames = [os.path.join(data_path, 'temp_valid_w_%d.pkl' % i) for i in range(n_fs)]
-name_file = os.path.join(data_path, 'temp_valid_names.pkl')
-label_file = os.path.join(data_path, 'temp_valid_labels.pkl')
+n_fs = len([f for f in os.listdir(data_path) if f.startswith('random_valid_X')])
+X_filenames = [os.path.join(data_path, 'random_valid_X_%d.pkl' % i) for i in range(n_fs)]
+y_filenames = [os.path.join(data_path, 'random_valid_y_%d.pkl' % i) for i in range(n_fs)]
+w_filenames = [os.path.join(data_path, 'random_valid_w_%d.pkl' % i) for i in range(n_fs)]
+name_file = os.path.join(data_path, 'random_valid_names.pkl')
+label_file = os.path.join(data_path, 'random_valid_labels.pkl')
 
 kwargs = {
     'batch_size': 8,
