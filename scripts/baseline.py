@@ -40,12 +40,14 @@ def baseline(gen):
       tp += _tp
       fp += _fp
       fn += _fn
+  iou = tp/(tp + fp + fn)
   prec = tp/(tp + fp)
   recall = tp/(tp + fn)
   f1 = 2/(1/(prec + 1e-5) + 1/(recall + 1e-5))
   print(prec)
   print(recall)
   print(f1)
+  print(iou)
   print(np.percentile(thrs, 25))
   print(np.percentile(thrs, 50))
   print(np.percentile(thrs, 75))
@@ -74,13 +76,14 @@ def baseline_overall(gen):
         tp += _tp
         fp += _fp
         fn += _fn
+    iou = tp/(tp + fp + fn)
     prec = tp/(tp + fp)
     recall = tp/(tp + fn)
     f1 = 2/(1/(prec + 1e-5) + 1/(recall + 1e-5))
-    return prec, recall, f1
+    return prec, recall, f1, iou
 
   scores = {thr: overall_score(thr) for thr in np.arange(-2.6, 2.0, 0.02)}
-  best_thr = sorted(scores.keys(), key=lambda x: scores[x][-1])[-1]
+  best_thr = sorted(scores.keys(), key=lambda x: scores[x][2])[-1]
   print(scores[best_thr])
   return scores[best_thr]
 
