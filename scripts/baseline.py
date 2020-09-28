@@ -36,7 +36,7 @@ def baseline(gen):
       thrs.append(best_thr)
       _tp = ((_y_pred < best_thr) * _y_true[:, 1]).sum()
       _fp = ((_y_pred < best_thr) * _y_true[:, 0]).sum()
-      _fn = ((_y_pred < best_thr) * _y_true[:, 1]).sum()
+      _fn = ((_y_pred > best_thr) * _y_true[:, 1]).sum()
       tp += _tp
       fp += _fp
       fn += _fn
@@ -56,33 +56,34 @@ def baseline(gen):
 
 
 def baseline_overall(gen):
+  y_preds = []
+  y_trues = []
+  for batch in gen:
+    y_pred = batch[0][..., 0]
+    y_true = batch[1][0][..., :-1]
+    w = batch[1][0][..., -1]
+    for _y_pred, _y_true, _w in zip(y_pred, y_true, w):
+      _y_pred = _y_pred[np.nonzero(_w)].reshape((-1))
+      _y_true = _y_true[np.nonzero(_w)].reshape((-1, 2))
+      if _y_true[:, 1].sum() == 0:
+        continue
+      y_preds.append(_y_pred)
+      y_trues.append(_y_true)
+
+  y_preds = np.concatenate(y_preds, 0)
+  y_trues = np.concatenate(y_trues, 0)
+
   def overall_score(thr):
-    tp = 0
-    fp = 0
-    fn = 0
-    thrs = []
-    for batch in gen:
-      y_pred = batch[0][..., 0]
-      y_true = batch[1][0][..., :-1]
-      w = batch[1][0][..., -1]
-      for _y_pred, _y_true, _w in zip(y_pred, y_true, w):
-        _y_pred = _y_pred[np.nonzero(_w)].reshape((-1))
-        _y_true = _y_true[np.nonzero(_w)].reshape((-1, 2))
-        if _y_true[:, 1].sum() == 0:
-          continue
-        _tp = ((_y_pred < thr) * _y_true[:, 1]).sum()
-        _fp = ((_y_pred < thr) * _y_true[:, 0]).sum()
-        _fn = ((_y_pred < thr) * _y_true[:, 1]).sum()
-        tp += _tp
-        fp += _fp
-        fn += _fn
+    tp = ((y_preds < thr) * y_trues[:, 1]).sum()
+    fp = ((y_preds < thr) * y_trues[:, 0]).sum()
+    fn = ((y_preds > thr) * y_trues[:, 1]).sum()
     iou = tp/(tp + fp + fn)
     prec = tp/(tp + fp)
     recall = tp/(tp + fn)
     f1 = 2/(1/(prec + 1e-5) + 1/(recall + 1e-5))
     return prec, recall, f1, iou
 
-  scores = {thr: overall_score(thr) for thr in np.arange(-2.6, 2.0, 0.02)}
+  scores = {thr: overall_score(thr) for thr in np.arange(-2.6, -2.0, 0.05)}
   best_thr = sorted(scores.keys(), key=lambda x: scores[x][2])[-1]
   print(scores[best_thr])
   return scores[best_thr]
