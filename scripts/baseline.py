@@ -26,7 +26,7 @@ def baseline(gen):
       def local_score(thr):
         _tp = ((_y_pred < thr) * _y_true[:, 1]).sum()
         _fp = ((_y_pred < thr) * _y_true[:, 0]).sum()
-        _fn = ((_y_pred < thr) * _y_true[:, 1]).sum()
+        _fn = ((_y_pred > thr) * _y_true[:, 1]).sum()
         _prec = _tp/(_tp + _fp + 1e-5)
         _recall = _tp/(_tp + _fn + 1e-5)
         _f1 = 2/(1/(_prec + 1e-5) + 1/(_recall + 1e-5))
