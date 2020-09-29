@@ -10,7 +10,7 @@ from scipy.stats import spearmanr, pearsonr
 valid_wells = pickle.load(open('data/linear_aligned_patches/merged_all/random_valid_wells.pkl', 'rb'))
 train_wells = pickle.load(open('data/linear_aligned_patches/merged_all/random_train_wells.pkl', 'rb'))
 
-data_path = 'data/linear_aligned_patches/cross_7-to-10/'
+data_path = 'data/linear_aligned_patches/cross_infinite/'
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('X')])
 X_filenames = [os.path.join(data_path, 'X_%d.pkl' % i) for i in range(n_fs)]
 y_filenames = [os.path.join(data_path, 'y_%d.pkl' % i) for i in range(n_fs)]
@@ -35,7 +35,7 @@ kwargs = {
     'segment_extra_weights': enhance_weight_fp,
     'segment_label_type': 'segmentation',
     'n_classify_classes': 2,
-    'classify_class_weights': [0.02, 0.02]
+    'classify_class_weights': [0.5, 0.5]
 }
 
 train_gen = PairGenerator(X_filenames,
@@ -47,7 +47,7 @@ train_gen = PairGenerator(X_filenames,
                           selected_inds=train_inds,
                           **kwargs)
 
-# valid_filenames = train_gen.reorder_save(valid_inds, save_path=data_path+'random_valid_')
+valid_filenames = train_gen.reorder_save(valid_inds, save_path=data_path+'random_valid_')
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('random_valid_X')])
 X_filenames = [os.path.join(data_path, 'random_valid_X_%d.pkl' % i) for i in range(n_fs)]
 y_filenames = [os.path.join(data_path, 'random_valid_y_%d.pkl' % i) for i in range(n_fs)]
@@ -74,4 +74,4 @@ model = ClassifyOnSegment(
 model.fit(train_gen,
           valid_gen=valid_gen,
           n_epochs=50)
-model.save('./model_save/pspnet_random_0-to-10_1.model')
+model.save('./model_save/pspnet_random_0-to-inf_0.model')

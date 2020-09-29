@@ -104,12 +104,12 @@ if __name__ == '__main__':
       'classify_class_weights': [0.02, 0.02]
   }
 
-  n_fs = len([f for f in os.listdir(data_path) if f.startswith('random_valid_X')])
-  X_filenames = [os.path.join(data_path, 'random_valid_X_%d.pkl' % i) for i in range(n_fs)]
-  y_filenames = [os.path.join(data_path, 'random_valid_y_%d.pkl' % i) for i in range(n_fs)]
-  w_filenames = [os.path.join(data_path, 'random_valid_w_%d.pkl' % i) for i in range(n_fs)]
-  name_file = os.path.join(data_path, 'random_valid_names.pkl')
-  label_file = os.path.join(data_path, 'random_valid_labels.pkl')
+  n_fs = len([f for f in os.listdir(data_path) if f.startswith('ex1_valid_X')])
+  X_filenames = [os.path.join(data_path, 'ex1_valid_X_%d.pkl' % i) for i in range(n_fs)]
+  y_filenames = [os.path.join(data_path, 'ex1_valid_y_%d.pkl' % i) for i in range(n_fs)]
+  w_filenames = [os.path.join(data_path, 'ex1_valid_w_%d.pkl' % i) for i in range(n_fs)]
+  name_file = os.path.join(data_path, 'ex1_valid_names.pkl')
+  label_file = os.path.join(data_path, 'ex1_valid_labels.pkl')
   valid_gen = CustomGenerator(X_filenames,
                               y_filenames,
                               w_filenames,
