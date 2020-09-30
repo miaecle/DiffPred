@@ -9,7 +9,7 @@ from data_generator import CustomGenerator, PairGenerator, enhance_weight_fp, bi
 from scipy.stats import spearmanr, pearsonr
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score
 
-data_path = 'data/linear_aligned_patches/cross_7-to-10/'
+data_path = 'data/linear_aligned_patches/cross_infinite/'
 n_fs = len([f for f in os.listdir(data_path) if f.startswith('random_valid_X')])
 X_filenames = [os.path.join(data_path, 'random_valid_X_%d.pkl' % i) for i in range(n_fs)]
 y_filenames = [os.path.join(data_path, 'random_valid_y_%d.pkl' % i) for i in range(n_fs)]
@@ -46,7 +46,7 @@ model = ClassifyOnSegment(
     n_classify_classes=2)
 
 
-model.load('./model_save/pspnet_random_0-to-10_0.model')
+model.load('./model_save/pspnet_random_0-to-inf_0.model')
 
 
 ### Prec, Recall, F1 score w.r.t. predict day (from) ###
