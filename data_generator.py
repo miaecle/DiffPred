@@ -219,7 +219,7 @@ class CustomGenerator(keras.utils.Sequence) :
                 return np.concatenate([
                     X, 
                     np.ones_like(X) * day_nums, 
-                    np.ones_like(X) * (day_nums + self.include_day)], 3)
+                    np.ones_like(X) * self.include_day], 3)
 
 
     def prepare_labels(self, _X, y=None, w=None, labels=None):
