@@ -260,7 +260,7 @@ class CustomGenerator(keras.utils.Sequence) :
         elif not y is None and labels is None:
             return _y
         else:
-            raise ValueError
+            return None
 
 
     def add_to_cache(self, ind):
