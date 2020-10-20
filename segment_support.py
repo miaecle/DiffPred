@@ -335,8 +335,13 @@ def assemble_for_training(dat_fs,
 
     ind = 0
     file_ind = 0
+    if not isinstance(dat_fs[0], str):
+        dat_fs = [None]
+        Xs, ys, ws, names = dat_fs
+
     for dat_f in dat_fs:
-        Xs, ys, ws, names = pickle.load(open(dat_f, 'rb'))
+        if isinstance(dat_f, str):
+            Xs, ys, ws, names = pickle.load(open(dat_f, 'rb'))
         for X, y, w, name in zip(Xs, ys, ws, names):
             if validity_check is not None and not validity_check(name):
                 continue

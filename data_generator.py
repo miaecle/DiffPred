@@ -204,16 +204,22 @@ class CustomGenerator(keras.utils.Sequence) :
 
 
     def prepare_features(self, X, names=None):
-        if self.include_day:
+        if self.include_day is False:
+            return X
+        else:
             day_array = []
             for name in names:
                 day = get_ex_day(name)[1][1:]
                 day = float(day) if day != 'unknown' else 20 # ex2 is default to be in day 20
                 day_array.append(day)
             day_nums = np.array(day_array).reshape((-1, 1, 1, 1))
-            return np.concatenate([X, np.ones_like(X) * day_nums], 3)
-        else:
-            return X
+            if self.include_day is True:
+                return np.concatenate([X, np.ones_like(X) * day_nums], 3)
+            else:
+                return np.concatenate([
+                    X, 
+                    np.ones_like(X) * day_nums, 
+                    np.ones_like(X) * (day_nums + self.include_day)], 3)
 
 
     def prepare_labels(self, _X, y=None, w=None, labels=None):
