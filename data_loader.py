@@ -20,7 +20,7 @@ def n_diff(s1, s2):
 def get_all_files(path='predict_gfp_raw'):
     fs = []
     for (dirpath, dirnames, filenames) in os.walk(path):
-        fs.extend([os.path.join(dirpath, f) for f in filenames])
+        fs.extend([os.path.join(dirpath, f) for f in filenames if '.tif' in f])
     return fs
 
 
