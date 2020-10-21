@@ -35,11 +35,17 @@ def predict_on_test_data(dataset_path, model_path, output_path):
     name_file = os.path.join(dataset_path, 'names.pkl')
     names = pickle.load(open(name_file, 'rb'))
     day_num = int(get_ex_day(names[0])[1][1:])
+    model_name = os.path.split(model_path)[-1]
+    if 'inf' in model_name:
+        predict_interval = 20 - day_num
+    else:
+        predict_interval = int(model_name.split('0-to-')[1].split('_')[0])
+    print("Predicting %d days ahead" % predict_interval)
     # Building data generator and model
     kwargs = {
         'batch_size': 16,
         'shuffle_inds': False,
-        'include_day': 20 - day_num,
+        'include_day': predict_interval,
         'n_segment_classes': None,
         'segment_class_weights': None,
     }
