@@ -9,7 +9,7 @@ from data_generator import CustomGenerator
 from models import ClassifyOnSegment
 
 
-def load_assemble_test_data(data_path):
+def load_assemble_test_data(data_path, dataset_path):
     # Load data under the given path
     print("Loading Data")
     fs = get_all_files(data_path)
@@ -19,7 +19,6 @@ def load_assemble_test_data(data_path):
 
     # Preprocessing
     print("Start Preprocessing")
-    dataset_path = os.path.join(data_path, 'merged_all') + '/'
     if not os.path.exists(dataset_path):
         os.makedirs(dataset_path)
 
@@ -97,14 +96,26 @@ if __name__ == '__main__':
         default='',
         help="Output path",
     )
+    parser.add_argument(
+        '-s', '--step',
+        type=lambda s: [str(item.strip(' ').strip("'")) for item in s.split(',')],
+        default=[],
+        required=False,
+        help="Processing steps: assemble, predict or both (split by comma)",
+
+    )
 
     args = parser.parse_args()
 
     data_path = args.input
+    dataset_path = os.path.join(data_path, 'merged') + '/'
     model_path = args.model
     output_path = args.output
     if len(output_path) == 0:
         output_path = os.path.join(data_path, 'results.csv')
 
-    dataset_path = load_assemble_test_data(data_path)
-    predict_on_test_data(dataset_path, model_path, output_path)
+    steps = args.step
+    if len(steps) == 0 or 'assemble' in steps:
+        load_assemble_test_data(data_path, dataset_path)
+    if len(steps) == 0 or 'predict' in steps:
+        predict_on_test_data(dataset_path, model_path, output_path)
