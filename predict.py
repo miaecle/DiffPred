@@ -1,4 +1,5 @@
 import os
+os.environ['KERAS_BACKEND'] = 'tensorflow'
 import pickle
 import tempfile
 import csv
