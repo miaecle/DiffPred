@@ -27,7 +27,7 @@ def get_all_files(path='predict_gfp_raw'):
 def load_all_pairs(path='predict_gfp_raw'):
     fs = get_all_files(path=path)
     pcs = sorted([f for f in fs if 'Phase' in f])
-    gfps = sorted([f for f in fs if 'GFP' in f])
+    gfps = sorted([f for f in fs if not 'Phase' in f and 'FP' in f])
 
     exclusions = []
     pc_file_mapping = {}
@@ -53,8 +53,6 @@ def load_all_pairs(path='predict_gfp_raw'):
             p[0] = pc_file_mapping[identifier]
         if identifier in gfp_file_mapping:
             p[1] = gfp_file_mapping[identifier]
-        if not None in p:
-            assert n_diff(p[0].split('Phase')[0], p[1].split('GFP')[0]) == 2
         pairs.append(tuple(p))
     return pairs
 
