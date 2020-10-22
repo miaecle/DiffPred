@@ -2,6 +2,7 @@ import os
 import pickle
 from segment_support import *
 from data_loader import *
+from data_generator import CustomGenerator
 
 print("Loading data")
 RAW_PATH = '/scratch/users/zqwu/iPSC_data_ecs/'
@@ -66,20 +67,26 @@ processed_fs = [os.path.join(processed_save_path, f)
                 if 'processed' in f and f.startswith('ex') and f.endswith('.pkl')]
 
 dataset_path = os.path.join(processed_save_path, 'merged_all/')
+if not os.path.exists(dataset_path):
+    os.makedirs(dataset_path)
+
 _ = assemble_for_training(processed_fs, (384, 288), save_path=dataset_path, label='segmentation')
-n_fs = len([f for f in os.listdir(data_path) if f.startswith('X')])
-data_gen = CustomGenerator([os.path.join(data_path, 'X_%d.pkl' % i) for i in range(n_fs)],
-                           [os.path.join(data_path, 'y_%d.pkl' % i) for i in range(n_fs)],
-                           [os.path.join(data_path, 'w_%d.pkl' % i) for i in range(n_fs)],
-                           name_file = os.path.join(data_path, 'names.pkl'),
+n_fs = len([f for f in os.listdir(dataset_path) if f.startswith('X')])
+data_gen = CustomGenerator([os.path.join(dataset_path, 'X_%d.pkl' % i) for i in range(n_fs)],
+                           [os.path.join(dataset_path, 'y_%d.pkl' % i) for i in range(n_fs)],
+                           [os.path.join(dataset_path, 'w_%d.pkl' % i) for i in range(n_fs)],
+                           name_file = os.path.join(dataset_path, 'names.pkl'),
                            include_day=False,
                            batch_size=8)
 
 
 valid_fl_samples = [get_ex_day(p[1]) + get_well(p[1]) for p in pairs if p[1] is not None]
-fl_inds = np.array([i for i, n in data_gen.names.items() if n in valid_fl_samples and int(get_ex_day(n)[1][1:]) >= 5])
+fl_inds = np.array([i for i, n in data_gen.names.items() if \
+    get_ex_day(n) + get_well(n) in valid_fl_samples and int(get_ex_day(n)[1][1:]) >= 5])
 np.random.seed(123)
 np.random.shuffle(fl_inds)
 
 dataset_fl_path = os.path.join(processed_save_path, 'merged_all_fl/')
+if not os.path.exists(dataset_fl_path):
+    os.makedirs(dataset_fl_path)
 _ = data_gen.reorder_save(fl_inds, save_path=dataset_fl_path + 'permuted_')
