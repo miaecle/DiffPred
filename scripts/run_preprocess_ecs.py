@@ -6,7 +6,7 @@ from data_generator import CustomGenerator
 
 print("Loading data")
 RAW_PATH = '/scratch/users/zqwu/iPSC_data_ecs/'
-SAVE_PATH = '/oak/stanford/groups/jamesz/zqwu/iPSC_data_ecs'
+SAVE_PATH = '/scratch/users/zqwu/iPSC_data_ecs'
 pairs = load_all_pairs(path=RAW_PATH)
 
 ### Data Loader ###
@@ -16,7 +16,7 @@ def get_identifier(f):
 groups = set(get_identifier(p[0]) if not p[0] is None else get_identifier(p[1]) for p in pairs)
 
 for g in groups:
-    print(g)
+    print(g, flush=True)
     save_file_name = os.path.join(SAVE_PATH, '_'.join(g) + '.pkl')
     if os.path.exists(save_file_name):
         continue
@@ -40,11 +40,11 @@ if not os.path.exists(processed_save_path):
 
 for f_name in dat_fs:
     print(f_name, flush=True)
-    dats = pickle.load(open(os.path.join(SAVE_PATH, f_name), 'rb'))
-        
     processed_f_name = os.path.join(processed_save_path, '%s_processed.pkl' % f_name.split('.')[0])
     if os.path.exists(processed_f_name):
         continue
+
+    dats = pickle.load(open(os.path.join(SAVE_PATH, f_name), 'rb'))
     try:
         well_dats = {k:v for k,v in dats.items() if \
               not get_well(k[0])[1] in ['1', '2', '16',
