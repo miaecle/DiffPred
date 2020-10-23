@@ -32,7 +32,7 @@ for g in groups:
 
 ### Preprocess ###
 print("PREPROCESS")
-dat_fs = [f for f in os.listdir(SAVE_PATH) if f.startswith('ex') and not 'processed' in f]
+dat_fs = [f for f in os.listdir(SAVE_PATH) if f.startswith('ex') and not 'processed' in f and f.endswith('.pkl')]
 
 processed_save_path = os.path.join(SAVE_PATH, 'linear_aligned_patches')
 if not os.path.exists(processed_save_path):
