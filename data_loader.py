@@ -58,7 +58,17 @@ def load_all_pairs(path='predict_gfp_raw'):
 
 
 def load_image(f):
-    return tifffile.imread(f)
+    try:
+        img = tifffile.imread(f)
+    except Exception as e:
+        img = cv2.imread(f, -1)
+        if len(img.shape) == 3:
+            img = img[..., 0]
+    if img.dtype == 'uint16':
+        return img
+    elif img.dtype == 'uint8':
+        return (img / 255 * 65535).astype('uint16')
+
 
 
 def load_image_pair(pair):
