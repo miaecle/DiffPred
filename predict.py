@@ -17,6 +17,7 @@ def load_assemble_test_data(data_path, dataset_path):
     fs = [f for f in fs if not get_well(f) in ['1', '2', '16', '14', '15', '30', '196', '211', '212', '210', '224', '225']]
     fs = [f for f in fs if 'Phase' in f]
     fs_pair = [(f, None) for f in fs]
+    print("Number of input images: %d" % len(fs_pair))
     pair_dats = {pair: load_image_pair(pair) for pair in fs_pair}
 
     # Preprocessing
