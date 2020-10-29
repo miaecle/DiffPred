@@ -15,6 +15,7 @@ def load_assemble_test_data(data_path, dataset_path):
     print("Loading Data")
     fs = get_all_files(data_path)
     fs = [f for f in fs if not get_well(f) in ['1', '2', '16', '14', '15', '30', '196', '211', '212', '210', '224', '225']]
+    fs = [f for f in fs if 'Phase' in f]
     fs_pair = [(f, None) for f in fs]
     pair_dats = {pair: load_image_pair(pair) for pair in fs_pair}
 
