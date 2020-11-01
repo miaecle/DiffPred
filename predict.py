@@ -14,7 +14,7 @@ def load_assemble_test_data(data_path, dataset_path):
     # Load data under the given path
     print("Loading Data")
     fs = get_all_files(data_path)
-    fs = [f for f in fs if not get_well(f) in ['1', '2', '16', '14', '15', '30', '196', '211', '212', '210', '224', '225']]
+    fs = [f for f in fs if not str(get_well(f)[1]) in ['1', '2', '16', '14', '15', '30', '196', '211', '212', '210', '224', '225']]
     fs = [f for f in fs if 'Phase' in f]
     fs_pair = [(f, None) for f in fs]
     print("Number of input images: %d" % len(fs_pair))
@@ -34,15 +34,16 @@ def load_assemble_test_data(data_path, dataset_path):
     return dataset_path
 
 
-def predict_on_test_data(dataset_path, model_path, output_path):
+def predict_on_test_data(dataset_path, model_path, output_path, predict_interval=None):
     name_file = os.path.join(dataset_path, 'names.pkl')
     names = pickle.load(open(name_file, 'rb'))
     day_num = int(get_ex_day(names[0])[1][1:])
     model_name = os.path.split(model_path)[-1]
-    if 'inf' in model_name:
-        predict_interval = 20 - day_num
-    else:
-        predict_interval = int(model_name.split('0-to-')[1].split('_')[0])
+    if predict_interval is None:
+        if 'inf' in model_name:
+            predict_interval = 20 - day_num
+        else:
+            predict_interval = int(model_name.split('0-to-')[1].split('_')[0])
     print("Predicting %d days ahead" % predict_interval)
     # Building data generator and model
     kwargs = {
