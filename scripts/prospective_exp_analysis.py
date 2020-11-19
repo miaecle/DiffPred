@@ -3,9 +3,10 @@ import numpy as np
 import pandas as pd
 import pickle
 import csv
+from sklearn.metrics import roc_auc_score
 from data_loader import *
 from segment_support import *
-from data_generator import CustomGenerator
+from data_generator import CustomGenerator, binarized_fluorescence_label
 from models import ClassifyOnSegment
 from predict import load_assemble_test_data, predict_on_test_data
 
@@ -26,7 +27,7 @@ for day in days:
     dataset_path = os.path.join(data_path, 'merged') + '/'
     load_assemble_test_data(data_path, dataset_path)
     for model_path in model_paths:
-        model_name = os.path.split(model_path)[-1].split('.')[0]
+        model_name = os.path.splitext(os.path.split(model_path)[-1])[0]
         output_path = os.path.join(output_path_root, 'D%d_pred_%s.csv' % (day, model_name))
         predict_on_test_data(dataset_path, model_path, output_path)
 
@@ -76,76 +77,107 @@ with open(os.path.join(label_save_path, 'D%d_labels.pkl' % day), 'wb') as f:
     pickle.dump(labels, f)
 
 with open(os.path.join(label_save_path, 'D%d_labels.csv' % day), 'w') as f:
-    writer = csv.writer(f)
-    writer.writerow(['ex', 'day', 'well', 'well_position', 'label', 'validity'])
-    for k in labels:
-        writer.writerow([k[0], k[1], k[2], k[3], labels[k][0], labels[k][1]])
+writer = csv.writer(f)
+writer.writerow(['ex', 'day', 'well', 'well_position', 'label', 'validity'])
+for k in labels:
+writer.writerow([k[0], k[1], k[2], k[3], labels[k][0], labels[k][1]])
 
 
 
 ### Metrics ###
-day = 10
+label_day = 13
 label_save_path = DATA_ROOT
 pred_save_path = DATA_ROOT
 
-labels = pd.read_csv(os.path.join(label_save_path, 'D%d_labels.csv' % day))
+labels = pd.read_csv(os.path.join(label_save_path, 'D%d_labels.csv' % label_day))
 label_dict = {}
 for r in np.array(labels):
     label_dict[tuple(r[2:4].astype(str))] = r[4:]
-ks = [k for k in label_dict if label_dict[k][1] == 1]
+ks = [k for k in label_dict]# if label_dict[k][1] == 1]
 
 pred_fs = [f for f in os.listdir(pred_save_path) if 'pred' in f and f.endswith('.csv')]
+model_lines = {}
 for f in sorted(pred_fs):
-    preds = pd.read_csv(f)
+    model_name = os.path.splitext(f)[0].split('pred_')[1]
+    if not model_name in model_lines:
+        model_lines[model_name] = {}
+
+    preds = pd.read_csv(os.path.join(pred_save_path, f))
     preds_dict = {}
     for r in np.array(preds):
         preds_dict[tuple(r[2:4].astype(str))] = r[4:]
 
+
     y_true = np.array([label_dict[k][0] for k in ks if k in preds_dict])
     y_pred = np.array([preds_dict[k] for k in ks if k in preds_dict])
+    pos_preds = [preds_dict[k] for k in ks if k in preds_dict and label_dict[k][0] == 1 and label_dict[k][1] == 1]
+    neg_preds = [preds_dict[k] for k in ks if k in preds_dict and label_dict[k][0] == 0 and label_dict[k][1] == 1]
+    day = int(f.split('_')[0][1:])
+    model_lines[model_name][day] = roc_auc_score(y_true, y_pred[:, 0])
+    # with open('results.txt', 'a') as out_f:
+    #     out_f.write("%s\n" % f)
+    #     out_f.write("\t%.3f\n" % roc_auc_score(y_true, y_pred[:, 0]))
+    #     out_f.write("\t%.3f\t%.3f\n" % (np.mean(pos_preds), np.std(pos_preds)))
+    #     out_f.write("\t%.3f\t%.3f\n" % (np.mean(neg_preds), np.std(neg_preds)))
 
-    pos_preds = [preds_dict[k] for k in preds_dict if label_dict[k][0] == 1 and label_dict[k][1] == 1]
-    neg_preds = [preds_dict[k] for k in preds_dict if label_dict[k][0] == 0 and label_dict[k][1] == 1]
 
-    print(f)
-    print("\t%.3f" % roc_auc_score(y_true, y_pred[:, 0]))
-    print("\t%.3f\t%.3f" % (np.mean(pos_preds), np.std(pos_preds)))
-    print("\t%.3f\t%.3f" % (np.mean(neg_preds), np.std(neg_preds)))
+plt.clf()
+for model_name in model_lines:
+    x = sorted(model_lines[model_name].keys())
+    if len(x) > 4:
+        y = [model_lines[model_name][_x] for _x in x]
+        plt.plot(x, y, '.-', label=model_name)
+plt.legend()
+plt.savefig('/home/zqwu/Dropbox/fig_temp/perf_line_%d.png' % label_day, dpi=300)
 
 
 
 ### Plot prediction ###
-day = 10
+label_day = 12
+pred_day = 8
+use_model = 'pspnet_random_0-to-inf_2'
 label_save_path = DATA_ROOT
 pred_save_path = DATA_ROOT
 
-labels = pd.read_csv(os.path.join(label_save_path, 'D%d_labels.csv' % day))
+labels = pd.read_csv(os.path.join(label_save_path, 'D%d_labels.csv' % label_day))
 well_labels = {}
 for r in np.array(labels):
     well = r[2]
-    site = int(r[3])
+    site = int(r[3]) - 1
     if not well in well_labels:
-        well_labels[well] = np.zeros((15, 15))
+        well_labels[well] = -np.ones((15, 15))
     if r[5] == 1:
         well_labels[well][site//15, site%15] = r[4]
     else:
         well_labels[well][site//15, site%15] = 0.5
 
 
+for well in well_labels:
+    plt.clf()
+    plt.imshow(well_labels[well], vmin=0., vmax=1)
+    plt.savefig('/home/zqwu/Dropbox/fig_temp/Label_%d_%s.png' % (label_day, well), dpi=300)
+
+
+well_preds = {}
 pred_fs = [f for f in os.listdir(pred_save_path) if 'pred' in f and f.endswith('.csv')]
 for f in sorted(pred_fs):
-    preds = pd.read_csv(f)
+    model_name = os.path.splitext(f)[0].split('pred_')[1]
+    if not model_name == use_model:
+        continue
+    day = int(f.split('_')[0][1:])
+    if not day == pred_day:
+        continue
+
+    preds = pd.read_csv(os.path.join(pred_save_path, f))
     preds_dict = {}
     for r in np.array(preds):
-        preds_dict[tuple(r[2:4].astype(str))] = r[4:]
+        well = r[2]
+        site = int(r[3]) - 1
+        if not well in well_preds:
+            well_preds[well] = - np.ones((15, 15))
+        well_preds[well][site//15, site%15] = r[4]
 
-    y_true = np.array([label_dict[k][0] for k in ks if k in preds_dict])
-    y_pred = np.array([preds_dict[k] for k in ks if k in preds_dict])
-
-    pos_preds = [preds_dict[k] for k in preds_dict if label_dict[k][0] == 1 and label_dict[k][1] == 1]
-    neg_preds = [preds_dict[k] for k in preds_dict if label_dict[k][0] == 0 and label_dict[k][1] == 1]
-
-    print(f)
-    print("\t%.3f" % roc_auc_score(y_true, y_pred[:, 0]))
-    print("\t%.3f\t%.3f" % (np.mean(pos_preds), np.std(pos_preds)))
-    print("\t%.3f\t%.3f" % (np.mean(neg_preds), np.std(neg_preds)))
+for well in well_preds:
+    plt.clf()
+    plt.imshow(well_preds[well], vmin=0.4, vmax=1)
+    plt.savefig('/home/zqwu/Dropbox/fig_temp/Pred_%d_%s_from_day%d.png' % (label_day, well, pred_day), dpi=300)
