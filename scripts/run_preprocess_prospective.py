@@ -80,7 +80,7 @@ if __name__ == '__main__':
     if not os.path.exists(label_save_path):
         os.makedirs(label_save_path)
     for folder in sorted(folder_paths):
-        print(folder)
+        print(folder, flush=True)
         raw_path = '/scratch/users/zqwu/iPSC_data/prospective/cms/ex1/%s' % folder
         save_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex1/%s/' % folder
 
