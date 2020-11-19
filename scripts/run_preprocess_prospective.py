@@ -87,4 +87,4 @@ if __name__ == '__main__':
         _ = load_assemble_test_data(raw_path, save_path)
 
         if int(day[1:]) >= 8 and int(day[1:]) <= 17:
-            load_test_data_labels(raw_path, label_save_path):
+            load_test_data_labels(raw_path, label_save_path)
