@@ -88,7 +88,10 @@ if __name__ == '__main__':
         save_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex2/%s/' % folder
 
         ex, day = get_ex_day(raw_path)
+
         _ = load_assemble_test_data(raw_path, save_path)
 
         if int(day[1:]) >= 8:
+            if os.path.exists(os.path.join(label_save_path, '%s_%s_labels.csv' % (ex, day))):
+                continue
             load_test_data_labels(raw_path, label_save_path)
