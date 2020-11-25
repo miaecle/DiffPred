@@ -91,5 +91,5 @@ model = ClassifyOnSegment(
 print("Start Training", flush=True)
 model.fit(train_gen,
           valid_gen=valid_gen,
-          n_epochs=2)
+          n_epochs=200)
 model.save(os.path.join(MODEL_DIR, 'pspnet_random_0-to-inf_0.model'))
