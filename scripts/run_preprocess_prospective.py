@@ -34,11 +34,14 @@ def load_test_data_labels(data_path, label_save_path):
     fs = get_all_files(data_path)
     ex, day = get_ex_day(data_path)
     fs = [f for f in fs if not str(get_well(f)[1]) in ['1', '2', '16', '14', '15', '30', '196', '211', '212', '210', '224', '225']]
-    pc_fs = [f for f in fs if 'Phase' in f]
-    fp_fs = [f for f in fs if 'FP' in f]
+    pc_fs = sorted([f for f in fs if 'Phase' in f])
+    fp_fs = sorted([f for f in fs if 'FP' in f])
 
     assert len(pc_fs) == len(fp_fs)
     fs_pair = list(zip(pc_fs, fp_fs))
+    for pair in fs_pair:
+        assert get_ex_day(pair[0]) == get_ex_day(pair[1])
+        assert get_well(pair[0]) == get_well(pair[1])
     pair_dats = {pair: load_image_pair(pair) for pair in fs_pair}
 
     fl_labels = {}
@@ -48,7 +51,7 @@ def load_test_data_labels(data_path, label_save_path):
     for i, pair in enumerate(fs_pair):
         if i%100 == 0:
             print(i, flush=True)
-        key = get_ex_day(pair[0]) + get_well(pair[0])
+        key = get_ex_day(pair[1]) + get_well(pair[1])
         if key in fl_labels:
             continue
         mask = np.ones_like(pair_dats[pair][0])
@@ -64,34 +67,35 @@ def load_test_data_labels(data_path, label_save_path):
         _y[np.where(_y == 2)] = 1
         labels[key] = binarized_fluorescence_label((_y, _w))
 
-    with open(os.path.join(label_save_path, '%s_%s_labels.pkl' % (ex, day)), 'wb') as f:
+    with open(os.path.join(label_save_path, '%s_labels.pkl' % day), 'wb') as f:
         pickle.dump(labels, f)
 
-    with open(os.path.join(label_save_path, '%s_%s_labels.csv' % (ex, day)), 'w') as f:
+    with open(os.path.join(label_save_path, '%s_labels.csv' % day), 'w') as f:
         writer = csv.writer(f)
         writer.writerow(['ex', 'day', 'well', 'well_position', 'label', 'validity'])
         for k in labels:
             writer.writerow([k[0], k[1], k[2], k[3], labels[k][0], labels[k][1]])
 
-    with open(os.path.join(label_save_path, '%s_%s_fl.pkl' % (ex, day)), 'wb') as f:
+    with open(os.path.join(label_save_path, '%s_fl.pkl' % day), 'wb') as f:
         pickle.dump(fl_labels, f)
 
 
 if __name__ == '__main__':
-    folder_paths = os.listdir('/scratch/users/zqwu/iPSC_data/prospective/cms/ex2/')
-    label_save_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex2/'
+    folder_paths = os.listdir('/scratch/users/zqwu/iPSC_data/prospective/cms/ex1/')
+    label_save_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex1/'
     if not os.path.exists(label_save_path):
         os.makedirs(label_save_path)
     for folder in sorted(folder_paths):
         print(folder, flush=True)
-        raw_path = '/scratch/users/zqwu/iPSC_data/prospective/cms/ex2/%s' % folder
-        save_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex2/%s/' % folder
+        raw_path = '/scratch/users/zqwu/iPSC_data/prospective/cms/ex1/%s' % folder
+        save_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex1/%s/' % folder
 
         ex, day = get_ex_day(raw_path)
-
+        if int(day[1:]) == 18:
+            # Skipping D18
+            continue
         _ = load_assemble_test_data(raw_path, save_path)
-
         if int(day[1:]) >= 8:
-            if os.path.exists(os.path.join(label_save_path, '%s_%s_labels.csv' % (ex, day))):
+            if os.path.exists(os.path.join(label_save_path, '%s_labels.csv' % day)):
                 continue
             load_test_data_labels(raw_path, label_save_path)
