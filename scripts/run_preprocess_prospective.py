@@ -81,19 +81,16 @@ def load_test_data_labels(data_path, label_save_path):
 
 
 if __name__ == '__main__':
-    folder_paths = os.listdir('/scratch/users/zqwu/iPSC_data/prospective/cms/ex1/')
-    label_save_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex1/'
+    folder_paths = os.listdir('/scratch/users/zqwu/iPSC_data/prospective/cms/ex2/')
+    label_save_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex2/'
     if not os.path.exists(label_save_path):
         os.makedirs(label_save_path)
     for folder in sorted(folder_paths):
         print(folder, flush=True)
-        raw_path = '/scratch/users/zqwu/iPSC_data/prospective/cms/ex1/%s' % folder
-        save_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex1/%s/' % folder
+        raw_path = '/scratch/users/zqwu/iPSC_data/prospective/cms/ex2/%s' % folder
+        save_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex2/%s/' % folder
 
         ex, day = get_ex_day(raw_path)
-        if int(day[1:]) == 18:
-            # Skipping D18
-            continue
         _ = load_assemble_test_data(raw_path, save_path)
         if int(day[1:]) >= 8:
             if os.path.exists(os.path.join(label_save_path, '%s_labels.csv' % day)):
