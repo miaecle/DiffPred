@@ -129,6 +129,8 @@ class CustomGenerator(keras.utils.Sequence) :
                 break
             ind = self.selected_inds[i]
             sample_X, sample_y, sample_w, sample_name = self.load_ind(ind)
+            assert sample_y is not None, "Fluorescence not supplied for sample %d" % i
+            assert sample_w is not None, "Fluorescence not supplied for sample %d" % i
             batch_names.append(sample_name)
             # Input
             batch_X.append(sample_X)
@@ -183,8 +185,11 @@ class CustomGenerator(keras.utils.Sequence) :
 
         if not force_augment_off and not self.augment is None:
             if not random_seed is None:
-               np.random.seed(random_seed) 
-            sample_X, sample_y, sample_w = self.augment(sample_X, sample_y, sample_w)
+               np.random.seed(random_seed)
+            if not sample_y is None and not sample_w is None:
+                sample_X, sample_y, sample_w = self.augment(sample_X, sample_y, sample_w)
+            else:
+                sample_X = self.augment(sample_X, sample_y, sample_w)
         return sample_X, sample_y, sample_w, sample_name
 
 
@@ -231,7 +236,7 @@ class CustomGenerator(keras.utils.Sequence) :
                 for i in range(self.n_segment_classes):
                     _y[..., i] = (y == i)
                     _w += w * (y == i) * self.segment_class_weights[i]
-            elif self.segment_label_type == 'discretized_fl':
+            elif self.segment_label_type == 'discretized':
                 assert y.shape[-1] == self.n_segment_classes
                 _y[..., :self.n_segment_classes] = y
                 for i in range(self.n_segment_classes):

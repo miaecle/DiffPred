@@ -1,4 +1,6 @@
 import os
+os.environ['KERAS_BACKEND'] = 'tensorflow'
+os.environ['SM_FRAMEWORK'] = 'tf.keras'
 import numpy as np
 import pandas as pd
 import pickle
@@ -11,25 +13,25 @@ from models import ClassifyOnSegment
 from predict import load_assemble_test_data, predict_on_test_data
 
 
-DATA_ROOT = '/home/zqwu/iPSC/data/prospective/ex1/'
+DATA_ROOT = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex2/'
 
 ### Run prediction ###
-days = [0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11]
-model_paths = ['/home/zqwu/iPSC/model_save/%s' % path for path in ['pspnet_random_0-to-10_1.model',
-                                                                   'pspnet_random_0-to-10_2.model',
-                                                                   'pspnet_ex67_0-to-10_0.model',
-                                                                   'pspnet_random_0-to-inf_1.model',
-                                                                   'pspnet_random_0-to-inf_2.model']]
+days = [4, 6, 8, 10]
+model_paths = ['/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/%s' % path for path in ['temp_bkp.model',
+                                                                                                  'weights.90-0.55.hdf5',
+                                                                                                  'weights.120-0.49.hdf5']] \
+            + ['/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/ex67/%s' % path for path in ['weights.35-0.82.hdf5',
+                                                                                                   'weights.65-0.79.hdf5',
+                                                                                                   'weights.95-1.12.hdf5']]
 output_path_root = DATA_ROOT
 
 for day in days:
-    data_path = os.path.join(DATA_ROOT, 'az6well_cm_D%d_prospective' % day)
-    dataset_path = os.path.join(data_path, 'merged') + '/'
-    load_assemble_test_data(data_path, dataset_path)
+    data_path = os.path.join(DATA_ROOT, 'az6well_cm_D%d_prospective2' % day)
+    # load_assemble_test_data(data_path, dataset_path)
     for model_path in model_paths:
         model_name = os.path.splitext(os.path.split(model_path)[-1])[0]
         output_path = os.path.join(output_path_root, 'D%d_pred_%s.csv' % (day, model_name))
-        predict_on_test_data(dataset_path, model_path, output_path)
+        predict_on_test_data(data_path, model_path, output_path, predict_interval=20-day)
 
 
 
@@ -85,7 +87,7 @@ writer.writerow([k[0], k[1], k[2], k[3], labels[k][0], labels[k][1]])
 
 
 ### Metrics ###
-label_day = 13
+label_day = 16
 label_save_path = DATA_ROOT
 pred_save_path = DATA_ROOT
 
@@ -114,6 +116,10 @@ for f in sorted(pred_fs):
     neg_preds = [preds_dict[k] for k in ks if k in preds_dict and label_dict[k][0] == 0 and label_dict[k][1] == 1]
     day = int(f.split('_')[0][1:])
     model_lines[model_name][day] = roc_auc_score(y_true, y_pred[:, 0])
+    print("%s" % f)
+    print("\t%.3f" % roc_auc_score(y_true, y_pred[:, 0]))
+    print("\t%.3f\t%.3f" % (np.mean(pos_preds), np.std(pos_preds)))
+    print("\t%.3f\t%.3f\n" % (np.mean(neg_preds), np.std(neg_preds)))
     # with open('results.txt', 'a') as out_f:
     #     out_f.write("%s\n" % f)
     #     out_f.write("\t%.3f\n" % roc_auc_score(y_true, y_pred[:, 0]))
