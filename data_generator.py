@@ -129,14 +129,14 @@ class CustomGenerator(keras.utils.Sequence) :
                 break
             ind = self.selected_inds[i]
             sample_X, sample_y, sample_w, sample_name = self.load_ind(ind)
-            assert sample_y is not None, "Fluorescence not supplied for sample %d" % i
-            assert sample_w is not None, "Fluorescence not supplied for sample %d" % i
             batch_names.append(sample_name)
             # Input
             batch_X.append(sample_X)
 
             # Output
             if not self.n_segment_classes is None:
+                assert sample_y is not None, "Fluorescence not supplied for sample %d" % i
+                assert sample_w is not None, "Fluorescence not supplied for sample %d" % i
                 batch_y.append(sample_y)
                 batch_w.append(sample_w)
             if not self.n_classify_classes is None:

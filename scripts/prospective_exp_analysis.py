@@ -11,9 +11,10 @@ from segment_support import *
 from data_generator import CustomGenerator, binarized_fluorescence_label
 from models import ClassifyOnSegment
 from predict import load_assemble_test_data, predict_on_test_data
+from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score
 
 
-DATA_ROOT = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex2/'
+DATA_ROOT = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex1/'
 
 ### Run prediction ###
 days = [4, 6, 8, 10]
@@ -187,3 +188,118 @@ for well in well_preds:
     plt.clf()
     plt.imshow(well_preds[well], vmin=0.4, vmax=1)
     plt.savefig('/home/zqwu/Dropbox/fig_temp/Pred_%d_%s_from_day%d.png' % (label_day, well, pred_day), dpi=300)
+
+
+
+
+
+
+### Fluorescence translation performance ###
+
+day = 15
+data_path = os.path.join(DATA_ROOT, 'az6well_cm_D%d_prospective' % day)
+
+kwargs = {
+    'batch_size': 16,
+    'shuffle_inds': False,
+    'include_day': True,
+    'n_segment_classes': None,
+    'segment_class_weights': [1, 3],
+    'segment_extra_weights': None,
+    'segment_label_type': 'segmentation',
+    'n_classify_classes': None,
+}
+
+n_fs = len([f for f in os.listdir(data_path) if f.startswith('X')])
+X_filenames = [os.path.join(data_path, 'X_%d.pkl' % i) for i in range(n_fs)]
+y_filenames = [os.path.join(data_path, 'y_%d.pkl' % i) for i in range(n_fs)]
+w_filenames = [os.path.join(data_path, 'w_%d.pkl' % i) for i in range(n_fs)]
+name_file = os.path.join(data_path, 'names.pkl')
+valid_gen = CustomGenerator(X_filenames,
+                            y_filenames,
+                            w_filenames,
+                            name_file,
+                            **kwargs)
+model = ClassifyOnSegment(
+    input_shape=(288, 384, 2), 
+    model_structure='pspnet', 
+    model_path='.', 
+    encoder_weights='imagenet',
+    n_segment_classes=2,
+    n_classify_classes=2)
+
+model_path = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/0-to-0_random/bkp.model'
+model.load(model_path)
+
+fls = pickle.load(open(os.path.join(DATA_ROOT, 'D%d_fl.pkl' % day), 'rb'))
+labels = pickle.load(open(os.path.join(DATA_ROOT, 'D%d_labels.pkl' % day), 'rb'))
+
+preds = []
+classify_preds = []
+for batch in valid_gen:
+    pred = model.predict(batch)
+    preds.append(pred[0])
+    classify_preds.append(pred[1])
+preds = np.concatenate(preds, 0)
+classify_preds = np.concatenate(classify_preds, 0)
+
+
+tp = 0
+fp = 0
+fn = 0
+total_ct = 0
+err_ct1 = 0 # Overall false positives
+err_ct2 = 0 # Overall false negatives
+thr = 0.01 * (288 * 384)
+classify_y_trues = []
+classify_y_preds = []
+for i in range(len(preds)):
+    y_pred = preds[i]
+    y_pred_classify = classify_preds[i]
+    # y_pred = np.stack([y_pred[..., :2].sum(-1), y_pred[..., 2:].sum(-1)], -1)
+    # y_pred_classify = np.stack([y_pred_classify[..., :1].sum(-1), y_pred_classify[..., 1:].sum(-1)], -1)
+
+    y_pred = scipy.special.softmax(y_pred, -1)
+    y_pred_classify = scipy.special.softmax(y_pred_classify, -1)
+
+    name = valid_gen.names[valid_gen.selected_inds[i]]
+    key = get_ex_day(name) + get_well(name)
+    y_true = (fls[key] > 1) * 1
+    w = 1 - (fls[key] == 1)
+    y_true_classify = labels[key][0]
+    w_true_classify = labels[key][1]
+
+    if w_true_classify > 0:
+        classify_y_trues.append(y_true_classify)
+        classify_y_preds.append(y_pred_classify)
+
+    y_pred = y_pred[np.nonzero(w)].reshape((-1, 2))
+    y_true = y_true[np.nonzero(w)].reshape((-1,))
+    _tp = ((y_pred[:, 1] > 0.5) * y_true).sum()
+    _fp = ((y_pred[:, 1] > 0.5) * (1 - y_true)).sum()
+    _fn = ((y_pred[:, 1] <= 0.5) * y_true).sum()
+
+    tp += _tp
+    fp += _fp
+    fn += _fn
+    total_ct += 1
+    if y_pred.shape[0] > (0.99*288*384) and (_tp + _fn) < thr and _fp > thr:
+        err_ct1 += 1
+    if _fn > thr and (_tp + _fp) < thr:
+        err_ct2 += 1
+
+iou = tp/(tp + fp + fn)
+prec = tp/(tp + fp)
+recall = tp/(tp + fn)
+f1 = 2/(1/(prec + 1e-5) + 1/(recall + 1e-5))
+print("Precision: %.3f\tRecall: %.3f\tF1: %.3f\tIOU: %.3f\tFP: %d/%d\tFN: %d/%d" %
+      (prec, recall, f1, iou, err_ct1, total_ct, err_ct2, total_ct))
+
+classify_y_trues = np.array(classify_y_trues)
+classify_y_preds = np.stack(classify_y_preds, 0)
+auc = roc_auc_score(classify_y_trues, classify_y_preds[:, 1])
+prec = precision_score(classify_y_trues, classify_y_preds[:, 1] > 0.5)
+recall = recall_score(classify_y_trues, classify_y_preds[:, 1] > 0.5)
+f1 = f1_score(classify_y_trues, classify_y_preds[:, 1] > 0.5)
+print("Precision: %.3f\tRecall: %.3f\tF1: %.3f\tAUC: %.3f" %
+    (prec, recall, f1, auc))
