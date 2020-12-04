@@ -4,22 +4,22 @@ os.environ['SM_FRAMEWORK'] = 'tf.keras'
 from data_loader import *
 from segment_support import *
 from layers import *
-from models import Segment, ClassifyOnSegment
+from models import Segment, Classify, ClassifyOnSegment
 from data_generator import CustomGenerator, enhance_weight_fp, binarized_fluorescence_label
 
 
 DATA_ROOT = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/'
 data_path = os.path.join(DATA_ROOT, 'linear_aligned_patches', 'merged_all')
-model_path = os.path.join(DATA_ROOT, 'model_save', '0-to-0_random')
+model_path = os.path.join(DATA_ROOT, 'model_save', '0-to-0_random_classify_only')
 os.makedirs(model_path, exist_ok=True)
 
 kwargs = {
     'batch_size': 16,
     'shuffle_inds': False,
     'include_day': True,
-    'n_segment_classes': 2,
+    'n_segment_classes': None,
     'segment_class_weights': [1, 3],
-    'segment_extra_weights': enhance_weight_fp,
+    'segment_extra_weights': None,
     'segment_label_type': 'segmentation',
     'n_classify_classes': 2,
     'classify_class_weights': [0.02, 0.02]
@@ -65,16 +65,12 @@ valid_gen = CustomGenerator(X_filenames,
                             label_file=label_file,
                             **kwargs)
 
-model = ClassifyOnSegment(
-    input_shape=(288, 384, 2), 
-    model_structure='pspnet', 
+model = Classify(
+    input_shape=(288, 384, 2),
     model_path=model_path, 
-    encoder_weights='imagenet',
-    n_segment_classes=2,
-    n_classify_classes=2)
-
-model.load(os.path.join(model_path, 'bkp.model'))
+    model_structure='resnet34',
+    n_classes=2)
 
 model.fit(train_gen,
           valid_gen=valid_gen,
-          n_epochs=50)
+          n_epochs=100)

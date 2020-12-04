@@ -196,6 +196,7 @@ class Classify(Segment):
     self.n_classes = n_classes
 
     self.encoder_weights = encoder_weights
+    self.structure = model_structure
     if model_path is None:
       self.model_path = tempfile.mkdtemp()
     else:
