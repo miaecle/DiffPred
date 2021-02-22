@@ -28,7 +28,7 @@ def vertical_flip(x):
 
 class Augment(object):
     def __init__(self,
-                 segment_label_type='segmentation',
+                 segment_label_type='discrete',
                  zoom_prob=0.3,
                  zoom_range=[0.8, 1.],
                  scale_prob=0.5,
@@ -71,7 +71,7 @@ class Augment(object):
             if not y is None and not weight is None:
                 weight = zoom(weight, h_start, h_end, w_start, w_end)
                 y = zoom(y.astype(float), h_start, h_end, w_start, w_end)
-                if self.segment_label_type == 'segmentation':
+                if self.segment_label_type == 'discrete':
                     weight[np.where(y != y.astype(int))] = 0
                     y[np.where(y != y.astype(int))] = 0
         if np.random.rand() < self.scale_prob:
@@ -99,6 +99,3 @@ class Augment(object):
         else:
             x = x.reshape(x_shape).astype(x_dtype)
             return x
-
-
-

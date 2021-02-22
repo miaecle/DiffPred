@@ -6,6 +6,7 @@ Created on Tue Jan 28 22:35:16 2020
 @author: zqwu
 """
 import os
+import copy
 import numpy as np
 import cv2
 import pickle
@@ -18,32 +19,7 @@ from skimage import measure
 import matplotlib.pyplot as plt
 plt.switch_backend('AGG')
 
-CHANNEL_MAX = 65535
-
-
-def rotate(coords, angle):
-    cs = np.cos(angle)
-    sn = np.sin(angle)
-
-    x = coords[0] * cs - coords[1] * sn;
-    y = coords[0] * sn + coords[1] * cs;
-    return x, y
-
-
-def smooth(x, window_len=3, window='hanning'):    
-    w = np.ones(window_len, 'd')
-    y = np.convolve(w/w.sum(), x, mode='same')
-    return y
-
-
-def well_id(pair):
-    f_name = pair[0].split('/')[-1]
-    f_name = f_name.replace('-', ' ').replace('_', ' ')
-    return f_name.split()[0]
-
-
-def position_code(pair):
-    return pair[0].split('/')[-1].split('_')[3]
+from data_loader import get_identifier, load_image_pair
 
 
 def generate_dist_mat(mask, position_code):
@@ -68,20 +44,19 @@ def generate_dist_mat(mask, position_code):
     return dist_mat
 
 
-def get_center(edge):
-    # Deprecated, calculate plate center based on edge
-    x, y = np.where(edge)
-    def calc_R(xc, yc):
-        return np.sqrt((x-xc)**2 + (y-yc)**2)
-    
-    def loss(c):
-        Ri = calc_R(*c)
-        return Ri - Ri.mean()
-    
-    center, ier = optimize.leastsq(loss, (x.mean(), y.mean()))
-    assert ier in [1,2,3,4]
-    R = calc_R(*center).mean()
-    return center, R
+def rotate(coords, angle):
+    cs = np.cos(angle)
+    sn = np.sin(angle)
+
+    x = coords[0] * cs - coords[1] * sn;
+    y = coords[0] * sn + coords[1] * cs;
+    return x, y
+
+
+def smooth(x, window_len=3, window='hanning'):    
+    w = np.ones(window_len, 'd')
+    y = np.convolve(w/w.sum(), x, mode='same')
+    return y
 
 
 def get_long_axis(blob_mask, blob_id):
@@ -289,237 +264,149 @@ def generate_weight(mask, position_code, linear_align=True):
     return weight * mask
 
 
-def preprocess(dats, linear_align=True, label='segmentation'):
-    Xs = []
-    ys = []
-    ws = []
-    names = []
-    for pair, pair_dat in dats.items():
-        pair_dat = dats[pair]
-        position_code = pair[0].split('/')[-1].split('_')[3]
+def binarized_fluorescence_label(y, w):
+    if y is None:
+        return 0, 0
+    if isinstance(y, np.ndarray):
+        y_ct = np.where(y > 0)[0].size
+        invalid_ct = np.where(np.sign(w) == 0)[0].size
+    elif np.all(int(y) == y):
+        y_ct = y
+        invalid_ct = w
+    else:
+        raise ValueError("Data type not supported")
+    if y_ct > 500:
+        sample_y = 1
+        sample_w = 1
+    elif y_ct == 0 and invalid_ct < 600:
+        sample_y = 0
+        sample_w = 1
+    else:
+        sample_y = 0
+        sample_w = 0
+    return sample_y, sample_w
+
+
+def preprocess(pairs, 
+               output_path=None, 
+               preprocess_filter=lambda x: True,
+               target_size=(384, 288),
+               labels=['discrete', 'continuous'], 
+               linear_align=True,
+               shuffle=True,
+               seed=None):
+    if not seed is None:
+        np.random.seed(seed)
+
+    # Sanity check
+    pairs = [p for p in pairs if p[0] is not None and preprocess_filter(p)]
+    for p in pairs:
+        if p[1] is not None:
+            assert get_identifier(p[0]) == get_identifier(p[1])
+
+    # Sort
+    pairs = sorted(pairs)
+    if shuffle:
+        np.random.shuffle(pairs)
+
+    # Featurize data
+    target_shape = (target_size[1], target_size[0], -1) # Note that cv2 and numpy have reversed axis ordering
+    names = {}
+    Xs = {}
+    segment_discrete_ys = {}
+    segment_discrete_ws = {}
+    segment_continuous_ys = {}
+    segment_continuous_ws = {}
+    classify_discrete_labels = {}
+    classify_continuous_labels = {}
+    file_ind = 0
+    for ind, pair in enumerate(pairs):
+        identifier = get_identifier(pair[0])
+        pair_dat = load_image_pair(pair)
+
+        # Input feature (phase contrast image)
+        position_code = identifier[-1]
         if linear_align and position_code in ['1', '3', '7', '9']:
             mask = generate_mask(pair_dat)
         else:
             mask = np.ones_like(pair_dat[0])
-        
-        pc_adjusted = adjust_contrast(pair_dat, mask, position_code, linear_align=linear_align)
-        weight = generate_weight(mask, position_code, linear_align=linear_align)
-        
-        if pair_dat[1] is None:
-            fluorescence = None
-        elif label == 'segmentation':
-            fluorescence = generate_fluorescence_labels(pair_dat, mask)
-        elif label == 'discretized':
-            fluorescence = quantize_fluorescence(pair_dat, mask)
+        X = adjust_contrast(pair_dat, mask, position_code, linear_align=linear_align)
+        X = cv2.resize(X, target_size)
+        names[ind] = pair[0]
+        Xs[ind] = X.reshape(target_shape).astype(float)
+
+        # Segment weights
+        w = generate_weight(mask, position_code, linear_align=linear_align)
+        w = cv2.resize(w, target_size)
+
+        # Segment labels (binarized fluorescence, discrete labels)
+        if not pair_dat[1] is None and 'discrete' in labels:
+            # 0 - bg, 2 - fg, 1 - intermediate
+            discrete_y = generate_fluorescence_labels(pair_dat, mask)
+            y = cv2.resize(discrete_y, target_size)
+            y[np.where((y > 0) & (y < 1))] = 1
+            y[np.where((y > 1) & (y < 2))] = 1
+
+            discrete_w = copy.deepcopy(w)
+            discrete_w[np.where(y == 1)] = 0
+            
+            y[np.where(y == 1)] = 0
+            y[np.where(y == 2)] = 1
+            segment_discrete_ys[ind] = y.reshape(target_shape).astype(int)
+            segment_discrete_ws[ind] = discrete_w.reshape(target_shape).astype(float)
         else:
-            raise ValueError("label type not supported")
-        
-        Xs.append(pc_adjusted)
-        ys.append(fluorescence)
-        ws.append(weight)
-        names.append(pair[0])
-        if len(names) % 100 == 0:
-            print("featurized %d inputs" % len(names))
-    return Xs, ys, ws, names
+            segment_discrete_ys[ind] = None
+            segment_discrete_ws[ind] = None
 
+        # Segment labels (continuous fluorescence in 4 classes)
+        if not pair_dat[1] is None and 'continuous' in labels:
+            continuous_y = quantize_fluorescence(pair_dat, mask)
+            y = cv2.resize(continuous_y, target_size)
 
-def assemble_for_training(dat_fs,
-                          target_size=(384, 288),
-                          save_path=None, 
-                          validity_check=None,
-                          label='segmentation'):
-    all_Xs = {}
-    all_ys = {}
-    all_ws = {}
-    all_names = {}
+            continuous_w = copy.deepcopy(w)
+            continuous_w[np.where(y != y)[:2]] = 0
+            y[np.where(y != y)[:2]] = np.zeros((1, y.shape[-1]))
 
-    ind = 0
-    file_ind = 0
-    if not isinstance(dat_fs[0], str):
-        Xs, ys, ws, names = dat_fs
-        dat_fs = [None]
-
-    for dat_f in dat_fs:
-        if isinstance(dat_f, str):
-            Xs, ys, ws, names = pickle.load(open(dat_f, 'rb'))
-        for X, y, w, name in zip(Xs, ys, ws, names):
-            if validity_check is not None and not validity_check(name):
-                continue
-            _X = cv2.resize(X, target_size)
-            all_Xs[ind] = np.expand_dims(_X, 2).astype(float)
-            if y is not None:
-                _y = cv2.resize(y, target_size)
-                _w = cv2.resize(w, target_size)
-                if label == 'segmentation':
-                    _y[np.where((_y > 0) & (_y < 1))] = 1
-                    _y[np.where((_y > 1) & (_y < 2))] = 1
-                    _w[np.where(_y == 1)] = 0
-                    _y[np.where(_y == 1)] = 0
-                    _y[np.where(_y == 2)] = 1
-                    all_ys[ind] = _y.astype(int)
-                    all_ws[ind] = _w.astype(float)
-                elif label == 'discretized':
-                    _w[np.where(_y != _y)[:2]] = 0
-                    _y[np.where(_y != _y)[:2]] = np.zeros((1, _y.shape[-1]))
-                    all_ys[ind] = _y.astype('float16') # to save space
-                    all_ws[ind] = _w.astype(float)
-            else:
-                all_ys[ind] = None
-                all_ws[ind] = None
-
-            all_names[ind] = name
-            ind += 1
-            if save_path is not None and len(all_Xs) >= 100:
-                with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
-                    pickle.dump(all_Xs, f)
-                with open(save_path + 'y_%d.pkl' % file_ind, 'wb') as f:
-                    pickle.dump(all_ys, f)
-                with open(save_path + 'w_%d.pkl' % file_ind, 'wb') as f:
-                    pickle.dump(all_ws, f)
-                with open(save_path + 'names.pkl', 'wb') as f:
-                    pickle.dump(all_names, f)
-                file_ind += 1
-                all_Xs = {}
-                all_ys = {}
-                all_ws = {}
-        print("%s: %d" % (dat_f, ind))
-    if save_path is not None and len(all_Xs) > 0:
-        with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
-            pickle.dump(all_Xs, f)
-        with open(save_path + 'y_%d.pkl' % file_ind, 'wb') as f:
-            pickle.dump(all_ys, f)
-        with open(save_path + 'w_%d.pkl' % file_ind, 'wb') as f:
-            pickle.dump(all_ws, f)
-        with open(save_path + 'names.pkl', 'wb') as f:
-            pickle.dump(all_names, f)
-        file_ind += 1
-        all_Xs = {}
-        all_ys = {}
-        all_ws = {}
-
-    return all_Xs, all_ys, all_ws, all_names
-
-
-"""
-def rotate_image(mat, angle, image_center=None):
-    # angle in degrees
-    height, width = mat.shape[:2]
-    if image_center is None:
-      image_center = (width/2, height/2)
-    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.)
-    abs_cos = abs(rotation_mat[0,0])
-    abs_sin = abs(rotation_mat[0,1])
-    bound_w = int(height * abs_sin + width * abs_cos)
-    bound_h = int(height * abs_cos + width * abs_sin)
-    rotation_mat[0, 2] += bound_w/2 - image_center[0]
-    rotation_mat[1, 2] += bound_h/2 - image_center[1]
-    rotated_mat = cv2.warpAffine(mat, rotation_mat, (bound_w, bound_h))
-    return rotated_mat
-
-
-def index_mat(mat, x_from, x_to, y_from, y_to):
-    x_size = mat.shape[0]
-    if x_from < 0:
-        assert x_to < x_size
-        s = np.concatenate([np.zeros_like(mat[x_from:]), mat[:x_to]], 0)
-    elif x_to > x_size:
-        assert x_from >= 0
-        s = np.concatenate([mat[x_from:], np.zeros_like(mat[:(x_to-x_size)])], 0)
-    else:
-        s = mat[x_from:x_to]
-  
-    y_size = mat.shape[1]
-    if y_from < 0:
-        assert y_to < y_size
-        s = np.concatenate([np.zeros_like(s[:, y_from:]), s[:, :y_to]], 1)
-    elif y_to > y_size:
-        assert y_from >= 0
-        s = np.concatenate([s[:, y_from:], np.zeros_like(s[:, :(y_to-y_size)])], 1)
-    else:
-        s = s[:, y_from:y_to]
-    assert s.shape[0] == (x_to - x_from)
-    assert s.shape[1] == (y_to - y_from)
-    return s
-
-
-def extract_mat(input_mat, 
-                x_center, 
-                y_center, 
-                x_size=256,
-                y_size=256,
-                angle=0, 
-                flip=False):
-    x_margin = int(x_size/np.sqrt(2))
-    y_margin = int(y_size/np.sqrt(2))
-  
-    patch = index_mat(input_mat, 
-                      (x_center - x_margin), 
-                      (x_center + x_margin), 
-                      (y_center - y_margin), 
-                      (y_center + y_margin))
-    patch = np.array(patch).astype(float)
-    if angle != 0:
-        patch = rotate_image(patch, angle)
-    if flip:
-        patch = cv2.flip(patch, 1)
-  
-    center = (patch.shape[0]//2, patch.shape[1]//2)
-    patch_X = patch[(center[0] - x_size//2):(center[0] + x_size//2),
-                    (center[1] - y_size//2):(center[1] + y_size//2)]
-    return patch_X
-
-
-def generate_patches(input_dat_pairs,
-                     n_patches=1000,
-                     x_size=256,
-                     y_size=256,
-                     rotate=False,
-                     mirror=False,
-                     seed=None,
-                     **kwargs):  
-    data = []
-    if not seed is None:
-        np.random.seed(seed)
-    while len(data) < n_patches:
-        pair = np.random.choice(input_dat_pairs)
-    
-        x_center = np.random.randint(0, pair[0].shape[0])
-        y_center = np.random.randint(0, pair[0].shape[1])
-    
-        if rotate:
-            angle = np.random.rand() * 360
+            segment_continuous_ys[ind] = y.reshape(target_shape).astype(float)
+            segment_continuous_ws[ind] = continuous_w.reshape(target_shape).astype(float)
         else:
-            angle = 0
-    
-        if mirror:
-            flip = np.random.rand() > 0.5
-        else:
-            flip = False
-    
-        patch_pc = extract_mat(pair[0], x_center, y_center, x_size=x_size, y_size=y_size, angle=angle, flip=flip)
-        patch_gfp = extract_mat(pair[1], x_center, y_center, x_size=x_size, y_size=y_size, angle=angle, flip=flip)
-        data.append((patch_pc, patch_gfp))
-    return data
+            segment_continuous_ys[ind] = None
+            segment_continuous_ws[ind] = None
 
-def generate_ordered_patches(input_dat_pairs,
-                             x_size=256,
-                             y_size=256,
-                             seed=None):
-    data = []
-    if not seed is None:
-        np.random.seed(seed)
-  
-    x_shape = input_dat_pairs[0][0].shape[0]
-    y_shape = input_dat_pairs[0][0].shape[1]
-    for pair in input_dat_pairs:
-        x_center = np.random.randint(-x_size//2, x_size//2)
-        while (x_center < x_shape+x_size//2):
-            y_center = np.random.randint(-y_size//2, y_size//2)
-            while (y_center < y_shape+y_size//2):
-                patch_pc = extract_mat(pair[0], x_center, y_center, x_size=x_size, y_size=y_size)
-                patch_gfp = extract_mat(pair[1], x_center, y_center, x_size=x_size, y_size=y_size)
-                data.append((patch_pc, patch_gfp))
-                y_center += y_size
-            x_center += x_size
-    return data
-"""
+        # Classify labels
+        classify_discrete_labels[ind] = binarized_fluorescence_label(
+            segment_discrete_ys[ind], segment_discrete_ws[ind])
+
+        # only sample with fluorescence will have valid weights
+        classify_continuous_y = segment_continuous_ys[ind].sum((0, 1))
+        classify_continuous_y = classify_continuous_y / (1e-5 + np.sum(classify_continuous_y))
+        classify_continuous_w = classify_discrete_labels[ind][0]
+        classify_continuous_labels[ind] = (classify_continuous_y, classify_continuous_w)
+
+        # Save data
+        if output_path is not None and ((len(names) >= 100) or (ind == len(pairs) - 1)):
+            with open(output_path + 'names.pkl', 'wb') as f:
+                pickle.dump(names, f)
+            with open(output_path + 'X_%d.pkl' % file_ind, 'wb') as f:
+                pickle.dump(Xs, f)
+            if 'discrete' in labels:
+                with open(output_path + 'segment_discrete_y_%d.pkl' % file_ind, 'wb') as f:
+                    pickle.dump(segment_discrete_ys, f)
+                with open(output_path + 'segment_discrete_w_%d.pkl' % file_ind, 'wb') as f:
+                    pickle.dump(segment_discrete_ws, f)
+                with open(output_path + 'classify_discrete_labels.pkl', 'wb') as f:
+                    pickle.dump(classify_discrete_labels, f)
+            if 'continuous' in labels:
+                with open(output_path + 'segment_continuous_y_%d.pkl' % file_ind, 'wb') as f:
+                    pickle.dump(segment_continuous_ys, f)
+                with open(output_path + 'segment_continuous_w_%d.pkl' % file_ind, 'wb') as f:
+                    pickle.dump(segment_continuous_ws, f)
+                with open(output_path + 'classify_continuous_labels.pkl', 'wb') as f:
+                    pickle.dump(classify_continuous_labels, f)
+            file_ind += 1
+            Xs = {}
+            segment_discrete_ys = {}
+            segment_discrete_ws = {}
+            segment_continuous_ys = {}
+            segment_continuous_ws = {}
+    return file_ind

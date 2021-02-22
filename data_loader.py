@@ -8,7 +8,6 @@ import pickle
 
 CHANNEL_MAX = 65535
 
-
 def n_diff(s1, s2):
     ct = 0
     for s in difflib.ndiff(s1, s2):
@@ -32,14 +31,15 @@ def load_all_pairs(path='predict_gfp_raw'):
     exclusions = []
     pc_file_mapping = {}
     for f in pcs:
-        identifier = get_ex_day(f) + get_well(f)
+        identifier = get_identifier(f)
         if identifier in pc_file_mapping:
+            # If there are multiple files having the same identifier
             exclusions.append(identifier)
         pc_file_mapping[identifier] = f
 
     gfp_file_mapping = {}
     for f in gfps:
-        identifier = get_ex_day(f) + get_well(f)
+        identifier = get_identifier(f)
         if identifier in gfp_file_mapping:
             exclusions.append(identifier)
         gfp_file_mapping[identifier] = f
@@ -96,35 +96,23 @@ def get_ex_day(name):
     return (ex_id, day)
 
 
-def get_well(f):
+def well_id_from_name(f):
     f = f.split('/')[-1].split('.')[0]
     f = f.split('_')
     return (f[0], f[3])
 
 
+def exp_id_from_name(f):
+    return str(get_ex_day(f)[0])
+
+
+def exp_day_from_name(f):
+    return str(get_ex_day(f)[1][1:])
+
+
+def get_identifier(f):
+    return (exp_id_from_name(f), exp_day_from_name(f)) + well_id_from_name(f)
+
 
 if __name__ == '__main__':
-    RAW_DATA_PATH = '../iPSC_data'
-    SAVE_PATH = '/oak/stanford/groups/jamesz/zqwu/iPSC_data'
-
-    pairs = load_all_pairs(path=os.path.join(RAW_DATA_PATH, 'predict_gfp_raw'))
-    ex_day_groups = set(get_ex_day(p[0]) if not p[0] is None else get_ex_day(p[1]) for p in pairs)
-    for g in ex_day_groups:
-        save_file_name = os.path.join(SAVE_PATH, '%s_%s.pkl' % g)
-        if os.path.exists(save_file_name):
-            continue
-        group_pairs = [p for p in pairs if (get_ex_day(p[0]) if not p[0] is None else get_ex_day(p[1])) == g]
-        group_pair_dats = {p: load_image_pair(p) for p in group_pairs}
-        with open(save_file_name, 'wb') as f:
-            pickle.dump(group_pair_dats, f)
-
-    pairs = load_all_pairs(path=os.path.join(RAW_DATA_PATH, 'predict_diff_raw'))
-    ex_day_groups = set(get_ex_day(p[0]) if not p[0] is None else get_ex_day(p[1]) for p in pairs)
-    for g in ex_day_groups:
-        save_file_name = os.path.join(SAVE_PATH, '%s_%s.pkl' % g)
-        if os.path.exists(save_file_name):
-            continue
-        group_pairs = [p for p in pairs if (get_ex_day(p[0]) if not p[0] is None else get_ex_day(p[1])) == g]
-        group_pair_dats = {p: load_image_pair(p) for p in group_pairs}
-        with open(save_file_name, 'wb') as f:
-            pickle.dump(group_pair_dats, f)
+    pass
