@@ -369,22 +369,24 @@ def preprocess(pairs,
 
             segment_continuous_ys[ind] = y.reshape(target_shape).astype(float)
             segment_continuous_ws[ind] = continuous_w.reshape(target_shape).astype(float)
+
+            classify_continuous_y = segment_continuous_ys[ind].sum((0, 1))
+            classify_continuous_y = classify_continuous_y / (1e-5 + np.sum(classify_continuous_y))
         else:
             segment_continuous_ys[ind] = None
             segment_continuous_ws[ind] = None
+            classify_continuous_y = 0
 
         # Classify labels
         classify_discrete_labels[ind] = binarized_fluorescence_label(
             segment_discrete_ys[ind], segment_discrete_ws[ind])
 
         # only sample with fluorescence will have valid weights
-        classify_continuous_y = segment_continuous_ys[ind].sum((0, 1))
-        classify_continuous_y = classify_continuous_y / (1e-5 + np.sum(classify_continuous_y))
-        classify_continuous_w = classify_discrete_labels[ind][0]
-        classify_continuous_labels[ind] = (classify_continuous_y, classify_continuous_w)
+        classify_continuous_labels[ind] = (classify_continuous_y, classify_discrete_labels[ind][0])
 
         # Save data
-        if output_path is not None and ((len(names) >= 100) or (ind == len(pairs) - 1)):
+        if output_path is not None and ((len(Xs) >= 100) or (ind == len(pairs) - 1)):
+            print("Writing file %d" % file_ind)
             with open(output_path + 'names.pkl', 'wb') as f:
                 pickle.dump(names, f)
             with open(output_path + 'X_%d.pkl' % file_ind, 'wb') as f:
