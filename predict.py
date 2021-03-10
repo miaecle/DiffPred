@@ -78,7 +78,7 @@ def predict_on_test_data(dataset_path, model_path, output_path, predict_interval
     with open(output_path, 'w') as f:
         writer = csv.writer(f)
         writer.writerow(['ex', 'day', 'well', 'well_position', 'score'])
-        for i in range(data_gen.N):
+        for i in data_gen.selected_inds:
             ex, day = get_ex_day(data_gen.names[i])
             well, well_pos = get_well(data_gen.names[i])
             writer.writerow([ex, day, well, well_pos, preds[1][i, 1]])
