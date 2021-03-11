@@ -139,7 +139,7 @@ def generate_mask(pair_dat, plot=False):
 
 def generate_fluorescence_labels(pair_dat, mask):
     fl = pair_dat[1]
-
+    
     # Add blur to intensity
     intensity = ((fl * mask.astype('float'))/256).astype('uint8')
     intensity = cv2.medianBlur(intensity, 15) * 256
@@ -163,18 +163,23 @@ def generate_fluorescence_labels(pair_dat, mask):
     negatives = (lap > 25) * mask
     positives = (lap < -27) * mask
 
-    if np.sum(positives) < 1200*900*0.01:
+    if np.sum(positives) < 1200*900*0.005:
         # No significant differentiation detected
         negatives = mask - np.sign(convolve2d(positives, np.ones((3, 3)), mode='same'))
         positives = np.zeros_like(mask)
     else:
         # Average fluorescence for negative/positive pixels
-        fl_neg_threshold = np.quantile(fl[np.where(negatives)], 0.6)
-        fl_pos_threshold = np.quantile(fl[np.where(positives)], 0.5)
+        neg_median = np.quantile(fl[np.where(negatives)], 0.5)
+        pos_median = np.quantile(fl[np.where(positives)], 0.5)
+        if not pos_median > neg_median:
+            print("Error in labeling")
+            return None
+        pos_thr = pos_median - 0.3 * (pos_median - neg_median)
+        neg_thr = neg_median + 0.3 * (pos_median - neg_median)
 
         # Assign uncovered pixels to negative if the gradient is not high and fluorescence signal is low
-        negatives = np.sign(negatives + (fl < fl_neg_threshold) * mask * (1 - positives))
-        positives = np.sign(positives + (fl > fl_pos_threshold) * mask * (1 - negatives))
+        positives = np.sign(positives + (fl > pos_thr) * mask)
+        negatives = np.sign((negatives + (fl < neg_thr) * mask) * (1 - positives))
         negatives = np.sign(convolve2d(negatives, np.ones((3, 3)), mode='same')) * (1 - positives)
 
     # Clean masks by removing scattered segmentations
@@ -266,7 +271,7 @@ def generate_weight(mask, position_code, linear_align=True):
 
 def binarized_fluorescence_label(y, w):
     if y is None:
-        return 0, 0
+        return None, 0
     if isinstance(y, np.ndarray):
         y_ct = np.where(y > 0)[0].size
         invalid_ct = np.where(np.sign(w) == 0)[0].size
@@ -292,6 +297,7 @@ def preprocess(pairs,
                preprocess_filter=lambda x: True,
                target_size=(384, 288),
                labels=['discrete', 'continuous'], 
+               raw_label_preprocess=lambda x: x,
                linear_align=True,
                shuffle=True,
                seed=None):
@@ -340,6 +346,7 @@ def preprocess(pairs,
         w = cv2.resize(w, target_size)
 
         # Segment labels (binarized fluorescence, discrete labels)
+        pair_dat = [pair_dat[0], raw_label_preprocess(pair_dat[1])]
         if not pair_dat[1] is None and 'discrete' in labels:
             # 0 - bg, 2 - fg, 1 - intermediate
             discrete_y = generate_fluorescence_labels(pair_dat, mask)
@@ -375,7 +382,7 @@ def preprocess(pairs,
         else:
             segment_continuous_ys[ind] = None
             segment_continuous_ws[ind] = None
-            classify_continuous_y = 0
+            classify_continuous_y = None
 
         # Classify labels
         classify_discrete_labels[ind] = binarized_fluorescence_label(

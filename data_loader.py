@@ -9,6 +9,7 @@ import pickle
 CHANNEL_MAX = 65535
 
 def n_diff(s1, s2):
+    """ Check edit distance between two strings """
     ct = 0
     for s in difflib.ndiff(s1, s2):
         if s[0] != ' ':
@@ -17,6 +18,11 @@ def n_diff(s1, s2):
 
 
 def get_all_files(path='predict_gfp_raw'):
+    """ List all .png/.tif image files in the path,
+
+    Report files with different extensions
+
+    """
     fs = []
     other_exts = set()
     for (dirpath, dirnames, filenames) in os.walk(path):
@@ -32,10 +38,15 @@ def get_all_files(path='predict_gfp_raw'):
     return fs
 
 
-def load_all_pairs(path='predict_gfp_raw'):
+def load_all_pairs(path='predict_gfp_raw', check_valid=lambda x: True):
+    """ List all pairs of phase contrast/GFP image files under path
+
+    A customizable `check_valid` function could be provided
+    """
     fs = get_all_files(path=path)
+    fs = [f for f in fs if check_valid(f)]
     pcs = sorted([f for f in fs if 'Phase' in f])
-    gfps = sorted([f for f in fs if not 'Phase' in f and 'FP' in f])
+    gfps = sorted([f for f in fs if not 'Phase' in f and 'GFP' in f])
 
     exclusions = []
     pc_file_mapping = {}
@@ -54,6 +65,7 @@ def load_all_pairs(path='predict_gfp_raw'):
         gfp_file_mapping[identifier] = f
 
     pairs = []
+
     for identifier in (gfp_file_mapping.keys() | pc_file_mapping.keys()):
         if identifier in exclusions:
             continue
@@ -63,7 +75,26 @@ def load_all_pairs(path='predict_gfp_raw'):
         if identifier in gfp_file_mapping:
             p[1] = gfp_file_mapping[identifier]
         pairs.append(tuple(p))
+
+    print("From %s" % path)
+    print("\tTotal number of valid files %d" % len(fs))
+    print("\tExcluded %d" % len(exclusions))
+    print("\tTotal number of pcs %d" % len(pc_file_mapping))
+    print("\tTotal number of gfps %d" % len(gfp_file_mapping))
+    print("\tTotal number of pairs %d" % len(pairs))
+    print("\tTotal number of pairs (with gfp) %d" % len(gfp_file_mapping.keys() & pc_file_mapping.keys()))
     return pairs
+
+
+def check_pairs_by_day(pairs):
+    """ Count file pairs by experiment day """
+    days = set([get_identifier(p[0])[1] for p in pairs])
+    print("Day\tPair\tPC\tGFP")
+    for day in sorted(days, key=lambda x: int(x)):
+        n_pairs = len([p for p in pairs if p[0] is not None and p[1] is not None and get_identifier(p[0])[1] == day])
+        n_pcs = len([p for p in pairs if p[0] is not None and get_identifier(p[0])[1] == day])
+        n_gfps = len([p for p in pairs if p[1] is not None and get_identifier(p[1])[1] == day])
+        print("%s\t%d\t%d\t%d" % (day, n_pairs, n_pcs, n_gfps))
 
 
 def load_image(f):
