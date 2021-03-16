@@ -292,6 +292,48 @@ def binarized_fluorescence_label(y, w):
     return sample_y, sample_w
 
 
+def plot_sample_labels(pairs, save_dir='.', raw_label_preprocess=lambda x: x, linear_align=False):
+    all_views = list(set(get_identifier(p[0])[2:] for p in pairs if p[0] is not None))
+    selected_views = set([all_views[i] for i in np.random.choice(np.arange(len(all_views)), (20,), replace=False)])
+
+    data = {}
+    for view in selected_views:
+        view_pairs = [p for p in pairs if p[0] is not None and p[1] is not None and get_identifier(p[0])[2:] == view]
+        print(view)
+        for p in view_pairs:
+            identifier = get_identifier(p[0])
+            day = str(identifier[1])
+            name = '_'.join(identifier)
+            save_path = os.path.join(save_dir, day, name)
+            os.makedirs(os.path.join(save_dir, day), exist_ok=True)
+
+            pair_dat = load_image_pair(p)
+            pair_dat = [pair_dat[0], raw_label_preprocess(pair_dat[1])]
+            data[identifier] = pair_dat
+
+            plt.clf()
+            plt.imshow(pair_dat[1].astype(float))
+            plt.savefig(save_path+'_fl.png')
+
+            position_code = identifier[-1]
+            if linear_align and position_code in ['1', '3', '7', '9']:
+                mask = generate_mask(pair_dat)
+            else:
+                mask = np.ones_like(pair_dat[0])
+
+            discrete_y = generate_fluorescence_labels(pair_dat, mask)
+            if discrete_y is None:
+                print("ERROR in labeling %s" % name)
+                continue
+
+            plt.clf()
+            plt.imshow(discrete_y.astype(float), vmin=0, vmax=2)
+            plt.savefig(save_path+'_fl_discrete.png')
+    with open(os.path.join(save_dir, "data.pkl"), "wb") as f:
+        pickle.dump(data, f)
+    return
+
+
 def preprocess(pairs, 
                output_path=None, 
                preprocess_filter=lambda x: True,
@@ -332,7 +374,7 @@ def preprocess(pairs,
 
         # Input feature (phase contrast image)
         position_code = identifier[-1]
-        if linear_align and position_code in ['1', '3', '7', '9']:
+        if linear_align and position_code in ['1', '3', '7', '9'] and pair_dat[1] is not None:
             mask = generate_mask(pair_dat)
         else:
             mask = np.ones_like(pair_dat[0])
