@@ -438,7 +438,7 @@ def preprocess(pairs,
         classify_continuous_labels[ind] = (classify_continuous_y, classify_discrete_labels[ind][0])
 
         # Save data
-        if output_path is not None and (ind % 100 == 0 and ind > 0) or (ind == len(pairs) - 1)):
+        if output_path is not None and ((ind % 100 == 0 and ind > 0) or (ind == len(pairs) - 1)):
             print("Writing file %d" % file_ind)
             with open(output_path + 'names.pkl', 'wb') as f:
                 pickle.dump(names, f)
