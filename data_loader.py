@@ -102,8 +102,7 @@ def load_image(f):
         img = tifffile.imread(f)
     except Exception as e:
         img = cv2.imread(f, -1)
-        if img is None:
-            return None
+        assert not img is None
         if len(img.shape) == 3:
             img = img[..., 0]
     if img.dtype == 'uint16':

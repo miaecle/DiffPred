@@ -370,9 +370,9 @@ def preprocess(pairs,
     file_ind = 0
     for ind, pair in enumerate(pairs):
         identifier = get_identifier(pair[0])
-        pair_dat = load_image_pair(pair)
-        if pair_dat[0] is None:
-            # Rare case of phase contrast image loading failure
+        try:
+            pair_dat = load_image_pair(pair)
+        except AssertionError as e:
             print("ERROR in loading pair %s" % str(identifier))
             continue
 
@@ -438,7 +438,7 @@ def preprocess(pairs,
         classify_continuous_labels[ind] = (classify_continuous_y, classify_discrete_labels[ind][0])
 
         # Save data
-        if output_path is not None and ((ind % 100 == 0 and ind > 0) or (ind == len(pairs) - 1)):
+        if output_path is not None and ((ind % 100 == 99) or (ind == len(pairs) - 1)):
             print("Writing file %d" % file_ind)
             with open(output_path + 'names.pkl', 'wb') as f:
                 pickle.dump(names, f)
