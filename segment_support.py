@@ -394,37 +394,50 @@ def preprocess(pairs,
         # Segment labels (binarized fluorescence, discrete labels)
         pair_dat = [pair_dat[0], raw_label_preprocess(pair_dat[1])]
         if not pair_dat[1] is None and 'discrete' in labels:
-            # 0 - bg, 2 - fg, 1 - intermediate
-            discrete_y = generate_fluorescence_labels(pair_dat, mask)
-            y = cv2.resize(discrete_y, target_size)
-            y[np.where((y > 0) & (y < 1))] = 1
-            y[np.where((y > 1) & (y < 2))] = 1
+            try:
+                # 0 - bg, 2 - fg, 1 - intermediate
+                discrete_y = generate_fluorescence_labels(pair_dat, mask)
+                y = cv2.resize(discrete_y, target_size)
+                y[np.where((y > 0) & (y < 1))] = 1
+                y[np.where((y > 1) & (y < 2))] = 1
 
-            discrete_w = copy.deepcopy(w)
-            discrete_w[np.where(y == 1)] = 0
-            
-            y[np.where(y == 1)] = 0
-            y[np.where(y == 2)] = 1
-            segment_discrete_ys[ind] = y.reshape(target_shape).astype(int)
-            segment_discrete_ws[ind] = discrete_w.reshape(target_shape).astype(float)
+                discrete_w = copy.deepcopy(w)
+                discrete_w[np.where(y == 1)] = 0
+                
+                y[np.where(y == 1)] = 0
+                y[np.where(y == 2)] = 1
+                segment_discrete_ys[ind] = y.reshape(target_shape).astype(int)
+                segment_discrete_ws[ind] = discrete_w.reshape(target_shape).astype(float)
+            except Exception as e:
+                print("ERROR in loading fluorescence %s" % str(identifier))
+                print(e)
+                segment_discrete_ys[ind] = None
+                segment_discrete_ws[ind] = None
         else:
             segment_discrete_ys[ind] = None
             segment_discrete_ws[ind] = None
 
         # Segment labels (continuous fluorescence in 4 classes)
         if not pair_dat[1] is None and 'continuous' in labels:
-            continuous_y = quantize_fluorescence(pair_dat, mask)
-            y = cv2.resize(continuous_y, target_size)
+            try:
+                continuous_y = quantize_fluorescence(pair_dat, mask)
+                y = cv2.resize(continuous_y, target_size)
 
-            continuous_w = copy.deepcopy(w)
-            continuous_w[np.where(y != y)[:2]] = 0
-            y[np.where(y != y)[:2]] = np.zeros((1, y.shape[-1]))
+                continuous_w = copy.deepcopy(w)
+                continuous_w[np.where(y != y)[:2]] = 0
+                y[np.where(y != y)[:2]] = np.zeros((1, y.shape[-1]))
 
-            segment_continuous_ys[ind] = y.reshape(target_shape).astype(float)
-            segment_continuous_ws[ind] = continuous_w.reshape(target_shape).astype(float)
+                segment_continuous_ys[ind] = y.reshape(target_shape).astype(float)
+                segment_continuous_ws[ind] = continuous_w.reshape(target_shape).astype(float)
 
-            classify_continuous_y = segment_continuous_ys[ind].sum((0, 1))
-            classify_continuous_y = classify_continuous_y / (1e-5 + np.sum(classify_continuous_y))
+                classify_continuous_y = segment_continuous_ys[ind].sum((0, 1))
+                classify_continuous_y = classify_continuous_y / (1e-5 + np.sum(classify_continuous_y))
+            except Exception as e:
+                print("ERROR in loading fluorescence %s" % str(identifier))
+                print(e)
+                segment_continuous_ys[ind] = None
+                segment_continuous_ws[ind] = None
+                classify_continuous_y = None
         else:
             segment_continuous_ys[ind] = None
             segment_continuous_ws[ind] = None
