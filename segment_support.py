@@ -370,29 +370,32 @@ def preprocess(pairs,
     file_ind = 0
     for ind, pair in enumerate(pairs):
         identifier = get_identifier(pair[0])
+        names[ind] = pair[0]
         try:
+            # Input feature (phase contrast image)
             pair_dat = load_image_pair(pair)
-        except AssertionError as e:
+            position_code = identifier[-1]
+            if linear_align and position_code in ['1', '3', '7', '9'] and pair_dat[1] is not None:
+                mask = generate_mask(pair_dat)
+            else:
+                mask = np.ones_like(pair_dat[0])
+            X = adjust_contrast(pair_dat, mask, position_code, linear_align=linear_align)
+            X = cv2.resize(X, target_size)
+
+            # Segment weights
+            w = generate_weight(mask, position_code, linear_align=linear_align)
+            w = cv2.resize(w, target_size)
+
+            # Segment labels (binarized fluorescence, discrete labels)
+            pair_dat = [pair_dat[0], raw_label_preprocess(pair_dat[1])]
+            Xs[ind] = X.reshape(target_shape).astype(float)
+
+        except Exception as e:
             print("ERROR in loading pair %s" % str(identifier))
+            print(e)
+            Xs[ind] = None
             continue
 
-        # Input feature (phase contrast image)
-        position_code = identifier[-1]
-        if linear_align and position_code in ['1', '3', '7', '9'] and pair_dat[1] is not None:
-            mask = generate_mask(pair_dat)
-        else:
-            mask = np.ones_like(pair_dat[0])
-        X = adjust_contrast(pair_dat, mask, position_code, linear_align=linear_align)
-        X = cv2.resize(X, target_size)
-        names[ind] = pair[0]
-        Xs[ind] = X.reshape(target_shape).astype(float)
-
-        # Segment weights
-        w = generate_weight(mask, position_code, linear_align=linear_align)
-        w = cv2.resize(w, target_size)
-
-        # Segment labels (binarized fluorescence, discrete labels)
-        pair_dat = [pair_dat[0], raw_label_preprocess(pair_dat[1])]
         if not pair_dat[1] is None and 'discrete' in labels:
             try:
                 # 0 - bg, 2 - fg, 1 - intermediate
