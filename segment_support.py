@@ -394,7 +394,7 @@ def preprocess(pairs,
             print("ERROR in loading pair %s" % str(identifier))
             print(e)
             Xs[ind] = None
-            continue
+
 
         if not pair_dat[1] is None and 'discrete' in labels:
             try:
@@ -412,7 +412,7 @@ def preprocess(pairs,
                 segment_discrete_ys[ind] = y.reshape(target_shape).astype(int)
                 segment_discrete_ws[ind] = discrete_w.reshape(target_shape).astype(float)
             except Exception as e:
-                print("ERROR in loading fluorescence %s" % str(identifier))
+                print("ERROR in generating fluorescence label %s" % str(identifier))
                 print(e)
                 segment_discrete_ys[ind] = None
                 segment_discrete_ws[ind] = None
@@ -436,7 +436,7 @@ def preprocess(pairs,
                 classify_continuous_y = segment_continuous_ys[ind].sum((0, 1))
                 classify_continuous_y = classify_continuous_y / (1e-5 + np.sum(classify_continuous_y))
             except Exception as e:
-                print("ERROR in loading fluorescence %s" % str(identifier))
+                print("ERROR in generating fluorescence label %s" % str(identifier))
                 print(e)
                 segment_continuous_ys[ind] = None
                 segment_continuous_ws[ind] = None
@@ -455,6 +455,7 @@ def preprocess(pairs,
 
         # Save data
         if output_path is not None and ((ind % 100 == 99) or (ind == len(pairs) - 1)):
+            assert len(Xs) <= 100
             print("Writing file %d" % file_ind)
             with open(output_path + 'names.pkl', 'wb') as f:
                 pickle.dump(names, f)
