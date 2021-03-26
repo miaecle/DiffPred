@@ -88,12 +88,12 @@ def load_all_pairs(path='predict_gfp_raw', check_valid=lambda x: True):
 
 def check_pairs_by_day(pairs):
     """ Count file pairs by experiment day """
-    days = set([get_identifier(p[0])[1] for p in pairs])
+    days = set([get_identifier(p[0])[2] for p in pairs])
     print("Day\tPair\tPC\tGFP")
     for day in sorted(days, key=lambda x: int(x)):
-        n_pairs = len([p for p in pairs if p[0] is not None and p[1] is not None and get_identifier(p[0])[1] == day])
-        n_pcs = len([p for p in pairs if p[0] is not None and get_identifier(p[0])[1] == day])
-        n_gfps = len([p for p in pairs if p[1] is not None and get_identifier(p[1])[1] == day])
+        n_pairs = len([p for p in pairs if p[0] is not None and p[1] is not None and get_identifier(p[0])[2] == day])
+        n_pcs = len([p for p in pairs if p[0] is not None and get_identifier(p[0])[2] == day])
+        n_gfps = len([p for p in pairs if p[1] is not None and get_identifier(p[1])[2] == day])
         print("%s\t%d\t%d\t%d" % (day, n_pairs, n_pcs, n_gfps))
 
 
@@ -111,11 +111,17 @@ def load_image(f):
         return (img / 255 * 65535).astype('uint16')
 
 
-
 def load_image_pair(pair):
     dats = [load_image(f) if not f is None else None for f in pair]
     assert len(set(d.shape for d in dats if not d is None)) == 1
     return dats
+
+
+def get_line_name(name):
+    n = name.split('/')
+    for i, seg in enumerate(n):
+      if seg.startswith('line'):
+        return seg
 
 
 def get_ex_day(name):
@@ -152,7 +158,7 @@ def exp_day_from_name(f):
 
 
 def get_identifier(f):
-    return (exp_id_from_name(f), exp_day_from_name(f)) + well_id_from_name(f)
+    return (get_line_name(f), exp_id_from_name(f), exp_day_from_name(f)) + well_id_from_name(f)
 
 
 if __name__ == '__main__':

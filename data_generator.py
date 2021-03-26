@@ -371,10 +371,10 @@ class CustomGenerator(keras.utils.Sequence) :
         valid_pairs = []
         for ind_i in sorted(valid_pcs):
             d = valid_pcs[ind_i]
-            if d[1] == 'unknown':
+            if d[2] == 'unknown':
                 continue
             for t in range(time_interval[0], time_interval[1]+1):
-                new_d = (d[0], str(int(d[1]) + t), d[2], d[3])
+                new_d = (d[0], d[1], str(int(d[2]) + t), d[3], d[4])
                 if new_d in fls_reverse_mapping:
                     ind_j = fls_reverse_mapping[new_d]
                     valid_pairs.append((ind_i, ind_j))
@@ -385,22 +385,23 @@ class CustomGenerator(keras.utils.Sequence) :
         def pair_identifier(p):
             id_from = get_identifier(self.names[p[0]])
             id_to = get_identifier(self.names[p[1]])
-            assert id_from[0] == id_to[0]
-            assert id_from[2:] == id_to[2:]
+            assert id_from[:2] == id_to[:2]
+            assert id_from[3:] == id_to[3:]
             pair_id = tuple([id_from[0],
-                             int(id_from[1]), 
-                             int(id_to[1]), 
-                             id_from[2], 
-                             id_from[3]])
+                             id_from[1],
+                             int(id_from[2]), 
+                             int(id_to[2]), 
+                             id_from[3], 
+                             id_from[4]])
             return pair_id
 
         def adjacent_identifiers(pair_id):
-            well_id = (pair_id[0], pair_id[3], pair_id[4])
-            pair_day = (pair_id[1], pair_id[2])
+            well_id = (pair_id[0], pair_id[1], pair_id[4], pair_id[5])
+            pair_day = (pair_id[2], pair_id[3])
             adjacent_ids = []
             for d_from in range(pair_day[0] - 2, pair_day[0] + 3):
                 for d_to in range(pair_day[1] - 2, pair_day[1] + 3):
-                    adjacent_ids.append((well_id[0], d_from, d_to, well_id[1], well_id[2]))
+                    adjacent_ids.append((well_id[0], well_id[1], d_from, d_to, well_id[2], well_id[3]))
             return adjacent_ids
 
         out_pairs = []

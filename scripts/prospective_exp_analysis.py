@@ -14,20 +14,19 @@ from predict import load_assemble_test_data, predict_on_test_data
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score
 
 
-DATA_ROOT = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex1/'
+DATA_ROOT = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/prospective/ex1+ex2/'
 
 ### Run prediction ###
-days = [4, 6, 8, 10]
-model_paths = ['/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/%s' % path for path in ['temp_bkp.model',
-                                                                                                  'weights.90-0.55.hdf5',
-                                                                                                  'weights.120-0.49.hdf5']] \
-            + ['/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/ex67/%s' % path for path in ['weights.35-0.82.hdf5',
-                                                                                                   'weights.65-0.79.hdf5',
-                                                                                                   'weights.95-1.12.hdf5']]
+days = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+model_paths = ['/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/bkp/%s' % path for path in ['pspnet_random_0-to-inf_2.model',
+ 'pspnet_random_0-to-10_1.model',
+ 'pspnet_random_0-to-10_2.model',
+ 'pspnet_random_0-to-inf_1.model']
+]
 output_path_root = DATA_ROOT
 
 for day in days:
-    data_path = os.path.join(DATA_ROOT, 'az6well_cm_D%d_prospective2' % day)
+    data_path = os.path.join(DATA_ROOT, 'az6well_cm_D%d_prospective_shuffle' % day)
     # load_assemble_test_data(data_path, dataset_path)
     for model_path in model_paths:
         model_name = os.path.splitext(os.path.split(model_path)[-1])[0]
@@ -88,39 +87,42 @@ writer.writerow([k[0], k[1], k[2], k[3], labels[k][0], labels[k][1]])
 
 
 ### Metrics ###
-label_day = 16
+label_day = 15
 label_save_path = DATA_ROOT
 pred_save_path = DATA_ROOT
 
 labels = pd.read_csv(os.path.join(label_save_path, 'D%d_labels.csv' % label_day))
 label_dict = {}
 for r in np.array(labels):
-    label_dict[tuple(r[2:4].astype(str))] = r[4:]
+        label_dict[tuple(r[:1].astype(str)) + tuple(r[2:4].astype(str))] = r[4:]
 ks = [k for k in label_dict]# if label_dict[k][1] == 1]
 
 pred_fs = [f for f in os.listdir(pred_save_path) if 'pred' in f and f.endswith('.csv')]
 model_lines = {}
+model_preds = {}
 for f in sorted(pred_fs):
     model_name = os.path.splitext(f)[0].split('pred_')[1]
     if not model_name in model_lines:
         model_lines[model_name] = {}
+        model_preds[model_name] = {}
 
     preds = pd.read_csv(os.path.join(pred_save_path, f))
     preds_dict = {}
     for r in np.array(preds):
-        preds_dict[tuple(r[2:4].astype(str))] = r[4:]
+            preds_dict[tuple(r[:1].astype(str)) + tuple(r[2:4].astype(str))] = r[4:]
 
 
     y_true = np.array([label_dict[k][0] for k in ks if k in preds_dict])
     y_pred = np.array([preds_dict[k] for k in ks if k in preds_dict])
-    pos_preds = [preds_dict[k] for k in ks if k in preds_dict and label_dict[k][0] == 1 and label_dict[k][1] == 1]
-    neg_preds = [preds_dict[k] for k in ks if k in preds_dict and label_dict[k][0] == 0 and label_dict[k][1] == 1]
+    pos_preds = [preds_dict[k][0] for k in ks if k in preds_dict and label_dict[k][0] == 1 and label_dict[k][1] == 1]
+    neg_preds = [preds_dict[k][0] for k in ks if k in preds_dict and label_dict[k][0] == 0 and label_dict[k][1] == 1]
     day = int(f.split('_')[0][1:])
-    model_lines[model_name][day] = roc_auc_score(y_true, y_pred[:, 0])
+    model_lines[model_name][day] = (roc_auc_score(y_true, y_pred[:, 0]), f1_score(y_true, y_pred[:, 0] > 0.8))
+    model_preds[model_name][day] = {'pos': pos_preds, 'neg': neg_preds}
     print("%s" % f)
+    print(y_pred[:, 0].mean())
     print("\t%.3f" % roc_auc_score(y_true, y_pred[:, 0]))
-    print("\t%.3f\t%.3f" % (np.mean(pos_preds), np.std(pos_preds)))
-    print("\t%.3f\t%.3f\n" % (np.mean(neg_preds), np.std(neg_preds)))
+    print("\t%.3f" % f1_score(y_true, y_pred[:, 0] > 0.8))
     # with open('results.txt', 'a') as out_f:
     #     out_f.write("%s\n" % f)
     #     out_f.write("\t%.3f\n" % roc_auc_score(y_true, y_pred[:, 0]))
@@ -132,10 +134,47 @@ plt.clf()
 for model_name in model_lines:
     x = sorted(model_lines[model_name].keys())
     if len(x) > 4:
-        y = [model_lines[model_name][_x] for _x in x]
+        x = [_x for _x in x if _x <= 10]
+        y = [model_lines[model_name][_x][0] for _x in x]
         plt.plot(x, y, '.-', label=model_name)
 plt.legend()
-plt.savefig('/home/zqwu/Dropbox/fig_temp/perf_line_%d.png' % label_day, dpi=300)
+plt.savefig('./perf_line_roc_%d.png' % label_day, dpi=300)
+
+
+model_name = 'pspnet_random_0-to-inf_2'
+x = sorted(model_preds[model_name].keys())
+selected_x = [_x for _x in x if _x <= 10]
+plt.clf()
+fig, ax = plt.subplots(figsize=(5, 3))
+red_diamond = dict(markerfacecolor='r', marker='D', markersize=2)
+data = [model_preds[model_name][_x]['pos'] for _x in selected_x]
+bplot_0_1 = ax.boxplot(data, 
+                       notch=True, 
+                       vert=True, 
+                       patch_artist=True, 
+                       positions=np.array(selected_x)+0.11, 
+                       flierprops=red_diamond,
+                       widths=0.2,
+                       manage_ticks=False)
+blue_diamond = dict(markerfacecolor='b', marker='D', markersize=2)
+data = [model_preds[model_name][_x]['neg'] for _x in selected_x]
+bplot_0_0 = ax.boxplot(data, 
+                       notch=True, 
+                       vert=True, 
+                       patch_artist=True, 
+                       positions=np.array(selected_x)-0.11, 
+                       flierprops=blue_diamond,
+                       widths=0.2,
+                       manage_ticks=False)
+ax.set_xticks(selected_x)
+ax.set_ylim([0, 1])
+ax.set_xlim([min(selected_x) - 1, max(selected_x) + 1])
+for patch in bplot_0_1['boxes']:
+    patch.set_facecolor('pink')
+for patch in bplot_0_0['boxes']:
+    patch.set_facecolor('lightblue')
+ax.set_title('')
+plt.savefig('./pred_distri_%d.png' % label_day, dpi=300)
 
 
 

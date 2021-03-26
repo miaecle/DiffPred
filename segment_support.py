@@ -293,16 +293,16 @@ def binarized_fluorescence_label(y, w):
 
 
 def plot_sample_labels(pairs, save_dir='.', raw_label_preprocess=lambda x: x, linear_align=False):
-    all_views = list(set(get_identifier(p[0])[2:] for p in pairs if p[0] is not None))
+    all_views = list(set(get_identifier(p[0])[3:] for p in pairs if p[0] is not None))
     selected_views = set([all_views[i] for i in np.random.choice(np.arange(len(all_views)), (20,), replace=False)])
 
     data = {}
     for view in selected_views:
-        view_pairs = [p for p in pairs if p[0] is not None and p[1] is not None and get_identifier(p[0])[2:] == view]
+        view_pairs = [p for p in pairs if p[0] is not None and p[1] is not None and get_identifier(p[0])[3:] == view]
         print(view)
         for p in view_pairs:
             identifier = get_identifier(p[0])
-            day = str(identifier[1])
+            day = str(identifier[2])
             name = '_'.join(identifier)
             save_path = os.path.join(save_dir, day, name)
             os.makedirs(os.path.join(save_dir, day), exist_ok=True)
@@ -333,152 +333,3 @@ def plot_sample_labels(pairs, save_dir='.', raw_label_preprocess=lambda x: x, li
         pickle.dump(data, f)
     return
 
-
-def preprocess(pairs, 
-               output_path=None, 
-               preprocess_filter=lambda x: True,
-               target_size=(384, 288),
-               labels=['discrete', 'continuous'], 
-               raw_label_preprocess=lambda x: x,
-               linear_align=True,
-               shuffle=True,
-               seed=None):
-    if not seed is None:
-        np.random.seed(seed)
-
-    # Sanity check
-    pairs = [p for p in pairs if p[0] is not None and preprocess_filter(p)]
-    for p in pairs:
-        if p[1] is not None:
-            assert get_identifier(p[0]) == get_identifier(p[1])
-
-    # Sort
-    pairs = sorted(pairs)
-    if shuffle:
-        np.random.shuffle(pairs)
-
-    # Featurize data
-    target_shape = (target_size[1], target_size[0], -1) # Note that cv2 and numpy have reversed axis ordering
-    names = {}
-    Xs = {}
-    segment_discrete_ys = {}
-    segment_discrete_ws = {}
-    segment_continuous_ys = {}
-    segment_continuous_ws = {}
-    classify_discrete_labels = {}
-    classify_continuous_labels = {}
-    file_ind = 0
-    for ind, pair in enumerate(pairs):
-        identifier = get_identifier(pair[0])
-        names[ind] = pair[0]
-        try:
-            # Input feature (phase contrast image)
-            pair_dat = load_image_pair(pair)
-            position_code = identifier[-1]
-            if linear_align and position_code in ['1', '3', '7', '9'] and pair_dat[1] is not None:
-                mask = generate_mask(pair_dat)
-            else:
-                mask = np.ones_like(pair_dat[0])
-            X = adjust_contrast(pair_dat, mask, position_code, linear_align=linear_align)
-            X = cv2.resize(X, target_size)
-
-            # Segment weights
-            w = generate_weight(mask, position_code, linear_align=linear_align)
-            w = cv2.resize(w, target_size)
-
-            # Segment labels (binarized fluorescence, discrete labels)
-            pair_dat = [pair_dat[0], raw_label_preprocess(pair_dat[1])]
-            Xs[ind] = X.reshape(target_shape).astype(float)
-
-        except Exception as e:
-            print("ERROR in loading pair %s" % str(identifier))
-            print(e)
-            Xs[ind] = None
-
-
-        if not pair_dat[1] is None and 'discrete' in labels:
-            try:
-                # 0 - bg, 2 - fg, 1 - intermediate
-                discrete_y = generate_fluorescence_labels(pair_dat, mask)
-                y = cv2.resize(discrete_y, target_size)
-                y[np.where((y > 0) & (y < 1))] = 1
-                y[np.where((y > 1) & (y < 2))] = 1
-
-                discrete_w = copy.deepcopy(w)
-                discrete_w[np.where(y == 1)] = 0
-                
-                y[np.where(y == 1)] = 0
-                y[np.where(y == 2)] = 1
-                segment_discrete_ys[ind] = y.reshape(target_shape).astype(int)
-                segment_discrete_ws[ind] = discrete_w.reshape(target_shape).astype(float)
-            except Exception as e:
-                print("ERROR in generating fluorescence label %s" % str(identifier))
-                print(e)
-                segment_discrete_ys[ind] = None
-                segment_discrete_ws[ind] = None
-        else:
-            segment_discrete_ys[ind] = None
-            segment_discrete_ws[ind] = None
-
-        # Segment labels (continuous fluorescence in 4 classes)
-        if not pair_dat[1] is None and 'continuous' in labels:
-            try:
-                continuous_y = quantize_fluorescence(pair_dat, mask)
-                y = cv2.resize(continuous_y, target_size)
-
-                continuous_w = copy.deepcopy(w)
-                continuous_w[np.where(y != y)[:2]] = 0
-                y[np.where(y != y)[:2]] = np.zeros((1, y.shape[-1]))
-
-                segment_continuous_ys[ind] = y.reshape(target_shape).astype(float)
-                segment_continuous_ws[ind] = continuous_w.reshape(target_shape).astype(float)
-
-                classify_continuous_y = segment_continuous_ys[ind].sum((0, 1))
-                classify_continuous_y = classify_continuous_y / (1e-5 + np.sum(classify_continuous_y))
-            except Exception as e:
-                print("ERROR in generating fluorescence label %s" % str(identifier))
-                print(e)
-                segment_continuous_ys[ind] = None
-                segment_continuous_ws[ind] = None
-                classify_continuous_y = None
-        else:
-            segment_continuous_ys[ind] = None
-            segment_continuous_ws[ind] = None
-            classify_continuous_y = None
-
-        # Classify labels
-        classify_discrete_labels[ind] = binarized_fluorescence_label(
-            segment_discrete_ys[ind], segment_discrete_ws[ind])
-
-        # only sample with fluorescence will have valid weights
-        classify_continuous_labels[ind] = (classify_continuous_y, classify_discrete_labels[ind][0])
-
-        # Save data
-        if output_path is not None and ((ind % 100 == 99) or (ind == len(pairs) - 1)):
-            assert len(Xs) <= 100
-            print("Writing file %d" % file_ind)
-            with open(output_path + 'names.pkl', 'wb') as f:
-                pickle.dump(names, f)
-            with open(output_path + 'X_%d.pkl' % file_ind, 'wb') as f:
-                pickle.dump(Xs, f)
-            if 'discrete' in labels:
-                with open(output_path + 'segment_discrete_y_%d.pkl' % file_ind, 'wb') as f:
-                    pickle.dump(segment_discrete_ys, f)
-                with open(output_path + 'segment_discrete_w_%d.pkl' % file_ind, 'wb') as f:
-                    pickle.dump(segment_discrete_ws, f)
-                with open(output_path + 'classify_discrete_labels.pkl', 'wb') as f:
-                    pickle.dump(classify_discrete_labels, f)
-            if 'continuous' in labels:
-                with open(output_path + 'segment_continuous_y_%d.pkl' % file_ind, 'wb') as f:
-                    pickle.dump(segment_continuous_ys, f)
-                with open(output_path + 'segment_continuous_w_%d.pkl' % file_ind, 'wb') as f:
-                    pickle.dump(segment_continuous_ws, f)
-                with open(output_path + 'classify_continuous_labels.pkl', 'wb') as f:
-                    pickle.dump(classify_continuous_labels, f)
-            file_ind += 1
-            Xs = {}
-            segment_discrete_ys = {}
-            segment_discrete_ws = {}
-            segment_continuous_ys = {}
-            segment_continuous_ws = {}
-    return file_ind
