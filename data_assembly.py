@@ -285,14 +285,3 @@ def merge_dataset_soft(source_data_folders, target_data_folder, shuffle=True, se
         with open(os.path.join(target_data_folder, "classify_continuous_labels.pkl"), "wb") as f:
             pickle.dump(target_continuous_labels, f)
 
-
-# source_data_folders = [
-#     "/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/ex1/0-to-0",
-#     "/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/ex3/0-to-0",
-#     "/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/ex4/0-to-0",
-#     "/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/ex6/0-to-0",
-#     "/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/ex7/0-to-0",
-#     "/oak/stanford/groups/jamesz/zqwu/iPSC_data/line3_TNNI/ex2/0-to-0",
-#     "/oak/stanford/groups/jamesz/zqwu/iPSC_data/line3_TNNI/ex4/0-to-0",
-# ]
-

@@ -315,43 +315,29 @@ class CustomGenerator(keras.utils.Sequence) :
             sample_X, sample_segment_y, sample_segment_w, sample_name = self.load_ind(ind, force_augment_off=True)
             save_names[i] = sample_name
             save_Xs[i] = sample_X
-            save_segment_ys[i] = sample_segment_y
-            save_segment_ws[i] = sample_segment_w
-
+            if write_segment_labels:
+                save_segment_ys[i] = sample_segment_y
+                save_segment_ws[i] = sample_segment_w
             if write_classify_labels:
                 save_classify_labels[i] = (self.classify_y[ind], self.classify_w[ind])
 
-            if save_path is not None and len(save_Xs) >= 100:
+            if save_path is not None and (len(save_Xs) >= 100 or (i == len(inds) - 1)):
                 with open(save_path + 'names.pkl', 'wb') as f:
                     pickle.dump(save_names, f)
                 with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
                     pickle.dump(save_Xs, f)
                 if write_segment_labels:
-                    with open(save_path + '%s_segmentation_y_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
+                    with open(save_path + 'segment_%s_y_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
                         pickle.dump(save_segment_ys, f)
-                    with open(save_path + '%s_segmentation_w_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
+                    with open(save_path + 'segment_%s_w_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
                         pickle.dump(save_segment_ws, f)
                 if write_classify_labels:
-                    with open(save_path + '%s_classification_labels.pkl' % self.classify_label_type, 'wb') as f:
+                    with open(save_path + 'classify_%s_labels.pkl' % self.classify_label_type, 'wb') as f:
                         pickle.dump(save_classify_labels, f)
                 file_ind += 1
                 save_Xs = {}
                 save_segment_ys = {}
                 save_segment_ws = {}
-        if save_path is not None and len(save_Xs) > 0:
-            with open(save_path + 'names.pkl', 'wb') as f:
-                pickle.dump(save_names, f)
-            with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
-                pickle.dump(save_Xs, f)
-            if write_segment_labels:
-                with open(save_path + '%s_segmentation_y_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
-                    pickle.dump(save_segment_ys, f)
-                with open(save_path + '%s_segmentation_w_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
-                    pickle.dump(save_segment_ws, f)
-            if write_classify_labels:
-                with open(save_path + '%s_classification_labels.pkl' % self.classify_label_type, 'wb') as f:
-                    pickle.dump(save_classify_labels, f)
-            file_ind += 1
         return file_ind
 
 
