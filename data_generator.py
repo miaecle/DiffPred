@@ -402,19 +402,10 @@ class CustomGenerator(keras.utils.Sequence) :
 
 
     def cross_pair_save(self, 
-                        time_interval=[1, 3], 
-                        shrink=False, 
-                        seed=None, 
+                        pair_inds,
                         save_path=None,
                         write_segment_labels=True,
                         write_classify_labels=True):
-        valid_pairs = self.get_all_pairs(time_interval=time_interval)
-        if not seed is None:
-            np.random.seed(seed)
-        np.random.shuffle(valid_pairs)
-        if shrink:
-            valid_pairs = self.shrink_pairs(valid_pairs)
-
         if self.segment_y_files is None or self.segment_w_files is None:
             print("Segmentation labels will not be saved")
             write_segment_labels = False
@@ -429,48 +420,35 @@ class CustomGenerator(keras.utils.Sequence) :
         save_classify_labels = {}
 
         file_ind = 0
-        for i, pair in enumerate(valid_pairs):
+        for i, pair in enumerate(pair_inds):
             sample_X, _, _, sample_name_pre = self.load_ind(pair[0], force_augment_off=True)
             _, sample_segment_y, sample_segment_w, sample_name_post = self.load_ind(pair[1], force_augment_off=True)
             save_names[i] = (sample_name_pre, sample_name_post)
             save_Xs[i] = sample_X
-            save_segment_ys[i] = sample_segment_y
-            save_segment_ws[i] = sample_segment_w
-
+            if write_segment_labels:
+                save_segment_ys[i] = sample_segment_y
+                save_segment_ws[i] = sample_segment_w
             if write_classify_labels:
                 save_classify_labels[i] = (self.classify_y[pair[1]], self.classify_w[pair[1]])
 
-            if save_path is not None and len(save_Xs) >= 100:
+            if save_path is not None and (len(save_Xs) >= 100 or (i == len(inds) - 1)):
                 with open(save_path + 'names.pkl', 'wb') as f:
                     pickle.dump(save_names, f)
                 with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
                     pickle.dump(save_Xs, f)
                 if write_segment_labels:
-                    with open(save_path + '%s_segmentation_y_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
+                    with open(save_path + 'segment_%s_y_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
                         pickle.dump(save_segment_ys, f)
-                    with open(save_path + '%s_segmentation_w_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
+                    with open(save_path + 'segment_%s_w_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
                         pickle.dump(save_segment_ws, f)
                 if write_classify_labels:
-                    with open(save_path + '%s_classification_labels.pkl' % self.classify_label_type, 'wb') as f:
+                    with open(save_path + 'classify_%s_labels.pkl' % self.classify_label_type, 'wb') as f:
                         pickle.dump(save_classify_labels, f)
                 file_ind += 1
                 save_Xs = {}
                 save_segment_ys = {}
                 save_segment_ws = {}
-        if save_path is not None and len(save_Xs) > 0:
-            with open(save_path + 'names.pkl', 'wb') as f:
-                pickle.dump(save_names, f)
-            with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
-                pickle.dump(save_Xs, f)
-            if write_segment_labels:
-                with open(save_path + '%s_segmentation_y_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
-                    pickle.dump(save_segment_ys, f)
-                with open(save_path + '%s_segmentation_w_%d.pkl' % (self.segment_label_type, file_ind), 'wb') as f:
-                    pickle.dump(save_segment_ws, f)
-            if write_classify_labels:
-                with open(save_path + '%s_classification_labels.pkl' % self.classify_label_type, 'wb') as f:
-                    pickle.dump(save_classify_labels, f)
-            file_ind += 1
+
         return file_ind
 
 
