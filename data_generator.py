@@ -431,7 +431,7 @@ class CustomGenerator(keras.utils.Sequence) :
             if write_classify_labels:
                 save_classify_labels[i] = (self.classify_y[pair[1]], self.classify_w[pair[1]])
 
-            if save_path is not None and (len(save_Xs) >= 100 or (i == len(inds) - 1)):
+            if save_path is not None and (len(save_Xs) >= 100 or (i == len(pair_inds) - 1)):
                 with open(save_path + 'names.pkl', 'wb') as f:
                     pickle.dump(save_names, f)
                 with open(save_path + 'X_%d.pkl' % file_ind, 'wb') as f:
