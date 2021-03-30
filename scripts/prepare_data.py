@@ -58,7 +58,7 @@ X_files = [os.path.join(root, "X_%d.pkl" % i) for i in range(X_ct)]
 # np.random.seed(123)
 # np.random.shuffle(selected_inds)
 # save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0-to-0_continuous/"
-# os.makedirs(save_path)
+# os.makedirs(save_path, exist_ok=True)
 # base_dataset.reorder_save(selected_inds, 
 #                           save_path=save_path,
 #                           write_segment_labels=True,
@@ -162,7 +162,7 @@ with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0
     pickle.dump(selected_pairs, f)
 
 save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0-to-inf_discrete/"
-os.makedirs(save_path)
+os.makedirs(save_path, exist_ok=True)
 base_dataset.cross_pair_save(
     selected_pairs, 
     save_path=save_path,
@@ -190,7 +190,7 @@ with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0
     pickle.dump(selected_pairs, f)
 
 save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0-to-10_discrete/"
-os.makedirs(save_path)
+os.makedirs(save_path, exist_ok=True)
 base_dataset.cross_pair_save(
     selected_pairs, 
     save_path=save_path,
