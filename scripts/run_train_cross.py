@@ -88,7 +88,6 @@ valid_gen = PairGenerator(
     segment_y_files=y_filenames, 
     segment_w_files=w_filenames,
     classify_label_file=label_file,
-    selected_inds=train_inds,
     **kwargs)
 
 ### Training ###
@@ -105,5 +104,6 @@ model = ClassifyOnSegment(
 print("Start Training", flush=True)
 model.fit(train_gen,
           valid_gen=valid_gen,
+          verbose=0,
           n_epochs=200)
 model.save(os.path.join(MODEL_DIR, 'pspnet_random_0-to-inf_0.model'))

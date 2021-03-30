@@ -129,6 +129,7 @@ class Segment(object):
           train_gen,
           valid_gen=None,
           n_epochs=10,
+          verbose=1,
           **kwargs):
     if not os.path.exists(self.model_path):
       os.mkdir(self.model_path)
@@ -137,7 +138,7 @@ class Segment(object):
     self.model.fit_generator(train_gen,
                              steps_per_epoch=len(train_gen), 
                              epochs=n_epochs,
-                             verbose=1,
+                             verbose=verbose,
                              callbacks=self.call_backs + [self.valid_score_callback],
                              validation_data=valid_gen,
                              shuffle=False, 
