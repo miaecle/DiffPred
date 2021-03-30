@@ -2,7 +2,7 @@ from data_generator import *
 from segment_support import *
 from data_loader import *
 
-root = "/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0-to-0"
+root = "/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-0"
 
 name_file = os.path.join(root, "names.pkl")
 X_ct = len([f for f in os.listdir(root) if f.startswith('X_')])
@@ -51,13 +51,13 @@ X_files = [os.path.join(root, "X_%d.pkl" % i) for i in range(X_ct)]
 
 # selected_inds = set(X_valid) & set(segment_continuous_valid) & set(classify_continuous_valid)
 # selected_inds = np.array(sorted(selected_inds))
-# with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0-to-0_continuous_inds.pkl", "wb") as f:
+# with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-0_continuous_inds.pkl", "wb") as f:
 #     pickle.dump(selected_inds, f)
 # print("TOTAL samples: %d" % len(selected_inds))
 
 # np.random.seed(123)
 # np.random.shuffle(selected_inds)
-# save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0-to-0_continuous/"
+# save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-0_continuous/"
 # os.makedirs(save_path, exist_ok=True)
 # base_dataset.reorder_save(selected_inds, 
 #                           save_path=save_path,
@@ -158,10 +158,10 @@ all_pairs = sorted(all_pairs)
 np.random.seed(123)
 np.random.shuffle(all_pairs)
 selected_pairs = base_dataset.shrink_pairs(all_pairs)
-with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0-to-inf_discrete_inds.pkl", "wb") as f:
+with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_discrete_inds.pkl", "wb") as f:
     pickle.dump(selected_pairs, f)
 
-save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0-to-inf_discrete/"
+save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_discrete/"
 os.makedirs(save_path, exist_ok=True)
 base_dataset.cross_pair_save(
     selected_pairs, 
@@ -186,10 +186,10 @@ all_pairs = sorted(all_pairs)
 np.random.seed(123)
 np.random.shuffle(all_pairs)
 selected_pairs = base_dataset.shrink_pairs(all_pairs)
-with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0-to-10_discrete_inds.pkl", "wb") as f:
+with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-10_discrete_inds.pkl", "wb") as f:
     pickle.dump(selected_pairs, f)
 
-save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/line1_3R/all_line1_line3/0-to-10_discrete/"
+save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-10_discrete/"
 os.makedirs(save_path, exist_ok=True)
 base_dataset.cross_pair_save(
     selected_pairs, 
