@@ -43,7 +43,7 @@ class Segment(object):
     else:
       self.model_path = model_path
     self.call_backs = [keras.callbacks.TerminateOnNaN(),
-                       # keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
+                       keras.callbacks.ReduceLROnPlateau(patience=20, min_lr=1e-7),
                        keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
     self.valid_score_callback = ValidMetrics(eval_fn)
 

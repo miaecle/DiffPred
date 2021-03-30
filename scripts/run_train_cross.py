@@ -6,7 +6,7 @@ import numpy as np
 from data_loader import get_identifier
 from models import Segment, ClassifyOnSegment
 from layers import load_partial_weights, fill_first_layer
-from data_generator import CustomGenerator, PairGenerator, enhance_weight_fp
+from data_generator import CustomGenerator, PairGenerator, enhance_weight_for_false_positives
 from scipy.stats import spearmanr, pearsonr
 
 ### Settings ###
@@ -25,14 +25,14 @@ def well_info(name):
 ### Train-Valid split ###
 
 # Generate split file
-names = pickle.load(open(os.path.join("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-0/names.pkl"), 'rb'))
-unique_wells = sorted(set(well_info(n) for n in names.values()))
-np.random.seed(123)
-np.random.shuffle(unique_wells)
-valid_wells = set(unique_wells[:int(0.2*len(unique_wells))])
-train_wells = set(unique_wells[int(0.2*len(unique_wells)):])
-with open(SPLIT_FILE, 'wb') as f:
-    pickle.dump([train_wells, valid_wells], f)
+# names = pickle.load(open(os.path.join("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-0/names.pkl"), 'rb'))
+# unique_wells = sorted(set(well_info(n) for n in names.values()))
+# np.random.seed(123)
+# np.random.shuffle(unique_wells)
+# valid_wells = set(unique_wells[:int(0.2*len(unique_wells))])
+# train_wells = set(unique_wells[int(0.2*len(unique_wells)):])
+# with open(SPLIT_FILE, 'wb') as f:
+#     pickle.dump([train_wells, valid_wells], f)
 
 
 # Setting up training set
@@ -56,7 +56,7 @@ kwargs = {
     'include_day': True,
     'n_segment_classes': 2,
     'segment_class_weights': [1, 3],
-    'segment_extra_weights': enhance_weight_fp,
+    'segment_extra_weights': enhance_weight_for_false_positives,
     'segment_label_type': 'discrete',
     'n_classify_classes': 2,
     'classify_class_weights': [0.5, 0.5],
@@ -100,7 +100,8 @@ model = ClassifyOnSegment(
     encoder_weights='imagenet',
     n_segment_classes=2,
     n_classify_classes=2)
-
+               
+               
 print("Start Training", flush=True)
 model.fit(train_gen,
           valid_gen=valid_gen,

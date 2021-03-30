@@ -456,16 +456,13 @@ class CustomGenerator(keras.utils.Sequence) :
 class PairGenerator(CustomGenerator) :
 
     def prepare_features(self, X, names=None):
-        if self.include_day:
-            day_array = []
-            for name in names:
-                day_pre = exp_day_from_name(name[0])
-                day_post = exp_day_from_name(name[1])
-                day_pre = float(day_pre)
-                day_post = float(day_post)
-                day_array.append((day_pre, day_post - day_pre))
-            day_nums = np.array(day_array).reshape((-1, 1, 1, 2))
-            _X = np.concatenate([X, np.ones_like(X[..., 0:1]) * day_nums], 3)
-        else:
-            _X = X
+        day_array = []
+        for name in names:
+            day_pre = exp_day_from_name(name[0])
+            day_post = exp_day_from_name(name[1])
+            day_pre = float(day_pre)
+            day_post = float(day_post)
+            day_array.append((day_pre, day_post - day_pre))
+        day_nums = np.array(day_array).reshape((-1, 1, 1, 2))
+        _X = np.concatenate([X, np.ones_like(X[..., 0:1]) * day_nums], 3)
         return _X
