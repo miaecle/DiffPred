@@ -74,7 +74,7 @@ train_gen = PairGenerator(
     **kwargs)
 
 # Setting up validation set
-valid_filenames = train_gen.reorder_save(valid_inds, save_path=VALID_DIR)
+# valid_filenames = train_gen.reorder_save(valid_inds, save_path=VALID_DIR)
 n_fs = len([f for f in os.listdir(VALID_DIR) if f.startswith('X_') and f.endswith('.pkl')])
 X_filenames = [os.path.join(VALID_DIR, 'X_%d.pkl' % i) for i in range(n_fs)]
 y_filenames = [os.path.join(VALID_DIR, 'segment_discrete_y_%d.pkl' % i) for i in range(n_fs)]
