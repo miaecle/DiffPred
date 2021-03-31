@@ -45,11 +45,11 @@ kwargs = {
     'shuffle_inds': False,
     'include_day': True,
     'n_segment_classes': 4,
-    'segment_class_weights': [1, 1, 1, 1],
+    'segment_class_weights': [1, 2, 2, 2],
     'segment_extra_weights': None,
     'segment_label_type': 'continuous',
     'n_classify_classes': 4,
-    'classify_class_weights': [1, 1, 1, 1],
+    'classify_class_weights': [0.02, 0.02, 0.02, 0.02],
     'classify_label_type': 'continuous',
 }
 
@@ -64,7 +64,7 @@ train_gen = CustomGenerator(
     **kwargs)
 
 # Setting up validation set
-valid_filenames = train_gen.reorder_save(valid_inds, save_path=VALID_DIR)
+# valid_filenames = train_gen.reorder_save(valid_inds, save_path=VALID_DIR)
 n_fs = len([f for f in os.listdir(VALID_DIR) if f.startswith('X_') and f.endswith('.pkl')])
 X_filenames = [os.path.join(VALID_DIR, 'X_%d.pkl' % i) for i in range(n_fs)]
 y_filenames = [os.path.join(VALID_DIR, 'segment_continuous_y_%d.pkl' % i) for i in range(n_fs)]
