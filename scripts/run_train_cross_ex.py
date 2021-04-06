@@ -70,8 +70,8 @@ kwargs = {
 
 train_gen = PairGenerator(
     name_file,
-    X_filenames, 
-    segment_y_files=y_filenames, 
+    X_filenames,
+    segment_y_files=y_filenames,
     segment_w_files=w_filenames,
     classify_label_file=label_file,
     selected_inds=train_inds,
@@ -91,8 +91,8 @@ label_file = os.path.join(VALID_DIR, 'classify_discrete_labels.pkl')
 
 valid_gen = PairGenerator(
     name_file,
-    X_filenames, 
-    segment_y_files=y_filenames, 
+    X_filenames,
+    segment_y_files=y_filenames,
     segment_w_files=w_filenames,
     classify_label_file=label_file,
     **kwargs)
@@ -107,8 +107,8 @@ label_file = os.path.join(TEST_DIR, 'classify_discrete_labels.pkl')
 
 test_gen = PairGenerator(
     name_file,
-    X_filenames, 
-    segment_y_files=y_filenames, 
+    X_filenames,
+    segment_y_files=y_filenames,
     segment_w_files=w_filenames,
     classify_label_file=label_file,
     **kwargs)
@@ -123,8 +123,8 @@ model = ClassifyOnSegment(
     encoder_weights='imagenet',
     n_segment_classes=2,
     n_classify_classes=2)
-               
-               
+
+
 print("Start Training", flush=True)
 model.fit(train_gen,
           valid_gen=valid_gen,
