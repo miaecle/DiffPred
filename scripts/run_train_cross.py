@@ -14,7 +14,7 @@ ROOT_DIR = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_discre
 VALID_DIR = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_discrete/random_valid/'
 SPLIT_FILE = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/random_split.pkl'
 
-MODEL_DIR = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/0-to-inf_random/'
+MODEL_DIR = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/random_split/0-to-inf_random/'
 os.makedirs(ROOT_DIR, exist_ok=True)
 os.makedirs(VALID_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
@@ -74,7 +74,7 @@ train_gen = PairGenerator(
     **kwargs)
 
 # Setting up validation set
-# valid_filenames = train_gen.reorder_save(valid_inds, save_path=VALID_DIR)
+valid_filenames = train_gen.reorder_save(valid_inds, save_path=VALID_DIR)
 n_fs = len([f for f in os.listdir(VALID_DIR) if f.startswith('X_') and f.endswith('.pkl')])
 X_filenames = [os.path.join(VALID_DIR, 'X_%d.pkl' % i) for i in range(n_fs)]
 y_filenames = [os.path.join(VALID_DIR, 'segment_discrete_y_%d.pkl' % i) for i in range(n_fs)]
