@@ -70,6 +70,8 @@ base_gen = PairGenerator(
 get_ex = lambda x: get_identifier(x)[:2]
 all_exs = set(get_ex(n[0]) for i, n in base_gen.names.items())
 for ex in all_exs:
+    if not ex in VALID_DIRS or not ex in MODEL_DIRS:
+        continue
     save_dir = VALID_DIRS[ex]
     model_dir = MODEL_DIRS[ex]
     os.makedirs(save_dir, exist_ok=True)
