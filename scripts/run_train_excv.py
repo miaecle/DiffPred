@@ -124,4 +124,4 @@ for ex in all_exs:
     model.fit(train_gen,
               valid_gen=valid_gen,
               verbose=2,
-              n_epochs=100)
+              n_epochs=40)
