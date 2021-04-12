@@ -92,7 +92,7 @@ for ex in all_exs:
         augment=True,
         **kwargs)
     
-    valid_filenames = base_gen.reorder_save(valid_inds, save_path=save_dir)
+    # valid_filenames = base_gen.reorder_save(valid_inds, save_path=save_dir)
     n_fs = len([f for f in os.listdir(save_dir) if f.startswith('X_') and f.endswith('.pkl')])
     valid_X_filenames = [os.path.join(save_dir, 'X_%d.pkl' % i) for i in range(n_fs)]
     valid_y_filenames = [os.path.join(save_dir, 'segment_discrete_y_%d.pkl' % i) for i in range(n_fs)]
@@ -111,17 +111,17 @@ for ex in all_exs:
     assert len(set(train_gen.names[i] for i in train_gen.selected_inds) & \
         set(valid_gen.names[i] for i in valid_gen.selected_inds)) == 0
     
-    # print("Initiate Model", flush=True)
-    # model = ClassifyOnSegment(
-    #     input_shape=(288, 384, 3),
-    #     model_structure='pspnet',
-    #     model_path=model_dir,
-    #     encoder_weights='imagenet',
-    #     n_segment_classes=2,
-    #     n_classify_classes=2)
+    print("Initiate Model", flush=True)
+    model = ClassifyOnSegment(
+        input_shape=(288, 384, 3),
+        model_structure='pspnet',
+        model_path=model_dir,
+        encoder_weights='imagenet',
+        n_segment_classes=2,
+        n_classify_classes=2)
 
-    # print("Start Training", flush=True)
-    # model.fit(train_gen,
-    #           valid_gen=valid_gen,
-    #           verbose=2,
-    #           n_epochs=200)
+    print("Start Training", flush=True)
+    model.fit(train_gen,
+              valid_gen=valid_gen,
+              verbose=2,
+              n_epochs=100)

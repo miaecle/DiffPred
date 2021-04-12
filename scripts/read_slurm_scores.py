@@ -414,6 +414,8 @@ item = None
 for line in lines:
     if start_flag:
         line = line.split()
+        if len(line) == 0:
+            continue
         if line[0].startswith('==='):
             if not key is None and not item is None:
                 segment[key] = item
@@ -487,13 +489,13 @@ plt.legend()
 
 plt.clf()
 x, y = get_line_xy(all_segments[2], 'cla-Precision')
-plt.plot(x, y, '.-', color=cmap(0), label='precision (0-to-inf)')
+plt.plot(x, y, '.--', color=cmap(0), label='precision (0-to-inf)')
 x, y = get_line_xy(all_segments[2], 'cla-Recall')
-plt.plot(x, y, '.-', color=cmap(1), label='recall (0-to-inf)')
+plt.plot(x, y, '.--', color=cmap(1), label='recall (0-to-inf)')
 x, y = get_line_xy(all_segments[2], 'cla-F1')
-plt.plot(x, y, '.-', color=cmap(2), label='f1 (0-to-inf)')
+plt.plot(x, y, '.--', color=cmap(2), label='f1 (0-to-inf)')
 x, y = get_line_xy(all_segments[2], 'cla-AUC')
-plt.plot(x, y, '.-', color=cmap(3), label='roc-auc (0-to-inf)')
+plt.plot(x, y, '.--', color=cmap(3), label='roc-auc (0-to-inf)')
 plt.xlabel("Input Phase Contrast (day)")
 plt.legend()
 
