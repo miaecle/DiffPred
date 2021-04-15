@@ -77,22 +77,22 @@ for ex in all_exs:
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
     
-    # Setup train/valid datasets
-    train_inds = [i for i, n in base_gen.names.items() if get_ex(n[0]) != ex]
-    valid_inds = [i for i, n in base_gen.names.items() if get_ex(n[0]) == ex]
-    assert len(train_inds) + len(valid_inds) == base_gen.N
-    assert len(set(train_inds) & set(valid_inds)) == 0
-    print("Valid with %s: %d / %d" % (str(ex), len(train_inds), len(valid_inds)))
+    # # Setup train/valid datasets
+    # train_inds = [i for i, n in base_gen.names.items() if get_ex(n[0]) != ex]
+    # valid_inds = [i for i, n in base_gen.names.items() if get_ex(n[0]) == ex]
+    # assert len(train_inds) + len(valid_inds) == base_gen.N
+    # assert len(set(train_inds) & set(valid_inds)) == 0
+    # print("Valid with %s: %d / %d" % (str(ex), len(train_inds), len(valid_inds)))
     
-    train_gen = PairGenerator(
-        name_file,
-        X_filenames,
-        segment_y_files=y_filenames,
-        segment_w_files=w_filenames,
-        classify_label_file=label_file,
-        selected_inds=train_inds,
-        augment=True,
-        **kwargs)
+    # train_gen = PairGenerator(
+    #     name_file,
+    #     X_filenames,
+    #     segment_y_files=y_filenames,
+    #     segment_w_files=w_filenames,
+    #     classify_label_file=label_file,
+    #     selected_inds=train_inds,
+    #     augment=True,
+    #     **kwargs)
     
     # valid_filenames = base_gen.reorder_save(valid_inds, save_path=save_dir)
     n_fs = len([f for f in os.listdir(save_dir) if f.startswith('X_') and f.endswith('.pkl')])
@@ -132,11 +132,12 @@ for ex in all_exs:
     #           n_epochs=40)
 
     ### Validation ###
+    print("=========================")
+    print("Loading from: %s" % os.path.join(model_dir, 'bkp.model'))
     model.load(os.path.join(model_dir, 'bkp.model'))
     pair_names = pickle.load(open(valid_name_file, 'rb'))
     labels = pickle.load(open(valid_label_file, 'rb'))
 
-    print("=========================")
     print("%s: SCORE by interval" % str(ex))
     for interval in range(5, 22):
         selected_inds = [i for i in range(len(pair_names)) if (int(get_identifier(pair_names[i][1])[2]) - int(get_identifier(pair_names[i][0])[2])) == interval]
@@ -146,11 +147,11 @@ for ex in all_exs:
             if len(np.unique(related_labels)) > 1:
                 print("%d: %d" % (interval, len(selected_inds)))
                 data = PairGenerator(
-                    name_file,
-                    X_filenames,
-                    segment_y_files=y_filenames,
-                    segment_w_files=w_filenames,
-                    classify_label_file=label_file,
+                    valid_name_file,
+                    valid_X_filenames,
+                    segment_y_files=valid_y_filenames,
+                    segment_w_files=valid_w_filenames,
+                    classify_label_file=valid_label_file,
                     selected_inds=selected_inds,
                     **kwargs)
                 evaluate_segmentation_and_classification(data, model)
@@ -165,11 +166,11 @@ for ex in all_exs:
             if len(np.unique(related_labels)) > 1:
                 print("%d: %d" % (start_day, len(selected_inds)))
                 data = PairGenerator(
-                    name_file,
-                    X_filenames,
-                    segment_y_files=y_filenames,
-                    segment_w_files=w_filenames,
-                    classify_label_file=label_file,
+                    valid_name_file,
+                    valid_X_filenames,
+                    segment_y_files=valid_y_filenames,
+                    segment_w_files=valid_w_filenames,
+                    classify_label_file=valid_label_file,
                     selected_inds=selected_inds,
                     **kwargs)
                 evaluate_segmentation_and_classification(data, model)
