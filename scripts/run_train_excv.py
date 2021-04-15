@@ -77,22 +77,22 @@ for ex in all_exs:
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
     
-    # # Setup train/valid datasets
-    # train_inds = [i for i, n in base_gen.names.items() if get_ex(n[0]) != ex]
-    # valid_inds = [i for i, n in base_gen.names.items() if get_ex(n[0]) == ex]
-    # assert len(train_inds) + len(valid_inds) == base_gen.N
-    # assert len(set(train_inds) & set(valid_inds)) == 0
-    # print("Valid with %s: %d / %d" % (str(ex), len(train_inds), len(valid_inds)))
+    # Setup train/valid datasets
+    train_inds = [i for i, n in base_gen.names.items() if get_ex(n[0]) != ex]
+    valid_inds = [i for i, n in base_gen.names.items() if get_ex(n[0]) == ex]
+    assert len(train_inds) + len(valid_inds) == base_gen.N
+    assert len(set(train_inds) & set(valid_inds)) == 0
+    print("Valid with %s: %d / %d" % (str(ex), len(train_inds), len(valid_inds)))
     
-    # train_gen = PairGenerator(
-    #     name_file,
-    #     X_filenames,
-    #     segment_y_files=y_filenames,
-    #     segment_w_files=w_filenames,
-    #     classify_label_file=label_file,
-    #     selected_inds=train_inds,
-    #     augment=True,
-    #     **kwargs)
+    train_gen = PairGenerator(
+        name_file,
+        X_filenames,
+        segment_y_files=y_filenames,
+        segment_w_files=w_filenames,
+        classify_label_file=label_file,
+        selected_inds=train_inds,
+        augment=True,
+        **kwargs)
     
     # valid_filenames = base_gen.reorder_save(valid_inds, save_path=save_dir)
     n_fs = len([f for f in os.listdir(save_dir) if f.startswith('X_') and f.endswith('.pkl')])
