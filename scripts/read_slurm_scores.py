@@ -1,7 +1,7 @@
 ###############################################################################
 
 import os
-with open('slurm-21767444.out', 'r') as f:
+with open('LOG', 'r') as f:
   lines = f.readlines()
 
 
@@ -32,7 +32,7 @@ print(classify_orders[-5:])
 
 saves = set(seg_orders[-5:]) | set(classify_orders[-5:])
 for s in saves:
-  assert os.system("cp weights.%d-%.2f.hdf5 weights.%d-iou-%.3f-auc-%.3f.hdf5" % (s, val_losses[s], s, seg_scores[s], classify_scores[s])) == 0
+  assert os.system("cp weights.%02d-%.2f.hdf5 weights.%d-iou-%.3f-auc-%.3f.hdf5" % (s, val_losses[s], s, seg_scores[s], classify_scores[s])) == 0
 
 weight_files = os.listdir()
 for f in weight_files:

@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 from data_loader import get_identifier
 from models import Segment, ClassifyOnSegment
-from layers import load_partial_weights, fill_first_layer
+from layers import load_partial_weights, fill_first_layer, evaluate_segmentation_and_classification
 from data_generator import CustomGenerator, PairGenerator, enhance_weight_for_false_positives
 from scipy.stats import spearmanr, pearsonr
 
@@ -113,6 +113,7 @@ for ex in all_exs:
     assert len(set(train_gen.names[i] for i in train_gen.selected_inds) & \
         set(valid_gen.names[i] for i in valid_gen.selected_inds)) == 0
     
+
     print("Initiate Model", flush=True)
     model = ClassifyOnSegment(
         input_shape=(288, 384, 3),
@@ -122,8 +123,53 @@ for ex in all_exs:
         n_segment_classes=2,
         n_classify_classes=2)
 
-    print("Start Training", flush=True)
-    model.fit(train_gen,
-              valid_gen=valid_gen,
-              verbose=2,
-              n_epochs=40)
+
+    ### Training ###
+    # print("Start Training", flush=True)
+    # model.fit(train_gen,
+    #           valid_gen=valid_gen,
+    #           verbose=2,
+    #           n_epochs=40)
+
+    ### Validation ###
+    model.load(os.path.join(model_dir, 'bkp.model'))
+    pair_names = pickle.load(open(valid_name_file, 'rb'))
+    labels = pickle.load(open(valid_label_file, 'rb'))
+
+    print("=========================")
+    print("%s: SCORE by interval" % str(ex))
+    for interval in range(5, 22):
+        selected_inds = [i for i in range(len(pair_names)) if (int(get_identifier(pair_names[i][1])[2]) - int(get_identifier(pair_names[i][0])[2])) == interval]
+        if len(selected_inds) > 50:
+            related_labels = np.array([labels[i] for i in selected_inds])
+            related_labels = related_labels[np.where(related_labels[:, 1] > 0)][:, 0]
+            if len(np.unique(related_labels)) > 1:
+                print("%d: %d" % (interval, len(selected_inds)))
+                data = PairGenerator(
+                    name_file,
+                    X_filenames,
+                    segment_y_files=y_filenames,
+                    segment_w_files=w_filenames,
+                    classify_label_file=label_file,
+                    selected_inds=selected_inds,
+                    **kwargs)
+                evaluate_segmentation_and_classification(data, model)
+
+    print("=========================")
+    print("%s: SCORE by start day" % str(ex))
+    for start_day in range(13):
+        selected_inds = [i for i in range(len(pair_names)) if int(get_identifier(pair_names[i][0])[2]) == start_day]
+        if len(selected_inds) > 50:
+            related_labels = np.array([labels[i] for i in selected_inds])
+            related_labels = related_labels[np.where(related_labels[:, 1] > 0)][:, 0]
+            if len(np.unique(related_labels)) > 1:
+                print("%d: %d" % (start_day, len(selected_inds)))
+                data = PairGenerator(
+                    name_file,
+                    X_filenames,
+                    segment_y_files=y_filenames,
+                    segment_w_files=w_filenames,
+                    classify_label_file=label_file,
+                    selected_inds=selected_inds,
+                    **kwargs)
+                evaluate_segmentation_and_classification(data, model)
