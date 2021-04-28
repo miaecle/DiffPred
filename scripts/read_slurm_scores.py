@@ -580,38 +580,60 @@ plt.legend()
 label_mapping = {
     0: "line1_ex1",
     1: "line1_ex1",
-    2: "line1_ex6",
-    3: "line1_ex6",
-    4: "line1_ex5",
-    5: "line1_ex5",
-    6: "line3_ex4",
-    7: "line3_ex4",
-    8: "line3_ex2",
-    9: "line3_ex2",
-    10: "line1_ex7",
-    11: "line1_ex7",
-    12: "line1_ex3",
-    13: "line1_ex3",
-    14: "line1_ex8",
-    15: "line1_ex8",
-    16: "line1_ex4",
-    17: "line1_ex4",}
+    2: "line3_ex2",
+    3: "line3_ex2",
+    4: "line1_ex3",
+    5: "line1_ex3",
+    6: "line1_ex4",
+    7: "line1_ex4",
+    8: "line1_ex7",
+    9: "line1_ex7",
+    10: "line1_ex6",
+    11: "line1_ex6",
+    12: "line1_ex8",
+    13: "line1_ex8",
+    14: "line1_ex5",
+    15: "line1_ex5",
+    16: "line3_ex4",
+    17: "line3_ex4",}
 
 
 plt.clf()
 for i in range(0, 18, 2):
     x, y = get_line_xy(all_segments[i], 'cla-AUC')
-    plt.plot(x, y, '.-', color=cmap(i//2), label=label_mapping[i])
+    if label_mapping[i] != 'line1_ex8':
+        plt.plot(x, y, '.-', color=cmap(i//2), label=label_mapping[i])
 plt.ylabel("roc-auc (0-to-inf)")
 plt.xlabel("Prediction Interval (day)")
 plt.legend()
 
-
-
 plt.clf()
 for i in range(1, 18, 2):
     x, y = get_line_xy(all_segments[i], 'cla-AUC')
-    plt.plot(x, y, '.-', color=cmap(i//2), label=label_mapping[i])
+    if label_mapping[i] != 'line1_ex8':
+        plt.plot(x, y, '.-', color=cmap(i//2), label=label_mapping[i])
 plt.ylabel("roc-auc (0-to-inf)")
+plt.xlabel("Input Phase Contrast (day)")
+plt.legend()
+
+
+
+
+
+plt.clf()
+for i in range(0, 18, 2):
+    x, y = get_line_xy(all_segments[i], 'seg-IOU')
+    if label_mapping[i] != 'line1_ex8':
+        plt.plot(x, y, '.-', color=cmap(i//2), label=label_mapping[i])
+plt.ylabel("IOU (0-to-inf)")
+plt.xlabel("Prediction Interval (day)")
+plt.legend()
+
+plt.clf()
+for i in range(1, 18, 2):
+    x, y = get_line_xy(all_segments[i], 'seg-IOU')
+    if label_mapping[i] != 'line1_ex8':
+        plt.plot(x, y, '.-', color=cmap(i//2), label=label_mapping[i])
+plt.ylabel("IOU (0-to-inf)")
 plt.xlabel("Input Phase Contrast (day)")
 plt.legend()
