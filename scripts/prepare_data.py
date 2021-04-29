@@ -9,60 +9,98 @@ X_ct = len([f for f in os.listdir(root) if f.startswith('X_')])
 X_files = [os.path.join(root, "X_%d.pkl" % i) for i in range(X_ct)]
 
 ### save for segmentation usage ###
-# segment_y_files = [os.path.join(root, "segment_continuous_y_%d.pkl" % i) for i in range(X_ct)]
-# segment_w_files = [os.path.join(root, "segment_continuous_w_%d.pkl" % i) for i in range(X_ct)]
-# classify_label_file = os.path.join(root, "classify_continuous_labels.pkl")
-# base_dataset = CustomGenerator(name_file,
-#                  X_files, 
-#                  segment_y_files=segment_y_files, 
-#                  segment_w_files=segment_w_files,
-#                  n_segment_classes=4,
-#                  segment_class_weights=[1, 1, 1, 1],
-#                  segment_extra_weights=None,
-#                  segment_label_type='continuous',
-#                  classify_label_file=classify_label_file,
-#                  n_classify_classes=4,
-#                  classify_class_weights=[1, 1, 1, 1],
-#                  classify_label_type='continuous',
-#                  sample_per_file=100,
-#                  cache_file_num=5)
+segment_y_files = [os.path.join(root, "segment_continuous_y_%d.pkl" % i) for i in range(X_ct)]
+segment_w_files = [os.path.join(root, "segment_continuous_w_%d.pkl" % i) for i in range(X_ct)]
+classify_label_file = os.path.join(root, "classify_continuous_labels.pkl")
+base_dataset = CustomGenerator(name_file,
+                 X_files, 
+                 segment_y_files=segment_y_files, 
+                 segment_w_files=segment_w_files,
+                 n_segment_classes=4,
+                 segment_class_weights=[1, 1, 1, 1],
+                 segment_extra_weights=None,
+                 segment_label_type='continuous',
+                 classify_label_file=classify_label_file,
+                 n_classify_classes=4,
+                 classify_class_weights=[1, 1, 1, 1],
+                 classify_label_type='continuous',
+                 sample_per_file=100,
+                 cache_file_num=5)
 
-# X_valid = []
-# segment_continuous_valid = []
-# classify_continuous_valid = []
+X_valid = []
+segment_continuous_valid = []
+classify_continuous_valid = []
 
-# for i in base_dataset.selected_inds:
-#     try:
-#         X, y, w, name = base_dataset.load_ind(i)
-#     except Exception as e:
-#         print(e)
-#         print("ISSUE %d" % i)
-#         continue
-#     if not X is None:
-#         X_valid.append(i)
-#     if not y is None and not w is None:
-#         if not np.all(w == 0):
-#             segment_continuous_valid.append(i)
-#     if not base_dataset.classify_y[i] is None and not base_dataset.classify_w[i] is None:
-#         if base_dataset.classify_w[i] > 0:
-#             classify_continuous_valid.append(i)
-#     if i % 1000 == 0:
-#         print(i)
+for i in base_dataset.selected_inds:
+    try:
+        X, y, w, name = base_dataset.load_ind(i)
+    except Exception as e:
+        print(e)
+        print("ISSUE %d" % i)
+        continue
+    if not X is None:
+        X_valid.append(i)
+    if not y is None and not w is None:
+        if not np.all(w == 0):
+            segment_continuous_valid.append(i)
+    if not base_dataset.classify_y[i] is None and not base_dataset.classify_w[i] is None:
+        if base_dataset.classify_w[i] > 0:
+            classify_continuous_valid.append(i)
+    if i % 1000 == 0:
+        print(i)
 
-# selected_inds = set(X_valid) & set(segment_continuous_valid) & set(classify_continuous_valid)
-# selected_inds = np.array(sorted(selected_inds))
-# with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-0_continuous_inds.pkl", "wb") as f:
-#     pickle.dump(selected_inds, f)
-# print("TOTAL samples: %d" % len(selected_inds))
+selected_inds = set(X_valid) & set(classify_continuous_valid)
+selected_inds = np.array(sorted(selected_inds))
+with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-0_continuous_inds.pkl", "wb") as f:
+    pickle.dump(selected_inds, f)
+print("TOTAL samples: %d" % len(selected_inds))
 
-# np.random.seed(123)
-# np.random.shuffle(selected_inds)
-# save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-0_continuous/"
-# os.makedirs(save_path, exist_ok=True)
-# base_dataset.reorder_save(selected_inds, 
-#                           save_path=save_path,
-#                           write_segment_labels=True,
-#                           write_classify_labels=True)
+np.random.seed(123)
+np.random.shuffle(selected_inds)
+save_path = "/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-0_continuous/"
+os.makedirs(save_path, exist_ok=True)
+base_dataset.reorder_save(selected_inds, 
+                          save_path=save_path,
+                          write_segment_labels=True,
+                          write_classify_labels=True)
+
+
+
+# Fill in segmentation masks for pure negative samples
+base_names = pickle.load(open(name_file, 'rb'))
+name_to_id_mapping = {n: i for i, n in base_names.items()}
+def get_original_w(name):
+    ind = name_to_id_mapping[name]
+    temp_w_dat = pickle.load(open(os.path.join(root, "segment_discrete_w_%d.pkl" % (ind // 100)), 'rb'))
+    return temp_w_dat[ind]
+
+
+_name_file = os.path.join(save_path, "names.pkl")
+_X_ct = len([f for f in os.listdir(save_path) if f.startswith('X_')])
+_segment_y_files = [os.path.join(save_path, "segment_continuous_y_%d.pkl" % i) for i in range(_X_ct)]
+_segment_w_files = [os.path.join(save_path, "segment_continuous_w_%d.pkl" % i) for i in range(_X_ct)]
+_classify_label_file = os.path.join(save_path, "classify_continuous_labels.pkl")
+
+_names = pickle.load(open(_name_file, 'rb'))
+_classify_labels = pickle.load(open(_classify_label_file, 'rb'))
+for segment_y_file, segment_w_file in zip(_segment_y_files, _segment_w_files):
+    y_dat = pickle.load(open(segment_y_file, 'rb'))
+    w_dat = pickle.load(open(segment_w_file, 'rb'))
+    assert y_dat.keys() == w_dat.keys()
+    for k in y_dat:
+        if _classify_labels[k][0][0] == 1:
+            if not np.allclose(y_dat[k].sum(), 0.):
+                print("Issue with key %d" % k)
+            w_dat[k] = get_original_w(_names[k])
+            y_dat[k] = np.concatenate([
+                np.ones((288, 384, 1), dtype=float),
+                np.zeros((288, 384, 3), dtype=float)
+                ], 2)
+    with open(segment_y_file, 'wb') as f:
+        pickle.dump(y_dat, f)
+    with open(segment_w_file, 'wb') as f:
+        pickle.dump(w_dat, f)
+
 
 
 ### save for classification prediction ###

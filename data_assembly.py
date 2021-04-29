@@ -124,8 +124,20 @@ def preprocess(pairs,
         classify_discrete_labels[ind] = binarized_fluorescence_label(
             segment_discrete_ys[ind], segment_discrete_ws[ind])
 
-        # only sample with fluorescence will have valid weights
-        classify_continuous_labels[ind] = (classify_continuous_y, classify_discrete_labels[ind][0])
+        # Continuous label (4-class) will be dependent on fluorescence intensity level
+        thrs = np.array([0., 0.32, 0.57, 0.92])
+        _classify_continuous_w = classify_discrete_labels[ind][1]
+        if classify_discrete_labels[ind][0] is None or _classify_continuous_w == 0:
+            _classify_continuous_y = None
+        elif classify_discrete_labels[ind][0] == 0:
+            _classify_continuous_y = np.array([1., 0., 0., 0.])
+        else:
+            assert classify_continuous_y is not None
+            _fl_intensity_lev = (classify_continuous_y * np.array([0., 1., 2., 3.])).sum()
+            _classify_continuous_y = np.exp(-np.abs(thrs - _fl_intensity_lev) / 0.2)
+            _classify_continuous_y = _classify_continuous_y / _classify_continuous_y.sum()
+        classify_continuous_labels[ind] = (_classify_continuous_y, _classify_continuous_w)
+
 
         # Save data
         if output_path is not None and ((ind % 100 == 99) or (ind == len(pairs) - 1)):
