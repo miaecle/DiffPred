@@ -288,7 +288,14 @@ class CustomGenerator(keras.utils.Sequence) :
         else:
             classify_labels = None
 
-        return [segment_labels, classify_labels]
+        if segment_labels is None and classify_labels is None:
+            return None
+        elif segment_labels is None and not classify_labels is None:
+            return classify_labels
+        elif not segment_labels is None and classify_labels is None:
+            return segment_labels
+        else:
+            return [segment_labels, classify_labels]
 
 
     def reorder_save(self, 
