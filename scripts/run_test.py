@@ -10,14 +10,20 @@ from layers import load_partial_weights, fill_first_layer, evaluate_confusion_ma
 from data_generator import CustomGenerator, PairGenerator, enhance_weight_for_false_positives
 from scipy.stats import spearmanr, pearsonr
 
-### Settings ###
-ROOT_DIR = "/oak/stanford/groups/jamesz/zqwu/iPSC_data/validation_set/line2_15_ex1/0-to-0/"
 MODEL_DIR = "/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/random_split/0-to-0_random/"
 
-### Set up test set ###
-n_fs = len([f for f in os.listdir(ROOT_DIR) if f.startswith('X_') and f.endswith('.pkl')])
-X_filenames = [os.path.join(ROOT_DIR, 'X_%d.pkl' % i) for i in range(n_fs)]
-name_file = os.path.join(ROOT_DIR, 'names.pkl')
+model = ClassifyOnSegment(
+    input_shape=(288, 384, 3), 
+    model_structure='pspnet', 
+    model_path=MODEL_DIR, 
+    encoder_weights='imagenet',
+    n_segment_classes=2,
+    n_classify_classes=2,
+    eval_fn=evaluate_confusion_mat)
+
+model.load(os.path.join(MODEL_DIR, 'bkp.model'))
+
+
 
 kwargs = {
     'batch_size': 8,
@@ -32,25 +38,18 @@ kwargs = {
     'classify_label_type': 'discrete',
 }
 
+
+ROOT_DIR = "/oak/stanford/groups/jamesz/zqwu/iPSC_data/validation_set/line2_15_ex1/0-to-0/"
+n_fs = len([f for f in os.listdir(ROOT_DIR) if f.startswith('X_') and f.endswith('.pkl')])
+X_filenames = [os.path.join(ROOT_DIR, 'X_%d.pkl' % i) for i in range(n_fs)]
+name_file = os.path.join(ROOT_DIR, 'names.pkl')
+
 test_gen = CustomGenerator(
     name_file,
     X_filenames, 
     augment=False,
     batch_with_name=True,
     **kwargs)
-
-
-### Load model ###
-model = ClassifyOnSegment(
-    input_shape=(288, 384, 3), 
-    model_structure='pspnet', 
-    model_path=MODEL_DIR, 
-    encoder_weights='imagenet',
-    n_segment_classes=2,
-    n_classify_classes=2,
-    eval_fn=evaluate_confusion_mat)
-
-model.load(os.path.join(MODEL_DIR, 'bkp.model'))
 
 
 def augment_fixed_end(X, end=15):
@@ -76,6 +75,7 @@ def collect_preds(gen, model, input_process_fn=lambda x: x):
         for pair in zip(ids, *preds):
             full_preds[pair[0]] = pair[1:]
     return full_preds
+
 
 
 input_process_fn = partial(augment_fixed_end, end=15)
