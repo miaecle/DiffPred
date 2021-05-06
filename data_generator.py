@@ -43,6 +43,7 @@ class CustomGenerator(keras.utils.Sequence) :
                  shuffle_inds=False,
                  augment=False,
                  batch_size=8,
+                 batch_with_name=False,
                  **kwargs):
         """ Customized generator for predicting differentiation outcome
         """
@@ -92,6 +93,7 @@ class CustomGenerator(keras.utils.Sequence) :
 
         # Input details
         self.batch_size = batch_size
+        self.batch_with_name = batch_with_name
 
 
     def reorder_inds(self, inds, shuffle_inds=False):
@@ -235,7 +237,11 @@ class CustomGenerator(keras.utils.Sequence) :
         _labels = self.prepare_labels(_X, seg_y=seg_y, seg_w=seg_w, cl_y=cl_y, cl_w=cl_w)
         if not self.segment_extra_weights is None:
             _labels = self.segment_extra_weights(_X, _labels)
-        return _X, _labels
+
+        if self.batch_with_name:
+            return _X, _labels, names
+        else:
+            return _X, _labels
 
 
     def prepare_features(self, X, names=None):
