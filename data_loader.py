@@ -121,10 +121,13 @@ def get_fl_stats(pairs):
     fl_files = [pair[1] for pair in pairs if pair[1] is not None]
     overall_distri = {i:0 for i in range(65536)}
     for fl_f in fl_files:
-        mat = load_image(fl_f)
-        vals, cts = np.unique(mat, return_counts=True)
-        for val, ct in zip(vals, cts):
-            overall_distri[val] += ct
+        try:
+            mat = load_image(fl_f)
+            vals, cts = np.unique(mat, return_counts=True)
+            for val, ct in zip(vals, cts):
+                overall_distri[val] += ct
+        except Exception as e:
+            print(e)
     return [overall_distri[i] for i in range(65535)]
 
 
