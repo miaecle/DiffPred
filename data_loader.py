@@ -128,6 +128,7 @@ def get_fl_stats(pairs):
                 overall_distri[val] += ct
         except Exception as e:
             print(e)
+            print("Error loading file %s" % fl_f)
     return [overall_distri[i] for i in range(65535)]
 
 
