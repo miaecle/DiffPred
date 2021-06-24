@@ -17,6 +17,7 @@ def preprocess(pairs,
                labels=['discrete', 'continuous'], 
                raw_label_preprocess=lambda x: x,
                well_setting='96well', #'6well' or '96well'
+               linear_align=False,
                shuffle=True,
                seed=None):
     if not seed is None:
@@ -59,13 +60,13 @@ def preprocess(pairs,
             X = adjust_contrast(pair_dat, 
                                 mask, 
                                 position_code, 
-                                linear_align=(well_setting == '96well'))
+                                linear_align=linear_align & (well_setting == '96well'))
             X = cv2.resize(X, cv2_shape)
 
             # Segment weights
             w = generate_weight(mask, 
                                 position_code, 
-                                linear_align=(well_setting == '96well'))
+                                linear_align=linear_align & (well_setting == '96well'))
             w = cv2.resize(w, cv2_shape)
 
             # Segment labels (binarized fluorescence, discrete labels)
@@ -133,7 +134,7 @@ def preprocess(pairs,
             segment_discrete_ys[ind], segment_discrete_ws[ind])
 
         # Continuous label (4-class) will be dependent on fluorescence intensity level
-        thrs = np.array([0., 0.32, 0.57, 0.92])
+        thrs = np.array([0., 0.26, 0.53, 0.85])
         _classify_continuous_w = classify_discrete_labels[ind][1]
         if classify_discrete_labels[ind][0] is None or _classify_continuous_w == 0:
             _classify_continuous_y = None
@@ -141,7 +142,7 @@ def preprocess(pairs,
             _classify_continuous_y = np.array([1., 0., 0., 0.])
         else:
             assert classify_continuous_y is not None
-            _fl_intensity_lev = (classify_continuous_y * np.array([0., 1., 2., 3.])).sum()
+            _fl_intensity_lev = (classify_continuous_y * np.array([0., 0.5, 1., 3.2])).sum()
             _classify_continuous_y = np.exp(-np.abs(thrs - _fl_intensity_lev) / 0.2)
             _classify_continuous_y = _classify_continuous_y / _classify_continuous_y.sum()
         classify_continuous_labels[ind] = (_classify_continuous_y, _classify_continuous_w)
