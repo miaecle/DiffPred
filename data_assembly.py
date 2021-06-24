@@ -219,66 +219,66 @@ def extract_samples_for_inspection(pairs, inter_dir, image_output_dir, seed=123)
     for i in range(len(phase_contrast_files)):
         assert 'X_%d.pkl' % i in fs
     
-    # Sample phase contrast image
-    os.makedirs(os.path.join(image_output_dir, "phase_contrast"), exist_ok=True)
-    random_inds = np.random.choice(list(names.keys()), (50,), replace=False)
-    for ind in random_inds:
-        file_ind = ind // 100
-        identifier = get_identifier(names[ind])
-        try:
-            processed_img = pickle.load(open(os.path.join(inter_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
-            raw_img = load_image(raw_id_to_f_mapping[identifier][0])
-            out_path = os.path.join(image_output_dir, 
-                                    "phase_contrast", 
-                                    "%s.png" % '_'.join(identifier))
-            save_multi_panel_fig([raw_img, processed_img], out_path)
+    # # Sample phase contrast image
+    # os.makedirs(os.path.join(image_output_dir, "phase_contrast"), exist_ok=True)
+    # random_inds = np.random.choice(list(names.keys()), (50,), replace=False)
+    # for ind in random_inds:
+    #     file_ind = ind // 100
+    #     identifier = get_identifier(names[ind])
+    #     try:
+    #         processed_img = pickle.load(open(os.path.join(inter_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
+    #         raw_img = load_image(raw_id_to_f_mapping[identifier][0])
+    #         out_path = os.path.join(image_output_dir, 
+    #                                 "phase_contrast", 
+    #                                 "%s.png" % '_'.join(identifier))
+    #         save_multi_panel_fig([raw_img, processed_img], out_path)
 
-        except Exception:
-            print("Error saving sample %s" % '_'.join(identifier))
+    #     except Exception:
+    #         print("Error saving sample %s" % '_'.join(identifier))
         
-    try:
-        # Check discrete segmentation annotations
-        assert "classify_discrete_labels.pkl" in fs
-        for i in range(len(phase_contrast_files)):
-            assert 'segment_discrete_y_%d.pkl' % i in fs
-            assert 'segment_discrete_w_%d.pkl' % i in fs
+    # try:
+    #     # Check discrete segmentation annotations
+    #     assert "classify_discrete_labels.pkl" in fs
+    #     for i in range(len(phase_contrast_files)):
+    #         assert 'segment_discrete_y_%d.pkl' % i in fs
+    #         assert 'segment_discrete_w_%d.pkl' % i in fs
         
-        classify_discrete_labels = pickle.load(open(os.path.join(inter_dir, "classify_discrete_labels.pkl"), 'rb'))
-        inds_by_class = {}
-        for k in classify_discrete_labels:
-            if classify_discrete_labels[k][0] is None or classify_discrete_labels[k][1] == 0:
-                continue
-            label = classify_discrete_labels[k][0]
-            if not label in inds_by_class:
-                inds_by_class[label] = []
-            inds_by_class[label].append(k)
+    #     classify_discrete_labels = pickle.load(open(os.path.join(inter_dir, "classify_discrete_labels.pkl"), 'rb'))
+    #     inds_by_class = {}
+    #     for k in classify_discrete_labels:
+    #         if classify_discrete_labels[k][0] is None or classify_discrete_labels[k][1] == 0:
+    #             continue
+    #         label = classify_discrete_labels[k][0]
+    #         if not label in inds_by_class:
+    #             inds_by_class[label] = []
+    #         inds_by_class[label].append(k)
         
-        # Sample discrete fl segmentation (by class)
-        for cl in inds_by_class:
-            os.makedirs(os.path.join(image_output_dir, "discrete_segmentation_class_%s" % str(cl)), exist_ok=True)
-            random_inds = np.random.choice(list(inds_by_class[cl]), (20,), replace=False)
-            for ind in random_inds:
-                file_ind = ind // 100
-                identifier = get_identifier(names[ind])
-                try:
-                    raw_pc = load_image(raw_id_to_f_mapping[identifier][0])
-                    raw_fl = load_image(raw_id_to_f_mapping[identifier][1])
-                    processed_pc = pickle.load(open(os.path.join(inter_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
-                    processed_fl_y = pickle.load(open(os.path.join(inter_dir, 'segment_discrete_y_%d.pkl' % file_ind), 'rb'))[ind]
-                    processed_fl_w = pickle.load(open(os.path.join(inter_dir, 'segment_discrete_w_%d.pkl' % file_ind), 'rb'))[ind]
-                    out_path = os.path.join(image_output_dir, 
-                                            "discrete_segmentation_class_%s" % str(cl), 
-                                            "%s.png" % '_'.join(identifier))
-                    save_multi_panel_fig([raw_pc, 
-                                          processed_pc, 
-                                          raw_fl, 
-                                          None, 
-                                          processed_fl_y, 
-                                          processed_fl_w], out_path)
-                except Exception:
-                    print("Error saving fl(discrete) sample %s" % '_'.join(identifier))
-    except Exception:
-        print("Issue locating discrete segmentation files")
+    #     # Sample discrete fl segmentation (by class)
+    #     for cl in inds_by_class:
+    #         os.makedirs(os.path.join(image_output_dir, "discrete_segmentation_class_%s" % str(cl)), exist_ok=True)
+    #         random_inds = np.random.choice(list(inds_by_class[cl]), (20,), replace=False)
+    #         for ind in random_inds:
+    #             file_ind = ind // 100
+    #             identifier = get_identifier(names[ind])
+    #             try:
+    #                 raw_pc = load_image(raw_id_to_f_mapping[identifier][0])
+    #                 raw_fl = load_image(raw_id_to_f_mapping[identifier][1])
+    #                 processed_pc = pickle.load(open(os.path.join(inter_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
+    #                 processed_fl_y = pickle.load(open(os.path.join(inter_dir, 'segment_discrete_y_%d.pkl' % file_ind), 'rb'))[ind]
+    #                 processed_fl_w = pickle.load(open(os.path.join(inter_dir, 'segment_discrete_w_%d.pkl' % file_ind), 'rb'))[ind]
+    #                 out_path = os.path.join(image_output_dir, 
+    #                                         "discrete_segmentation_class_%s" % str(cl), 
+    #                                         "%s.png" % '_'.join(identifier))
+    #                 save_multi_panel_fig([raw_pc, 
+    #                                       processed_pc, 
+    #                                       raw_fl, 
+    #                                       None, 
+    #                                       processed_fl_y, 
+    #                                       processed_fl_w], out_path)
+    #             except Exception:
+    #                 print("Error saving fl(discrete) sample %s" % '_'.join(identifier))
+    # except Exception:
+    #     print("Issue locating discrete segmentation files")
     
     try:
         # Check continuous segmentation annotations
@@ -324,17 +324,6 @@ def extract_samples_for_inspection(pairs, inter_dir, image_output_dir, seed=123)
                     print("Error saving fl(continuous) sample %s" % '_'.join(identifier))
     except Exception:
         print("Issue locating continuous segmentation files")
-    
-
-
-
-
-
-
-
-
-
-
 
 
 def merge_dataset_soft(source_data_folders, target_data_folder, shuffle=True, seed=123):
