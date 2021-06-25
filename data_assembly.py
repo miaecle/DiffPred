@@ -10,6 +10,39 @@ from segment_support import generate_mask, generate_weight, generate_fluorescenc
 from segment_support import adjust_contrast, binarized_fluorescence_label
 
 
+def generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init):
+    # 0 - bg, 2 - fg, 1 - intermediate
+    discrete_y = generate_fluorescence_labels(pair_dat, mask)
+    y = cv2.resize(discrete_y, cv2_shape)
+    y[np.where((y > 0) & (y < 1))] = 1
+    y[np.where((y > 1) & (y < 2))] = 1
+
+    discrete_w = weight_init
+    discrete_w[np.where(y == 1)] = 0
+    
+    y[np.where(y == 1)] = 0
+    y[np.where(y == 2)] = 1
+    return y, discrete_w
+
+
+def generate_continuous_labels(pair_dat, mask, cv2_shape, weight_init):
+    continuous_y = quantize_fluorescence(pair_dat, mask)
+    y = cv2.resize(continuous_y, cv2_shape)
+
+    continuous_w = weight_init
+
+    if np.all(y != y):
+        # full negative slice
+        target_y = np.zeros((1, y.shape[-1]))
+        target_y[0, 0] = 1.
+        y[np.where(y != y)[:2]] = target_y
+        continuous_w = generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init)[1]
+    else:
+        y[np.where(y != y)[:2]] = np.zeros((1, y.shape[-1]))
+        continuous_w[np.where(y != y)[:2]] = 0
+    return y, continuous_w
+
+
 def preprocess(pairs, 
                output_path=None, 
                preprocess_filter=lambda x: True,
@@ -66,7 +99,7 @@ def preprocess(pairs,
             # Segment weights
             w = generate_weight(mask, 
                                 position_code, 
-                                linear_align=linear_align & (well_setting == '96well'))
+                                linear_align=(well_setting == '96well'))
             w = cv2.resize(w, cv2_shape)
 
             # Segment labels (binarized fluorescence, discrete labels)
@@ -81,17 +114,7 @@ def preprocess(pairs,
 
         if not pair_dat[1] is None and 'discrete' in labels:
             try:
-                # 0 - bg, 2 - fg, 1 - intermediate
-                discrete_y = generate_fluorescence_labels(pair_dat, mask)
-                y = cv2.resize(discrete_y, cv2_shape)
-                y[np.where((y > 0) & (y < 1))] = 1
-                y[np.where((y > 1) & (y < 2))] = 1
-
-                discrete_w = copy.deepcopy(w)
-                discrete_w[np.where(y == 1)] = 0
-                
-                y[np.where(y == 1)] = 0
-                y[np.where(y == 2)] = 1
+                y, discrete_w = generate_discrete_labels(pair_dat, mask, cv2_shape, w)
                 segment_discrete_ys[ind] = y.reshape(np_shape).astype(int)
                 segment_discrete_ws[ind] = discrete_w.reshape(np_shape).astype(float)
             except Exception as e:
@@ -106,13 +129,7 @@ def preprocess(pairs,
         # Segment labels (continuous fluorescence in 4 classes)
         if not pair_dat[1] is None and 'continuous' in labels:
             try:
-                continuous_y = quantize_fluorescence(pair_dat, mask)
-                y = cv2.resize(continuous_y, cv2_shape)
-
-                continuous_w = copy.deepcopy(w)
-                continuous_w[np.where(y != y)[:2]] = 0
-                y[np.where(y != y)[:2]] = np.zeros((1, y.shape[-1]))
-
+                y, continuous_w = generate_continuous_labels(pair_dat, mask, cv2_shape, w)
                 segment_continuous_ys[ind] = y.reshape(np_shape).astype(float)
                 segment_continuous_ws[ind] = continuous_w.reshape(np_shape).astype(float)
 
@@ -256,7 +273,10 @@ def extract_samples_for_inspection(pairs, inter_dir, image_output_dir, seed=123)
     #     # Sample discrete fl segmentation (by class)
     #     for cl in inds_by_class:
     #         os.makedirs(os.path.join(image_output_dir, "discrete_segmentation_class_%s" % str(cl)), exist_ok=True)
-    #         random_inds = np.random.choice(list(inds_by_class[cl]), (20,), replace=False)
+    #         if len(inds_by_class[cl]) > 20:
+    #             random_inds = np.random.choice(list(inds_by_class[cl]), (20,), replace=False)
+    #         else:
+    #             random_inds = inds_by_class[cl]
     #         for ind in random_inds:
     #             file_ind = ind // 100
     #             identifier = get_identifier(names[ind])
@@ -300,7 +320,10 @@ def extract_samples_for_inspection(pairs, inter_dir, image_output_dir, seed=123)
         # Sample continuous fl segmentation (by class)
         for cl in inds_by_class:
             os.makedirs(os.path.join(image_output_dir, "continuous_segmentation_class_%s" % str(cl)), exist_ok=True)
-            random_inds = np.random.choice(list(inds_by_class[cl]), (20,), replace=False)
+            if len(inds_by_class[cl]) > 20:
+                random_inds = np.random.choice(list(inds_by_class[cl]), (20,), replace=False)
+            else:
+                random_inds = inds_by_class[cl]
             for ind in random_inds:
                 file_ind = ind // 100
                 identifier = get_identifier(names[ind])

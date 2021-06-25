@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 from segment_support import convolve2d, quantize_fluorescence
 from data_loader import load_all_pairs, get_identifier, get_fl_stats, load_image_pair, load_image
-from data_assembly import preprocess, extract_samples_for_inspection
+from data_assembly import preprocess, extract_samples_for_inspection, merge_dataset_soft
 
 
 RAW_FOLDERS = [
@@ -120,11 +120,11 @@ def FL_PREPROCESS(fl, scale=1., offset=0.):
     _fl = np.clip(_fl, 0, 65535).astype(int).astype('uint16')
     return _fl
 
-
+# %% Featurize each experiment
 for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
     os.makedirs(inter_dir, exist_ok=True)
     well_setting = WELL_SETTINGS[raw_dir]
-    fl_preprocess_setting = FL_PREPROCESS_SETTINGS[raw_dir]
+    fl_preprocess_setting  = FL_PREPROCESS_SETTINGS[raw_dir]
     pairs = load_all_pairs(path=raw_dir, check_valid=RAW_F_FILTER)
     
     fl_preprocess_fn = partial(FL_PREPROCESS, 
@@ -141,4 +141,15 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
                linear_align=False,
                shuffle=True,
                seed=123)
+
+# %% Select samples for manual check
+for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
+    image_output_dir = inter_dir.replace('/0-to-0/', '/sample_figs/')
+    pairs = load_all_pairs(path=raw_dir, check_valid=RAW_F_FILTER)
+    extract_samples_for_inspection(pairs, inter_dir, image_output_dir, seed=123)
+    
+# %% Merge datasets
+output_dir = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN_READY/0-to-0/'
+os.makedirs(output_dir, exist_ok=True)
+merge_dataset_soft(inter_dir, output_dir, shuffle=True, seed=123)
     
