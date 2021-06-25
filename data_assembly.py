@@ -17,7 +17,7 @@ def generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init):
     y[np.where((y > 0) & (y < 1))] = 1
     y[np.where((y > 1) & (y < 2))] = 1
 
-    discrete_w = weight_init
+    discrete_w = copy.deepcopy(weight_init)
     discrete_w[np.where(y == 1)] = 0
     
     y[np.where(y == 1)] = 0
@@ -29,7 +29,7 @@ def generate_continuous_labels(pair_dat, mask, cv2_shape, weight_init):
     continuous_y = quantize_fluorescence(pair_dat, mask)
     y = cv2.resize(continuous_y, cv2_shape)
 
-    continuous_w = weight_init
+    continuous_w = copy.deepcopy(weight_init)
 
     if np.all(y != y):
         # full negative slice
