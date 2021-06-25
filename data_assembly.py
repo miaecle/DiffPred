@@ -134,7 +134,7 @@ def preprocess(pairs,
             segment_discrete_ys[ind], segment_discrete_ws[ind])
 
         # Continuous label (4-class) will be dependent on fluorescence intensity level
-        thrs = np.array([0., 0.26, 0.53, 0.85])
+        thrs = np.array([0., 0.25, 0.35, 0.65])
         _classify_continuous_w = classify_discrete_labels[ind][1]
         if classify_discrete_labels[ind][0] is None or _classify_continuous_w == 0:
             _classify_continuous_y = None
@@ -142,7 +142,7 @@ def preprocess(pairs,
             _classify_continuous_y = np.array([1., 0., 0., 0.])
         else:
             assert classify_continuous_y is not None
-            _fl_intensity_lev = (classify_continuous_y * np.array([0., 0.5, 1., 3.2])).sum()
+            _fl_intensity_lev = (classify_continuous_y * np.array([0., 0.5, 1., 3.])).sum()
             _classify_continuous_y = np.exp(-np.abs(thrs - _fl_intensity_lev) / 0.2)
             _classify_continuous_y = _classify_continuous_y / _classify_continuous_y.sum()
         classify_continuous_labels[ind] = (_classify_continuous_y, _classify_continuous_w)
