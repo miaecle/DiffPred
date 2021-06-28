@@ -123,17 +123,20 @@ def FL_PREPROCESS(fl, scale=1., offset=0.):
 # %% Featurize each experiment
 for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
     os.makedirs(inter_dir, exist_ok=True)
-    well_setting = WELL_SETTINGS[raw_dir]
-    fl_preprocess_setting  = FL_PREPROCESS_SETTINGS[raw_dir]
-    pairs = load_all_pairs(path=raw_dir, check_valid=RAW_F_FILTER)
     
+    well_setting = WELL_SETTINGS[raw_dir]
+    preprocess_filter = partial(PREPROCESS_FILTER, well_setting=well_setting)
+    
+    fl_preprocess_setting = FL_PREPROCESS_SETTINGS[raw_dir]
     fl_preprocess_fn = partial(FL_PREPROCESS, 
                                scale=fl_preprocess_setting[0],
                                offset=fl_preprocess_setting[1])
     
+    pairs = load_all_pairs(path=raw_dir, check_valid=RAW_F_FILTER)
+    
     preprocess(pairs, 
                output_path=inter_dir, 
-               preprocess_filter=PREPROCESS_FILTER,
+               preprocess_filter=preprocess_filter,
                target_size=(384, 288),
                labels=['discrete', 'continuous'], 
                raw_label_preprocess=fl_preprocess_fn,
@@ -145,7 +148,12 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
 # %% Select samples for manual check
 for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
     image_output_dir = inter_dir.replace('/0-to-0/', '/sample_figs/')
+    
+    well_setting = WELL_SETTINGS[raw_dir]
+    preprocess_filter = partial(PREPROCESS_FILTER, well_setting=well_setting)
     pairs = load_all_pairs(path=raw_dir, check_valid=RAW_F_FILTER)
+    pairs = [p for p in pairs if p[0] is not None and preprocess_filter(p)]
+    
     extract_samples_for_inspection(pairs, inter_dir, image_output_dir, seed=123)
     
 # %% Merge datasets
