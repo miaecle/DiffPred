@@ -38,8 +38,8 @@ def generate_continuous_labels(pair_dat, mask, cv2_shape, weight_init):
         y[np.where(y != y)[:2]] = target_y
         continuous_w = generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init)[1]
     else:
-        y[np.where(y != y)[:2]] = np.zeros((1, y.shape[-1]))
         continuous_w[np.where(y != y)[:2]] = 0
+        y[np.where(y != y)[:2]] = np.zeros((1, y.shape[-1]))
     return y, continuous_w
 
 
