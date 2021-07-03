@@ -10,7 +10,7 @@ from segment_support import generate_mask, generate_weight, generate_fluorescenc
 from segment_support import adjust_contrast, binarized_fluorescence_label
 
 
-def generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init):
+def generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=65535):
     # 0 - bg, 2 - fg, 1 - intermediate
     discrete_y = generate_fluorescence_labels(pair_dat, mask)
     y = cv2.resize(discrete_y, cv2_shape)
@@ -22,10 +22,14 @@ def generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init):
     
     y[np.where(y == 1)] = 0
     y[np.where(y == 2)] = 1
+
+    if np.allclose(y, 0) and pair_dat[1][np.where(discrete_y == 0)].mean() > nonneg_thr:
+        return y, np.zeros_like(discrete_w)
+
     return y, discrete_w
 
 
-def generate_continuous_labels(pair_dat, mask, cv2_shape, weight_init):
+def generate_continuous_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=65535):
     continuous_y = quantize_fluorescence(pair_dat, mask)
     y = cv2.resize(continuous_y, cv2_shape)
 
@@ -36,7 +40,7 @@ def generate_continuous_labels(pair_dat, mask, cv2_shape, weight_init):
         target_y = np.zeros((1, y.shape[-1]))
         target_y[0, 0] = 1.
         y[np.where(y != y)[:2]] = target_y
-        continuous_w = generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init)[1]
+        continuous_w = generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=nonneg_thr)[1]
     else:
         y[np.where(y != y)[:2]] = np.zeros((1, y.shape[-1]))
         continuous_w[np.where(y != y)[:2]] = 0
@@ -49,6 +53,7 @@ def preprocess(pairs,
                target_size=(384, 288),
                labels=['discrete', 'continuous'], 
                raw_label_preprocess=lambda x: x,
+               nonneg_thr=65535,
                well_setting='96well', #'6well' or '96well'
                linear_align=False,
                shuffle=True,
@@ -114,7 +119,7 @@ def preprocess(pairs,
 
         if not pair_dat[1] is None and 'discrete' in labels:
             try:
-                y, discrete_w = generate_discrete_labels(pair_dat, mask, cv2_shape, w)
+                y, discrete_w = generate_discrete_labels(pair_dat, mask, cv2_shape, w, nonneg_thr=nonneg_thr)
                 segment_discrete_ys[ind] = y.reshape(np_shape).astype(int)
                 segment_discrete_ws[ind] = discrete_w.reshape(np_shape).astype(float)
             except Exception as e:
@@ -129,7 +134,7 @@ def preprocess(pairs,
         # Segment labels (continuous fluorescence in 4 classes)
         if not pair_dat[1] is None and 'continuous' in labels:
             try:
-                y, continuous_w = generate_continuous_labels(pair_dat, mask, cv2_shape, w)
+                y, continuous_w = generate_continuous_labels(pair_dat, mask, cv2_shape, w, nonneg_thr=nonneg_thr)
                 segment_continuous_ys[ind] = y.reshape(np_shape).astype(float)
                 segment_continuous_ws[ind] = continuous_w.reshape(np_shape).astype(float)
 

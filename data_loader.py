@@ -117,7 +117,7 @@ def load_image_pair(pair):
     return dats
 
 
-def get_fl_stats(pairs):
+def get_fl_distri(pairs):
     fl_files = [pair[1] for pair in pairs if pair[1] is not None]
     overall_distri = {i:0 for i in range(65536)}
     for fl_f in fl_files:
@@ -130,6 +130,14 @@ def get_fl_stats(pairs):
             print(e)
             print("Error loading file %s" % fl_f)
     return [overall_distri[i] for i in range(65535)]
+
+
+def get_fl_stats(distri):
+    assert len(distri) == 65535
+    fl_mean = sum([i*num for i, num in enumerate(distri)]) / sum(distri)
+    fl_var = sum([(i - fl_mean)**2*num for i, num in enumerate(distri)]) / sum(distri)
+    fl_std = np.sqrt(fl_var)
+    return fl_mean, fl_std
 
 
 def get_line_name(name):

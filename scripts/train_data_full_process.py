@@ -68,27 +68,17 @@ FL_PREPROCESS_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex4': (2.5, 0.0),
 }
 
-"""
-Overall SDs
-/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex1_new
-8945.947214908601
-/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex3_new
-8233.19607771444
-/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex4_new
-9162.170954396646
-/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex5_new
-12002.488909666301
-/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex6_new
-10558.256643280603
-/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex7_new
-9402.983538731476
-/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex8
-4208.384351393968
-/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex2
-1422.8580214600352
-/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex4
-2944.2806001509884
-"""
+FL_STATS = {
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex1_new': (35869, 8945),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex3_new': (29330, 8233),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex4_new': (28628, 9162),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex5_new': (46583, 12002),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex6_new': (47762, 10558),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex7_new': (43362, 9402),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex8': (10813, 4208),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex2': (3990, 1422),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex4': (4290, 2944),
+}
 
 RAW_F_FILTER = lambda f: not 'bkp' in f
 
@@ -131,7 +121,11 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
     fl_preprocess_fn = partial(FL_PREPROCESS, 
                                scale=fl_preprocess_setting[0],
                                offset=fl_preprocess_setting[1])
-    
+    fl_stat = FL_STATS[raw_dir]
+    fl_stat = (fl_stat[0] * fl_preprocess_setting[0] + fl_preprocess_setting[1],
+               fl_stat[1] * fl_preprocess_setting[0])
+    fl_nonneg_thr = fl_stat[0] + 0.66 * fl_stat[1]
+
     pairs = load_all_pairs(path=raw_dir, check_valid=RAW_F_FILTER)
     
     preprocess(pairs, 
@@ -140,6 +134,7 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
                target_size=(384, 288),
                labels=['discrete', 'continuous'], 
                raw_label_preprocess=fl_preprocess_fn,
+               nonneg_thr=fl_nonneg_thr,
                well_setting=well_setting, #'6well' or '96well'
                linear_align=False,
                shuffle=True,
