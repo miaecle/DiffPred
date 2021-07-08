@@ -54,7 +54,7 @@ def preprocess(pairs,
                labels=['discrete', 'continuous'], 
                raw_label_preprocess=lambda x: x,
                nonneg_thr=65535,
-               well_setting='96well', #'6well' or '96well'
+               well_setting='96well-3', #'6well-15', '6well-14' or '96well-3'
                linear_align=False,
                shuffle=True,
                seed=None):
@@ -91,20 +91,20 @@ def preprocess(pairs,
             # Input feature (phase contrast image)
             pair_dat = load_image_pair(pair)
             position_code = identifier[-1]
-            if well_setting == '96well' and position_code in ['1', '3', '7', '9'] and pair_dat[1] is not None:
+            if well_setting == '96well-3' and position_code in ['1', '3', '7', '9'] and pair_dat[1] is not None:
                 mask = generate_mask(pair_dat)
             else:
                 mask = np.ones_like(pair_dat[0])
             X = adjust_contrast(pair_dat, 
                                 mask, 
                                 position_code, 
-                                linear_align=linear_align & (well_setting == '96well'))
+                                linear_align=linear_align & (well_setting == '96well-3'))
             X = cv2.resize(X, cv2_shape)
 
             # Segment weights
             w = generate_weight(mask, 
                                 position_code, 
-                                linear_align=(well_setting == '96well'))
+                                linear_align=(well_setting == '96well-3'))
             w = cv2.resize(w, cv2_shape)
 
             # Segment labels (binarized fluorescence, discrete labels)
