@@ -44,15 +44,15 @@ INTERMEDIATE_FOLDERS = [
 ]
 
 WELL_SETTINGS = {
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex1_new': '96well',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex3_new': '96well',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex4_new': '96well',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex5_new': '96well',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex6_new': '96well',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex7_new': '96well',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex8': '6well',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex2': '6well',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex4': '6well',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex1_new': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex3_new': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex4_new': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex5_new': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex6_new': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex7_new': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex8': '6well-15',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex2': '6well-14',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex4': '6well-14',
 }
 
 # scale and offset parameters for raw fl preprocess
@@ -83,7 +83,7 @@ FL_STATS = {
 RAW_F_FILTER = lambda f: not 'bkp' in f
 
 
-def PREPROCESS_FILTER(pair, well_setting='96well'):
+def PREPROCESS_FILTER(pair, well_setting='96well-3'):
     # Remove samples without phase contrast
     if pair[0] is None:
         return False
@@ -91,11 +91,15 @@ def PREPROCESS_FILTER(pair, well_setting='96well'):
     if pair[1] is not None and get_identifier(pair[0]) != get_identifier(pair[1]): #
         return False
     # Remove corner samples
-    if well_setting == '6well':
+    if well_setting == '6well-15':
         if get_identifier(pair[0])[-1] in \
             ['1', '2', '16', '14', '15', '30', '196', '211', '212', '210', '224', '225']:
             return False
-    elif well_setting == '96well':
+    elif well_setting == '6well-14':
+        if get_identifier(pair[0])[-1] in \
+            ['1', '2', '15', '13', '14', '28', '169', '183', '184', '182', '195', '196']:
+            return False
+    elif well_setting == '96well-3':
         if get_identifier(pair[0])[-1] in \
             ['1', '3', '7', '9']:
             return False
