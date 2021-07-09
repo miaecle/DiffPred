@@ -88,7 +88,7 @@ def PREPROCESS_FILTER(pair, well_setting='96well-3'):
     if pair[0] is None:
         return False
     # Remove samples with inconsistent id
-    if pair[1] is not None and get_identifier(pair[0]) != get_identifier(pair[1]): #
+    if pair[1] is not None and get_identifier(pair[0]) != get_identifier(pair[1]):
         return False
     # Remove corner samples
     if well_setting == '6well-15':
@@ -139,7 +139,7 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
                labels=['discrete', 'continuous'], 
                raw_label_preprocess=fl_preprocess_fn,
                nonneg_thr=fl_nonneg_thr,
-               well_setting=well_setting, #'6well' or '96well'
+               well_setting=well_setting,
                linear_align=False,
                shuffle=True,
                seed=123)
