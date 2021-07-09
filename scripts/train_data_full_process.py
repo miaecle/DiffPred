@@ -124,7 +124,7 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
     fl_stat = FL_STATS[raw_dir]
     fl_stat = (fl_stat[0] * fl_preprocess_setting[0] + fl_preprocess_setting[1],
                fl_stat[1] * fl_preprocess_setting[0])
-    fl_nonneg_thr = fl_stat[0] + 0.66 * fl_stat[1]
+    fl_nonneg_thr = fl_stat[0] + fl_stat[1]
 
     pairs = load_all_pairs(path=raw_dir, check_valid=RAW_F_FILTER)
     

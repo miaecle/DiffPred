@@ -23,6 +23,8 @@ def generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=
     y[np.where(y == 1)] = 0
     y[np.where(y == 2)] = 1
 
+    # If the overall fluorescence intensity is too high
+    # slice could be a false negative
     if np.allclose(y, 0) and pair_dat[1][np.where(discrete_y == 0)].mean() > nonneg_thr:
         return y, np.zeros_like(discrete_w)
 
