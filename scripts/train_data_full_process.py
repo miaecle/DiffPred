@@ -176,7 +176,161 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
     extract_samples_for_inspection(pairs, inter_dir, image_output_dir, seed=123)
     
 # %% Merge datasets
-output_dir = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN_READY/0-to-0/'
+output_dir = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-0/'
 os.makedirs(output_dir, exist_ok=True)
 merge_dataset_soft(inter_dir, output_dir, shuffle=True, seed=123)
-    
+
+
+
+
+# %% Extract datasets for 0-to-0 and 0-to-inf training
+root = output_dir
+name_file = os.path.join(root, "names.pkl")
+X_ct = len([f for f in os.listdir(root) if f.startswith('X_')])
+X_files = [os.path.join(root, "X_%d.pkl" % i) for i in range(X_ct)]
+
+segment_y_files = [os.path.join(root, "segment_continuous_y_%d.pkl" % i) for i in range(X_ct)]
+segment_w_files = [os.path.join(root, "segment_continuous_w_%d.pkl" % i) for i in range(X_ct)]
+classify_label_file = os.path.join(root, "classify_continuous_labels.pkl")
+base_dataset = CustomGenerator(
+    name_file,
+    X_files, 
+    segment_y_files=segment_y_files, 
+    segment_w_files=segment_w_files,
+    n_segment_classes=4,
+    segment_class_weights=[1, 1, 1, 1],
+    segment_extra_weights=None,
+    segment_label_type='continuous',
+    classify_label_file=classify_label_file,
+    n_classify_classes=4,
+    classify_class_weights=[1, 1, 1, 1],
+    classify_label_type='continuous',
+    sample_per_file=100,
+    cache_file_num=5)
+
+# %% Save for 0-to-0 segmentation
+def check_valid_for_0_to_0_training(i):
+    try:
+        X, y, w, name = base_dataset.load_ind(i)
+    except Exception as e:
+        print(e)
+        print("ISSUE %d" % i)
+        return False
+    # "Use data after day 7 onwards"
+    if int(get_identifier(name)[2]) < 7:
+        return False
+    if (X is None) or \
+       (y is None) or \
+       (w is None) or \
+       (base_dataset.classify_y[i] is None) or \
+       (base_dataset.classify_w[i] is None):
+        return False    
+    if np.all(w == 0) or (base_dataset.classify_w[i] == 0):
+        return False
+    return True
+
+
+selected_inds = [i for i in base_dataset.selected_inds if check_valid_for_0_to_0_training(i)]
+selected_inds = np.array(sorted(selected_inds))
+
+with open(root.replace("/0-to-0/", "/0-to-0_continuous_inds.pkl"), "wb") as f:
+    pickle.dump(selected_inds, f)
+print("TOTAL samples: %d" % len(selected_inds))
+
+np.random.seed(123)
+np.random.shuffle(selected_inds)
+save_path = root.replace("/0-to-0/", "/0-to-0_continuous/")
+os.makedirs(save_path, exist_ok=True)
+base_dataset.reorder_save(selected_inds, 
+                          save_path=save_path,
+                          write_segment_labels=True,
+                          write_classify_labels=True)
+
+
+
+# %% Save for 0-to-inf classification
+def check_valid_for_0_to_inf_training(i):
+    try:
+        X, y, w, name = base_dataset.load_ind(i)
+    except Exception as e:
+        print(e)
+        print("ISSUE %d" % i)
+        return False, False
+
+    if X is None:
+        return False, False
+
+    source_flag = True
+    target_flag = True
+
+    # "Source data from day 3 to 12, Target data from day 8 onwards"
+    if int(get_identifier(name)[2]) < 8:
+        target_flag = False
+    if int(get_identifier(name)[2]) < 3 or int(get_identifier(name)[2]) > 12:
+        source_flag = False
+    if (y is None) or \
+       (w is None) or \
+       (base_dataset.classify_y[i] is None) or \
+       (base_dataset.classify_w[i] is None):
+        target_flag = False
+    if np.all(w == 0) or (base_dataset.classify_w[i] == 0):
+        target_flag = False
+    return source_flag, target_flag
+
+
+flags = {i: check_valid_for_0_to_inf_training(i) for i in base_dataset.selected_inds}
+
+
+valid_wells = sorted(set([get_identifier(base_dataset.names[i])[:2] + get_identifier(base_dataset.names[i])[3:] for i in flags if flags[i][1]]))
+id_mapping = {i: get_identifier(base_dataset.names[i]) for i in flags}
+
+def get_pairs(inds, label=1, startday_range=(4, 12)):
+    well_labels = [base_dataset.classify_y[i] for i in inds]
+    well_weights = [base_dataset.classify_w[i] for i in inds]
+
+    for i in range(len(well_labels)):
+        if well_weights[i] > 0 and well_labels[i] == label:
+            break
+    if well_weights[i] > 0 and well_labels[i] == label:
+        end_ind = inds[i]
+        if int(id_mapping[end_ind][2]) < 10:
+            return []
+        start_inds = [ind for ind in inds if \
+            int(id_mapping[ind][2]) >= startday_range[0] and \
+            int(id_mapping[ind][2]) <= startday_range[1] and \
+            int(id_mapping[ind][2]) <= int(id_mapping[end_ind][2]) - 3]
+        return [(i, end_ind) for i in start_inds]
+    else:
+        return []
+
+quest_pairs = []
+extra_pairs = []
+for well in valid_wells:
+    related_inds = [i for i in X_valid if id_mapping[i][:2] + id_mapping[i][3:] == well]
+    related_inds = [i for i in related_inds if int(id_mapping[i][2]) <= 18]
+    related_inds = sorted(related_inds, key=lambda x: -int(id_mapping[x][2]))
+
+    well_labels = [base_dataset.classify_y[i] for i in related_inds]
+    well_weights = [base_dataset.classify_w[i] for i in related_inds]
+
+    if not 1 in well_labels:
+        quest_pairs.extend(get_pairs(related_inds, label=0, startday_range=(4, 12)))
+        extra_pairs.extend(get_pairs(related_inds, label=0, startday_range=(0, 3)))
+    else:
+        _well_labels = [lab for i, lab in enumerate(well_labels) if not lab is None and well_weights[i] > 0]
+        ct = [not (_well_labels[i] == _well_labels[i+1]) for i in range(len(_well_labels) - 1)]
+        ct = sum(ct)
+        if ct <= 1:
+            quest_pairs.extend(get_pairs(related_inds, label=1, startday_range=(4, 12)))
+            extra_pairs.extend(get_pairs(related_inds, label=1, startday_range=(0, 3)))
+        elif _well_labels[0] == 1 and sum(_well_labels) > 2:
+            quest_pairs.extend(get_pairs(related_inds, label=1, startday_range=(4, 12)))
+            extra_pairs.extend(get_pairs(related_inds, label=1, startday_range=(0, 3)))
+        elif _well_labels[1] == 1 and sum(_well_labels) > 3:
+            quest_pairs.extend(get_pairs(related_inds, label=1, startday_range=(4, 12)))
+            extra_pairs.extend(get_pairs(related_inds, label=1, startday_range=(0, 3)))
+        elif sum(_well_labels) < 2:
+            quest_pairs.extend(get_pairs(related_inds, label=0, startday_range=(4, 12)))
+            extra_pairs.extend(get_pairs(related_inds, label=0, startday_range=(0, 3)))
+        else:
+            print("Exclude well %s" % str(well))
