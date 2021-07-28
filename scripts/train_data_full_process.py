@@ -11,9 +11,10 @@ import numpy as np
 import pandas as pd
 from functools import partial
 import cv2
+import copy
 import matplotlib.pyplot as plt
 
-
+from data_generator import CustomGenerator
 from segment_support import convolve2d, quantize_fluorescence
 from data_loader import load_all_pairs, get_identifier, get_fl_stats, load_image_pair, load_image
 from data_assembly import preprocess, extract_samples_for_inspection, merge_dataset_soft
@@ -178,13 +179,12 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
 # %% Merge datasets
 output_dir = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-0/'
 os.makedirs(output_dir, exist_ok=True)
-merge_dataset_soft(inter_dir, output_dir, shuffle=True, seed=123)
-
+merge_dataset_soft(INTERMEDIATE_FOLDERS, output_dir, shuffle=True, seed=123)
 
 
 
 # %% Extract datasets for 0-to-0 and 0-to-inf training
-root = output_dir
+root = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-0/'
 name_file = os.path.join(root, "names.pkl")
 X_ct = len([f for f in os.listdir(root) if f.startswith('X_')])
 X_files = [os.path.join(root, "X_%d.pkl" % i) for i in range(X_ct)]
@@ -266,8 +266,6 @@ def check_valid_for_0_to_inf_training(i):
     # "Source data from day 3 to 12, Target data from day 8 onwards"
     if int(get_identifier(name)[2]) < 8:
         target_flag = False
-    if int(get_identifier(name)[2]) < 3 or int(get_identifier(name)[2]) > 12:
-        source_flag = False
     if (y is None) or \
        (w is None) or \
        (base_dataset.classify_y[i] is None) or \
@@ -284,41 +282,90 @@ flags = {i: check_valid_for_0_to_inf_training(i) for i in base_dataset.selected_
 valid_wells = sorted(set([get_identifier(base_dataset.names[i])[:2] + get_identifier(base_dataset.names[i])[3:] for i in flags if flags[i][1]]))
 id_mapping = {i: get_identifier(base_dataset.names[i]) for i in flags}
 
-def get_pairs(inds, label=1, startday_range=(4, 12)):
-    well_labels = [base_dataset.classify_y[i] for i in inds]
-    well_weights = [base_dataset.classify_w[i] for i in inds]
+def find_inf_label(related_inds):
+    """ `related_inds` is assumed to be sorted in reverse-time order
+    """
 
-    for i in range(len(well_labels)):
-        if well_weights[i] > 0 and well_labels[i] == label:
-            break
-    if well_weights[i] > 0 and well_labels[i] == label:
-        end_ind = inds[i]
-        if int(id_mapping[end_ind][2]) < 10:
-            return []
-        start_inds = [ind for ind in inds if \
-            int(id_mapping[ind][2]) >= startday_range[0] and \
-            int(id_mapping[ind][2]) <= startday_range[1] and \
-            int(id_mapping[ind][2]) <= int(id_mapping[end_ind][2]) - 3]
-        return [(i, end_ind) for i in start_inds]
+    # Remove samples with no fluorescence
+    well_weights = [base_dataset.classify_w[i] for i in related_inds]
+    _related_inds = [ind for i, ind in enumerate(related_inds) if well_weights[i] > 0]
+    if len(_related_inds) == 0:
+        return None
+
+    well_labels = [base_dataset.classify_y[i] for i in _related_inds]
+    well_labels_discrete = [np.argmax(l) if l is not None else -1 for l in well_labels]
+
+    max_signal = np.max(well_labels_discrete)
+    if max_signal == -1:
+        return None
+    elif max_signal == 0:
+        # No signal throughout experiment
+        for ind, lab in zip(_related_inds, well_labels_discrete):
+            if lab == 0:
+                return ind
     else:
+        if well_labels_discrete[0] == max_signal:
+            # Normal positive case
+            return _related_inds[0]
+        elif well_labels_discrete.count(max_signal) >= 3 and well_labels_discrete.index(max_signal) == 1:
+            # Second-to-last sample as label
+            return _related_inds[1]
+        elif well_labels_discrete[0] > 0 and np.max(well_labels_discrete) == well_labels_discrete[0] + 1:
+            # Last sample is positive and ONLY one class lower than max
+            return _related_inds[0]
+        elif len(set([label for label in well_labels_discrete if label >= 0][:3])) == 1:
+            # Last 3 samples have consistent labels, neglect `max_signal`
+            for ind, lab in zip(_related_inds, well_labels_discrete):
+                if lab >= 0:
+                    return ind
+        elif well_labels_discrete.count(max_signal) == 1 and well_labels_discrete.index(max_signal) > 1:
+            # Max signal seems coming from artifact, remove it
+            del _related_inds[well_labels_discrete.index(max_signal)]
+            return find_inf_label(_related_inds)
+        else:
+            return -1
+
+def get_pairs(inds, label_ind, startday_range=(4, 12)):
+    if int(id_mapping[label_ind][2]) < 10:
         return []
+    start_inds = [ind for ind in inds if \
+        int(id_mapping[ind][2]) >= startday_range[0] and \
+        int(id_mapping[ind][2]) <= startday_range[1] and \
+        int(id_mapping[ind][2]) <= int(id_mapping[label_ind][2]) - 3]
+    return [(i, label_ind) for i in start_inds]
+
 
 quest_pairs = []
 extra_pairs = []
+issue = []
 for well in valid_wells:
-    related_inds = [i for i in X_valid if id_mapping[i][:2] + id_mapping[i][3:] == well]
+    related_inds = [i for i in flags if flags[i][0] and id_mapping[i][:2] + id_mapping[i][3:] == well]
     related_inds = [i for i in related_inds if int(id_mapping[i][2]) <= 18]
     related_inds = sorted(related_inds, key=lambda x: -int(id_mapping[x][2]))
 
-    well_labels = [base_dataset.classify_y[i] for i in related_inds]
-    well_weights = [base_dataset.classify_w[i] for i in related_inds]
+    label_ind = find_inf_label(related_inds)
+    if label_ind is None:
+        print("NO valid fluorescence for well %s" % str(well))
+        continue
+    if label_ind < 0:
+        issue.append(well)
 
-    if not 1 in well_labels:
-        quest_pairs.extend(get_pairs(related_inds, label=0, startday_range=(4, 12)))
-        extra_pairs.extend(get_pairs(related_inds, label=0, startday_range=(0, 3)))
-    else:
+    quest_pairs.extend(get_pairs(related_inds, label_ind, startday_range=(4, 12)))
+    extra_pairs.extend(get_pairs(related_inds, label_ind, startday_range=(0, 3)))
+
+        elif well_labels_discrete.index(np.max(well_labels_discrete)) > 3:
+            quest_pairs.extend(get_pairs(related_inds, label=well_labels_discrete[0], startday_range=(4, 12)))
+            extra_pairs.extend(get_pairs(related_inds, label=well_labels_discrete[0], startday_range=(0, 3)))
+        else:
+            issue2.append(well)
+            break
+
+
+
+
+        break
         _well_labels = [lab for i, lab in enumerate(well_labels) if not lab is None and well_weights[i] > 0]
-        ct = [not (_well_labels[i] == _well_labels[i+1]) for i in range(len(_well_labels) - 1)]
+        
         ct = sum(ct)
         if ct <= 1:
             quest_pairs.extend(get_pairs(related_inds, label=1, startday_range=(4, 12)))
