@@ -391,31 +391,32 @@ base_dataset.cross_pair_save(
 
 # %% Save for 0-to-N
 
-target_range = (7, 10)
-
 # Validity of samples
 flags = {i: check_valid_for_0_to_inf_training(i) for i in base_dataset.selected_inds}
 input_id_mapping = {i: get_identifier(base_dataset.names[i]) for i in flags if flags[i][0]}
 output_id_mapping = {get_identifier(base_dataset.names[i]): i for i in flags if flags[i][1]}
 
-all_pairs = []
-for i, identifier in input_id_mapping.items():
-    for interval in range(target_range[0], target_range[1]+1):
-        output_identifier = (identifier[0], identifier[1], str(int(identifier[2]) + interval), identifier[3], identifier[4])
-        if output_identifier in output_id_mapping:
-            all_pairs.append((i, output_id_mapping[output_identifier]))
+for target_range in [(3, 6), (7, 10), (11, 14)]:
 
-all_pairs = sorted(all_pairs)
-np.random.seed(123)
-np.random.shuffle(all_pairs)
-selected_pairs = base_dataset.shrink_pairs(all_pairs)
-with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_discrete_inds.pkl" % target_range[1], "wb") as f:
-    pickle.dump(selected_pairs, f)
 
-save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_discrete/" % target_range[1]
-os.makedirs(save_path, exist_ok=True)
-base_dataset.cross_pair_save(
-    selected_pairs, 
-    save_path=save_path,
-    write_segment_labels=True,
-    write_classify_labels=True)
+    all_pairs = []
+    for i, identifier in input_id_mapping.items():
+        for interval in range(target_range[0], target_range[1]+1):
+            output_identifier = (identifier[0], identifier[1], str(int(identifier[2]) + interval), identifier[3], identifier[4])
+            if output_identifier in output_id_mapping:
+                all_pairs.append((i, output_id_mapping[output_identifier]))
+
+    all_pairs = sorted(all_pairs)
+    np.random.seed(123)
+    np.random.shuffle(all_pairs)
+    selected_pairs = base_dataset.shrink_pairs(all_pairs)
+    with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_discrete_inds.pkl" % target_range[1], "wb") as f:
+        pickle.dump(selected_pairs, f)
+
+    save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_discrete/" % target_range[1]
+    os.makedirs(save_path, exist_ok=True)
+    base_dataset.cross_pair_save(
+        selected_pairs, 
+        save_path=save_path,
+        write_segment_labels=True,
+        write_classify_labels=True)
