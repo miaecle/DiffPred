@@ -361,10 +361,10 @@ for well in valid_wells:
 quest_pairs = sorted(quest_pairs)
 np.random.seed(123)
 np.random.shuffle(quest_pairs)
-with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_continuous_inds.pkl", "wb") as f:
+with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous_inds.pkl", "wb") as f:
     pickle.dump(quest_pairs, f)
 
-save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_continuous/"
+save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous/"
 os.makedirs(save_path, exist_ok=True)
 base_dataset.cross_pair_save(
     quest_pairs, 
@@ -376,10 +376,10 @@ base_dataset.cross_pair_save(
 extra_pairs = sorted(extra_pairs)
 np.random.seed(123)
 np.random.shuffle(extra_pairs)
-with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_continuous_inds_extra.pkl", "wb") as f:
+with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous_inds_extra.pkl", "wb") as f:
     pickle.dump(extra_pairs, f)
 
-save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_continuous/extra_day0-3_samples/"
+save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous/extra_day0-3_samples/"
 os.makedirs(save_path, exist_ok=True)
 base_dataset.cross_pair_save(
     extra_pairs, 
@@ -411,10 +411,10 @@ for target_range in [(3, 6), (7, 10), (11, 14)]:
     np.random.seed(123)
     np.random.shuffle(all_pairs)
     selected_pairs = base_dataset.shrink_pairs(all_pairs)
-    with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_continuous_inds.pkl" % target_range[1], "wb") as f:
+    with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-%d_continuous_inds.pkl" % target_range[1], "wb") as f:
         pickle.dump(selected_pairs, f)
 
-    save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_continuous/" % target_range[1]
+    save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-%d_continuous/" % target_range[1]
     os.makedirs(save_path, exist_ok=True)
     base_dataset.cross_pair_save(
         selected_pairs, 
