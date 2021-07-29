@@ -208,7 +208,8 @@ base_dataset = CustomGenerator(
     sample_per_file=100,
     cache_file_num=5)
 
-# %% Save for 0-to-0 segmentation
+
+# %% Save for 0-to-0
 def check_valid_for_0_to_0_training(i):
     try:
         X, y, w, name = base_dataset.load_ind(i)
@@ -229,7 +230,6 @@ def check_valid_for_0_to_0_training(i):
         return False
     return True
 
-
 selected_inds = [i for i in base_dataset.selected_inds if check_valid_for_0_to_0_training(i)]
 selected_inds = np.array(sorted(selected_inds))
 
@@ -248,7 +248,7 @@ base_dataset.reorder_save(selected_inds,
 
 
 
-# %% Save for 0-to-inf classification
+# %% Save for 0-to-inf
 def check_valid_for_0_to_inf_training(i):
     try:
         X, y, w, name = base_dataset.load_ind(i)
@@ -276,12 +276,6 @@ def check_valid_for_0_to_inf_training(i):
     return source_flag, target_flag
 
 
-flags = {i: check_valid_for_0_to_inf_training(i) for i in base_dataset.selected_inds}
-
-
-valid_wells = sorted(set([get_identifier(base_dataset.names[i])[:2] + get_identifier(base_dataset.names[i])[3:] for i in flags if flags[i][1]]))
-id_mapping = {i: get_identifier(base_dataset.names[i]) for i in flags}
-
 def find_inf_label(related_inds):
     """ `related_inds` is assumed to be sorted in reverse-time order
     """
@@ -300,9 +294,7 @@ def find_inf_label(related_inds):
         return None
     elif max_signal == 0:
         # No signal throughout experiment
-        for ind, lab in zip(_related_inds, well_labels_discrete):
-            if lab == 0:
-                return ind
+        return [ind for ind, lab in zip(_related_inds, well_labels_discrete) if lab == 0][0]
     else:
         if well_labels_discrete[0] == max_signal:
             # Normal positive case
@@ -315,15 +307,20 @@ def find_inf_label(related_inds):
             return _related_inds[0]
         elif len(set([label for label in well_labels_discrete if label >= 0][:3])) == 1:
             # Last 3 samples have consistent labels, neglect `max_signal`
-            for ind, lab in zip(_related_inds, well_labels_discrete):
-                if lab >= 0:
-                    return ind
+            return [ind for ind, lab in zip(_related_inds, well_labels_discrete) if lab >= 0][0]
         elif well_labels_discrete.count(max_signal) == 1 and well_labels_discrete.index(max_signal) > 1:
             # Max signal seems coming from artifact, remove it
             del _related_inds[well_labels_discrete.index(max_signal)]
             return find_inf_label(_related_inds)
+        elif max_signal == 1:
+            # These are usually cases when class-1 comes from artifact, decide based on frequency of class-1 samples
+            if well_labels_discrete.count(max_signal) > 2:
+                return [ind for ind, lab in zip(_related_inds, well_labels_discrete) if lab == 1][0]
+            else:
+                return [ind for ind, lab in zip(_related_inds, well_labels_discrete) if lab == 0][0]
         else:
             return -1
+
 
 def get_pairs(inds, label_ind, startday_range=(4, 12)):
     if int(id_mapping[label_ind][2]) < 10:
@@ -335,9 +332,15 @@ def get_pairs(inds, label_ind, startday_range=(4, 12)):
     return [(i, label_ind) for i in start_inds]
 
 
+# Validity of samples
+flags = {i: check_valid_for_0_to_inf_training(i) for i in base_dataset.selected_inds}
+id_mapping = {i: get_identifier(base_dataset.names[i]) for i in flags}
+
+# Validity of wells
+valid_wells = sorted(set([get_identifier(base_dataset.names[i])[:2] + get_identifier(base_dataset.names[i])[3:] for i in flags if flags[i][1]]))
+
 quest_pairs = []
 extra_pairs = []
-issue = []
 for well in valid_wells:
     related_inds = [i for i in flags if flags[i][0] and id_mapping[i][:2] + id_mapping[i][3:] == well]
     related_inds = [i for i in related_inds if int(id_mapping[i][2]) <= 18]
@@ -348,36 +351,71 @@ for well in valid_wells:
         print("NO valid fluorescence for well %s" % str(well))
         continue
     if label_ind < 0:
-        issue.append(well)
+        print("Ambiguous label for well %s, skipping" % str(well))
 
     quest_pairs.extend(get_pairs(related_inds, label_ind, startday_range=(4, 12)))
     extra_pairs.extend(get_pairs(related_inds, label_ind, startday_range=(0, 3)))
 
-        elif well_labels_discrete.index(np.max(well_labels_discrete)) > 3:
-            quest_pairs.extend(get_pairs(related_inds, label=well_labels_discrete[0], startday_range=(4, 12)))
-            extra_pairs.extend(get_pairs(related_inds, label=well_labels_discrete[0], startday_range=(0, 3)))
-        else:
-            issue2.append(well)
-            break
+
+quest_pairs = sorted(quest_pairs)
+np.random.seed(123)
+np.random.shuffle(quest_pairs)
+with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_continuous_inds.pkl", "wb") as f:
+    pickle.dump(quest_pairs, f)
+
+save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_continuous/"
+os.makedirs(save_path, exist_ok=True)
+base_dataset.cross_pair_save(
+    quest_pairs, 
+    save_path=save_path,
+    write_segment_labels=True,
+    write_classify_labels=True)
+
+
+extra_pairs = sorted(extra_pairs)
+np.random.seed(123)
+np.random.shuffle(extra_pairs)
+with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_continuous_inds_extra.pkl", "wb") as f:
+    pickle.dump(extra_pairs, f)
+
+save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-inf_continuous/extra_day0-3_samples/"
+os.makedirs(save_path, exist_ok=True)
+base_dataset.cross_pair_save(
+    extra_pairs, 
+    save_path=save_path,
+    write_segment_labels=True,
+    write_classify_labels=True)
 
 
 
 
-        break
-        _well_labels = [lab for i, lab in enumerate(well_labels) if not lab is None and well_weights[i] > 0]
-        
-        ct = sum(ct)
-        if ct <= 1:
-            quest_pairs.extend(get_pairs(related_inds, label=1, startday_range=(4, 12)))
-            extra_pairs.extend(get_pairs(related_inds, label=1, startday_range=(0, 3)))
-        elif _well_labels[0] == 1 and sum(_well_labels) > 2:
-            quest_pairs.extend(get_pairs(related_inds, label=1, startday_range=(4, 12)))
-            extra_pairs.extend(get_pairs(related_inds, label=1, startday_range=(0, 3)))
-        elif _well_labels[1] == 1 and sum(_well_labels) > 3:
-            quest_pairs.extend(get_pairs(related_inds, label=1, startday_range=(4, 12)))
-            extra_pairs.extend(get_pairs(related_inds, label=1, startday_range=(0, 3)))
-        elif sum(_well_labels) < 2:
-            quest_pairs.extend(get_pairs(related_inds, label=0, startday_range=(4, 12)))
-            extra_pairs.extend(get_pairs(related_inds, label=0, startday_range=(0, 3)))
-        else:
-            print("Exclude well %s" % str(well))
+# %% Save for 0-to-N
+
+target_range = (7, 10)
+
+# Validity of samples
+flags = {i: check_valid_for_0_to_inf_training(i) for i in base_dataset.selected_inds}
+input_id_mapping = {i: get_identifier(base_dataset.names[i]) for i in flags if flags[i][0]}
+output_id_mapping = {get_identifier(base_dataset.names[i]): i for i in flags if flags[i][1]}
+
+all_pairs = []
+for i, identifier in input_id_mapping.items():
+    for interval in range(target_range[0], target_range[1]+1):
+        output_identifier = (identifier[0], identifier[1], str(int(identifier[2]) + interval), identifier[3], identifier[4])
+        if output_identifier in output_id_mapping:
+            all_pairs.append((i, output_id_mapping[output_identifier]))
+
+all_pairs = sorted(all_pairs)
+np.random.seed(123)
+np.random.shuffle(all_pairs)
+selected_pairs = base_dataset.shrink_pairs(all_pairs)
+with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_discrete_inds.pkl" % target_range[1], "wb") as f:
+    pickle.dump(selected_pairs, f)
+
+save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_discrete/" % target_range[1]
+os.makedirs(save_path, exist_ok=True)
+base_dataset.cross_pair_save(
+    selected_pairs, 
+    save_path=save_path,
+    write_segment_labels=True,
+    write_classify_labels=True)
