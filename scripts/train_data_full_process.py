@@ -352,6 +352,7 @@ for well in valid_wells:
         continue
     if label_ind < 0:
         print("Ambiguous label for well %s, skipping" % str(well))
+        continue
 
     quest_pairs.extend(get_pairs(related_inds, label_ind, startday_range=(4, 12)))
     extra_pairs.extend(get_pairs(related_inds, label_ind, startday_range=(0, 3)))
@@ -410,10 +411,10 @@ for target_range in [(3, 6), (7, 10), (11, 14)]:
     np.random.seed(123)
     np.random.shuffle(all_pairs)
     selected_pairs = base_dataset.shrink_pairs(all_pairs)
-    with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_discrete_inds.pkl" % target_range[1], "wb") as f:
+    with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_continuous_inds.pkl" % target_range[1], "wb") as f:
         pickle.dump(selected_pairs, f)
 
-    save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_discrete/" % target_range[1]
+    save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/train_set/0-to-%d_continuous/" % target_range[1]
     os.makedirs(save_path, exist_ok=True)
     base_dataset.cross_pair_save(
         selected_pairs, 
