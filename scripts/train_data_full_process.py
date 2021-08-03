@@ -11,9 +11,10 @@ import numpy as np
 import pandas as pd
 from functools import partial
 import cv2
+import copy
 import matplotlib.pyplot as plt
 
-
+from data_generator import CustomGenerator
 from segment_support import convolve2d, quantize_fluorescence
 from data_loader import load_all_pairs, get_identifier, get_fl_stats, load_image_pair, load_image
 from data_assembly import preprocess, extract_samples_for_inspection, merge_dataset_soft
@@ -176,7 +177,247 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, INTERMEDIATE_FOLDERS):
     extract_samples_for_inspection(pairs, inter_dir, image_output_dir, seed=123)
     
 # %% Merge datasets
-output_dir = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN_READY/0-to-0/'
+output_dir = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-0/'
 os.makedirs(output_dir, exist_ok=True)
-merge_dataset_soft(inter_dir, output_dir, shuffle=True, seed=123)
-    
+merge_dataset_soft(INTERMEDIATE_FOLDERS, output_dir, shuffle=True, seed=123)
+
+
+
+# %% Extract datasets for 0-to-0 and 0-to-inf training
+root = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-0/'
+name_file = os.path.join(root, "names.pkl")
+X_ct = len([f for f in os.listdir(root) if f.startswith('X_')])
+X_files = [os.path.join(root, "X_%d.pkl" % i) for i in range(X_ct)]
+
+segment_y_files = [os.path.join(root, "segment_continuous_y_%d.pkl" % i) for i in range(X_ct)]
+segment_w_files = [os.path.join(root, "segment_continuous_w_%d.pkl" % i) for i in range(X_ct)]
+classify_label_file = os.path.join(root, "classify_continuous_labels.pkl")
+base_dataset = CustomGenerator(
+    name_file,
+    X_files, 
+    segment_y_files=segment_y_files, 
+    segment_w_files=segment_w_files,
+    n_segment_classes=4,
+    segment_class_weights=[1, 1, 1, 1],
+    segment_extra_weights=None,
+    segment_label_type='continuous',
+    classify_label_file=classify_label_file,
+    n_classify_classes=4,
+    classify_class_weights=[1, 1, 1, 1],
+    classify_label_type='continuous',
+    sample_per_file=100,
+    cache_file_num=5)
+
+
+# %% Save for 0-to-0
+def check_valid_for_0_to_0_training(i):
+    try:
+        X, y, w, name = base_dataset.load_ind(i)
+    except Exception as e:
+        print(e)
+        print("ISSUE %d" % i)
+        return False
+    # "Use data after day 7 onwards"
+    if int(get_identifier(name)[2]) < 7:
+        return False
+    if (X is None) or \
+       (y is None) or \
+       (w is None) or \
+       (base_dataset.classify_y[i] is None) or \
+       (base_dataset.classify_w[i] is None):
+        return False    
+    if np.all(w == 0) or (base_dataset.classify_w[i] == 0):
+        return False
+    return True
+
+selected_inds = [i for i in base_dataset.selected_inds if check_valid_for_0_to_0_training(i)]
+selected_inds = np.array(sorted(selected_inds))
+
+with open(root.replace("/0-to-0/", "/0-to-0_continuous_inds.pkl"), "wb") as f:
+    pickle.dump(selected_inds, f)
+print("TOTAL samples: %d" % len(selected_inds))
+
+np.random.seed(123)
+np.random.shuffle(selected_inds)
+save_path = root.replace("/0-to-0/", "/0-to-0_continuous/")
+os.makedirs(save_path, exist_ok=True)
+base_dataset.reorder_save(selected_inds, 
+                          save_path=save_path,
+                          write_segment_labels=True,
+                          write_classify_labels=True)
+
+
+
+# %% Save for 0-to-inf
+def check_valid_for_0_to_inf_training(i):
+    try:
+        X, y, w, name = base_dataset.load_ind(i)
+    except Exception as e:
+        print(e)
+        print("ISSUE %d" % i)
+        return False, False
+
+    if X is None:
+        return False, False
+
+    source_flag = True
+    target_flag = True
+
+    # "Source data from day 3 to 12, Target data from day 8 onwards"
+    if int(get_identifier(name)[2]) < 8:
+        target_flag = False
+    if (y is None) or \
+       (w is None) or \
+       (base_dataset.classify_y[i] is None) or \
+       (base_dataset.classify_w[i] is None):
+        target_flag = False
+    if np.all(w == 0) or (base_dataset.classify_w[i] == 0):
+        target_flag = False
+    return source_flag, target_flag
+
+
+def find_inf_label(related_inds):
+    """ `related_inds` is assumed to be sorted in reverse-time order
+    """
+
+    # Remove samples with no fluorescence
+    well_weights = [base_dataset.classify_w[i] for i in related_inds]
+    _related_inds = [ind for i, ind in enumerate(related_inds) if well_weights[i] > 0]
+    if len(_related_inds) == 0:
+        return None
+
+    well_labels = [base_dataset.classify_y[i] for i in _related_inds]
+    well_labels_discrete = [np.argmax(l) if l is not None else -1 for l in well_labels]
+
+    max_signal = np.max(well_labels_discrete)
+    if max_signal == -1:
+        return None
+    elif max_signal == 0:
+        # No signal throughout experiment
+        return [ind for ind, lab in zip(_related_inds, well_labels_discrete) if lab == 0][0]
+    else:
+        if well_labels_discrete[0] == max_signal:
+            # Normal positive case
+            return _related_inds[0]
+        elif well_labels_discrete.count(max_signal) >= 3 and well_labels_discrete.index(max_signal) == 1:
+            # Second-to-last sample as label
+            return _related_inds[1]
+        elif well_labels_discrete[0] > 0 and np.max(well_labels_discrete) == well_labels_discrete[0] + 1:
+            # Last sample is positive and ONLY one class lower than max
+            return _related_inds[0]
+        elif len(set([label for label in well_labels_discrete if label >= 0][:3])) == 1:
+            # Last 3 samples have consistent labels, neglect `max_signal`
+            return [ind for ind, lab in zip(_related_inds, well_labels_discrete) if lab >= 0][0]
+        elif well_labels_discrete.count(max_signal) == 1 and well_labels_discrete.index(max_signal) > 1:
+            # Max signal seems coming from artifact, remove it
+            del _related_inds[well_labels_discrete.index(max_signal)]
+            return find_inf_label(_related_inds)
+        elif max_signal == 1:
+            # These are usually cases when class-1 comes from artifact, decide based on frequency of class-1 samples
+            if well_labels_discrete.count(max_signal) > 2:
+                return [ind for ind, lab in zip(_related_inds, well_labels_discrete) if lab == 1][0]
+            else:
+                return [ind for ind, lab in zip(_related_inds, well_labels_discrete) if lab == 0][0]
+        else:
+            return -1
+
+
+def get_pairs(inds, label_ind, startday_range=(4, 12)):
+    if int(id_mapping[label_ind][2]) < 10:
+        return []
+    start_inds = [ind for ind in inds if \
+        int(id_mapping[ind][2]) >= startday_range[0] and \
+        int(id_mapping[ind][2]) <= startday_range[1] and \
+        int(id_mapping[ind][2]) <= int(id_mapping[label_ind][2]) - 3]
+    return [(i, label_ind) for i in start_inds]
+
+
+# Validity of samples
+flags = {i: check_valid_for_0_to_inf_training(i) for i in base_dataset.selected_inds}
+id_mapping = {i: get_identifier(base_dataset.names[i]) for i in flags}
+
+# Validity of wells
+valid_wells = sorted(set([get_identifier(base_dataset.names[i])[:2] + get_identifier(base_dataset.names[i])[3:] for i in flags if flags[i][1]]))
+
+quest_pairs = []
+extra_pairs = []
+for well in valid_wells:
+    related_inds = [i for i in flags if flags[i][0] and id_mapping[i][:2] + id_mapping[i][3:] == well]
+    related_inds = [i for i in related_inds if int(id_mapping[i][2]) <= 18]
+    related_inds = sorted(related_inds, key=lambda x: -int(id_mapping[x][2]))
+
+    label_ind = find_inf_label(related_inds)
+    if label_ind is None:
+        print("NO valid fluorescence for well %s" % str(well))
+        continue
+    if label_ind < 0:
+        print("Ambiguous label for well %s, skipping" % str(well))
+        continue
+
+    quest_pairs.extend(get_pairs(related_inds, label_ind, startday_range=(4, 12)))
+    extra_pairs.extend(get_pairs(related_inds, label_ind, startday_range=(0, 3)))
+
+
+quest_pairs = sorted(quest_pairs)
+np.random.seed(123)
+np.random.shuffle(quest_pairs)
+with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous_inds.pkl", "wb") as f:
+    pickle.dump(quest_pairs, f)
+
+save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous/"
+os.makedirs(save_path, exist_ok=True)
+base_dataset.cross_pair_save(
+    quest_pairs, 
+    save_path=save_path,
+    write_segment_labels=True,
+    write_classify_labels=True)
+
+
+extra_pairs = sorted(extra_pairs)
+np.random.seed(123)
+np.random.shuffle(extra_pairs)
+with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous_inds_extra.pkl", "wb") as f:
+    pickle.dump(extra_pairs, f)
+
+save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous/extra_day0-3_samples/"
+os.makedirs(save_path, exist_ok=True)
+base_dataset.cross_pair_save(
+    extra_pairs, 
+    save_path=save_path,
+    write_segment_labels=True,
+    write_classify_labels=True)
+
+
+
+
+# %% Save for 0-to-N
+
+# Validity of samples
+flags = {i: check_valid_for_0_to_inf_training(i) for i in base_dataset.selected_inds}
+input_id_mapping = {i: get_identifier(base_dataset.names[i]) for i in flags if flags[i][0]}
+output_id_mapping = {get_identifier(base_dataset.names[i]): i for i in flags if flags[i][1]}
+
+for target_range in [(3, 6), (7, 10), (11, 14)]:
+
+
+    all_pairs = []
+    for i, identifier in input_id_mapping.items():
+        for interval in range(target_range[0], target_range[1]+1):
+            output_identifier = (identifier[0], identifier[1], str(int(identifier[2]) + interval), identifier[3], identifier[4])
+            if output_identifier in output_id_mapping:
+                all_pairs.append((i, output_id_mapping[output_identifier]))
+
+    all_pairs = sorted(all_pairs)
+    np.random.seed(123)
+    np.random.shuffle(all_pairs)
+    selected_pairs = base_dataset.shrink_pairs(all_pairs)
+    with open("/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-%d_continuous_inds.pkl" % target_range[1], "wb") as f:
+        pickle.dump(selected_pairs, f)
+
+    save_path="/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-%d_continuous/" % target_range[1]
+    os.makedirs(save_path, exist_ok=True)
+    base_dataset.cross_pair_save(
+        selected_pairs, 
+        save_path=save_path,
+        write_segment_labels=True,
+        write_classify_labels=True)
