@@ -98,8 +98,8 @@ model = ClassifyOnSegment(
     model_structure='pspnet',
     model_path=MODEL_DIR,
     encoder_weights='imagenet',
-    n_segment_classes=2,
-    n_classify_classes=2)
+    n_segment_classes=4,
+    n_classify_classes=4)
 
 
 print("Start Training", flush=True)
