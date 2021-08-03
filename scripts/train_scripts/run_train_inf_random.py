@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 from data_loader import get_identifier
 from models import Segment, ClassifyOnSegment
-from layers import load_partial_weights, fill_first_layer
+from layers import load_partial_weights, fill_first_layer, evaluate_confusion_mat
 from data_generator import CustomGenerator, PairGenerator, enhance_weight_for_false_positives
 from scipy.stats import spearmanr, pearsonr
 
@@ -75,7 +75,7 @@ train_gen = PairGenerator(
     **kwargs)
 
 # Setting up validation set
-valid_filenames = train_gen.reorder_save(valid_inds, save_path=VALID_DIR)
+# valid_filenames = train_gen.reorder_save(valid_inds, save_path=VALID_DIR)
 n_fs = len([f for f in os.listdir(VALID_DIR) if f.startswith('X_') and f.endswith('.pkl')])
 X_filenames = [os.path.join(VALID_DIR, 'X_%d.pkl' % i) for i in range(n_fs)]
 y_filenames = [os.path.join(VALID_DIR, 'segment_continuous_y_%d.pkl' % i) for i in range(n_fs)]
@@ -99,7 +99,9 @@ model = ClassifyOnSegment(
     model_path=MODEL_DIR,
     encoder_weights='imagenet',
     n_segment_classes=4,
-    n_classify_classes=4)
+    n_classify_classes=4,
+    eval_fn=evaluate_confusion_mat)
+
 
 
 print("Start Training", flush=True)
