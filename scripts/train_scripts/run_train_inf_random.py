@@ -6,6 +6,7 @@ import numpy as np
 from data_loader import get_identifier
 from models import Segment, ClassifyOnSegment
 from layers import load_partial_weights, fill_first_layer, evaluate_confusion_mat
+from layers import weighted_cross_entropy, sparse_weighted_cross_entropy
 from data_generator import CustomGenerator, PairGenerator, enhance_weight_for_false_positives
 from scipy.stats import spearmanr, pearsonr
 
@@ -100,6 +101,7 @@ model = ClassifyOnSegment(
     encoder_weights='imagenet',
     n_segment_classes=4,
     n_classify_classes=4,
+    loss_fn=sparse_weighted_cross_entropy,
     eval_fn=evaluate_confusion_mat)
 
 

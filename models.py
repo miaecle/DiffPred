@@ -17,7 +17,7 @@ from keras import backend as K
 from keras.models import Model, load_model
 from keras import layers
 from keras.layers import Dense, Layer, Input, BatchNormalization, Conv2D, Lambda
-from layers import weighted_cross_entropy, l2_loss
+from layers import weighted_cross_entropy, sparse_weighted_cross_entropy, l2_loss
 from layers import Conv2dBn, ValidMetrics
 from layers import evaluate_segmentation, evaluate_classification, evaluate_segmentation_and_classification
 from data_generator import CustomGenerator
