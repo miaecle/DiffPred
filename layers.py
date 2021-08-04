@@ -57,16 +57,29 @@ def Conv2dBn(filters,
 
     return wrapper
 
-class weighted_binary_cross_entropy(object):
+class weighted_cross_entropy(object):
   def __init__(self, n_classes=2):
     self.n_classes = n_classes
     self.loss_fn = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
-    self.__name__ = "weighted_binary_cross_entropy"
+    self.__name__ = "weighted_cross_entropy"
     
   def __call__(self, y_true, y_pred):
     w = y_true[..., -1]
     y_true = y_true[..., :-1]
     loss = self.loss_fn(y_true, y_pred, sample_weight=w)
+    return loss
+
+
+class sparse_weighted_cross_entropy(object):
+  def __init__(self, n_classes=2):
+    self.n_classes = n_classes
+    self.loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+    self.__name__ = "sparse_weighted_cross_entropy"
+    
+  def __call__(self, y_true, y_pred):
+    w = y_true[..., -1]
+    y_true = y_true[..., :-1]
+    loss = self.loss_fn(y_true.argmax(-1), y_pred, sample_weight=w)
     return loss
 
 
