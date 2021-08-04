@@ -101,7 +101,8 @@ model = ClassifyOnSegment(
     encoder_weights='imagenet',
     n_segment_classes=4,
     n_classify_classes=4,
-    loss_fn=sparse_weighted_cross_entropy,
+    segment_loss_fn=sparse_weighted_cross_entropy,
+    classify_loss_fn=sparse_weighted_cross_entropy,
     eval_fn=evaluate_confusion_mat)
 
 
