@@ -79,7 +79,7 @@ class sparse_weighted_cross_entropy(object):
   def __call__(self, y_true, y_pred):
     w = y_true[..., -1]
     y_true = y_true[..., :-1]
-    loss = self.loss_fn(y_true.argmax(-1), y_pred, sample_weight=w)
+    loss = self.loss_fn(tf.math.argmax(y_true, -1), y_pred, sample_weight=w)
     return loss
 
 
