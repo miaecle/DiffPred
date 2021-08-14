@@ -101,15 +101,13 @@ model = ClassifyOnSegment(
     encoder_weights='imagenet',
     n_segment_classes=4,
     n_classify_classes=4,
-    segment_loss_fn=sparse_weighted_cross_entropy,
-    classify_loss_fn=sparse_weighted_cross_entropy,
     eval_fn=evaluate_confusion_mat)
 
-
+# model.load(os.path.join(MODEL_DIR, 'bkp.model'))
 
 print("Start Training", flush=True)
 model.fit(train_gen,
           valid_gen=valid_gen,
           verbose=2,
-          n_epochs=200)
+          n_epochs=100)
 model.save(os.path.join(MODEL_DIR, 'pspnet_random_0-to-inf_0.model'))
