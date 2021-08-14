@@ -88,7 +88,7 @@ train_gen = PairGenerator(
 # Setting up validation set & test sets
 validation_gens = []
 for inds, save_dir in zip([valid_inds, test_inds1, test_inds2], [VALID_DIR, TEST_DIR1, TEST_DIR2]):
-    _ = train_gen.reorder_save(inds, save_path=save_dir)
+    # _ = train_gen.reorder_save(inds, save_path=save_dir)
     n_fs = len([f for f in os.listdir(save_dir) if f.startswith('X_') and f.endswith('.pkl')])
     X_filenames = [os.path.join(save_dir, 'X_%d.pkl' % i) for i in range(n_fs)]
     y_filenames = [os.path.join(save_dir, 'segment_continuous_y_%d.pkl' % i) for i in range(n_fs)]
