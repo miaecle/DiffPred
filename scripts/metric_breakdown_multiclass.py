@@ -57,7 +57,7 @@ model = ClassifyOnSegment(
     n_classify_classes=4,
     eval_fn=evaluate_confusion_mat)
 
-model.load(os.path.join(MODEL_DIR, 'bkp2.model'))
+model.load(os.path.join(MODEL_DIR, 'bkp.model'))
 
 
 ### Collect predictions ###
