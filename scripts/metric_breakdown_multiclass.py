@@ -6,7 +6,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 from scipy.stats import spearmanr, pearsonr
-from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, confusion_matrix, r2_score
 
 from data_loader import get_identifier, get_ex_day
 from models import Segment, ClassifyOnSegment
@@ -14,78 +14,24 @@ from layers import load_partial_weights, fill_first_layer, evaluate_confusion_ma
 from data_generator import CustomGenerator, PairGenerator, enhance_weight_for_false_positives
 
 
-### Settings ###
-ROOT_DIR = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous/'
-VALID_DIR = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous/random_valid/'
-MODEL_DIR = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/random_split/0-to-inf_random/'
+#%% Settings ###
+PRED_SAVE_DIRs = ['/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/random_split/0-to-inf_random/valid_pred']
 
-kwargs = {
-    'batch_size': 8,
-    'shuffle_inds': False,
-    'include_day': True,
-    'n_segment_classes': 4,
-    'segment_class_weights': [1, 2, 2, 2],
-    'segment_extra_weights': None,
-    'segment_label_type': 'continuous',
-    'n_classify_classes': 4,
-    'classify_class_weights': [1., 1., 2., 1.],
-    'classify_label_type': 'continuous',
-}
-
-### Load dataset and model ###
-n_fs = len([f for f in os.listdir(VALID_DIR) if f.startswith('X_') and f.endswith('.pkl')])
-X_filenames = [os.path.join(VALID_DIR, 'X_%d.pkl' % i) for i in range(n_fs)]
-y_filenames = [os.path.join(VALID_DIR, 'segment_continuous_y_%d.pkl' % i) for i in range(n_fs)]
-w_filenames = [os.path.join(VALID_DIR, 'segment_continuous_w_%d.pkl' % i) for i in range(n_fs)]
-name_file = os.path.join(VALID_DIR, 'names.pkl')
-label_file = os.path.join(VALID_DIR, 'classify_continuous_labels.pkl')
-
-valid_gen = PairGenerator(
-    name_file,
-    X_filenames,
-    segment_y_files=y_filenames,
-    segment_w_files=w_filenames,
-    classify_label_file=label_file,
-    **kwargs)
-
-model = ClassifyOnSegment(
-    input_shape=(288, 384, 3),
-    model_structure='pspnet',
-    model_path=MODEL_DIR,
-    encoder_weights='imagenet',
-    n_segment_classes=4,
-    n_classify_classes=4,
-    eval_fn=evaluate_confusion_mat)
-
-model.load(os.path.join(MODEL_DIR, 'bkp.model'))
+#%% Classification metrics and plottings ###
+def collect_classification_score():
+    cla_preds = []
+    cla_trues = []
+    cla_ws = []
+    pred_names = []
+    for root in PRED_SAVE_DIRs:
+        dat = pickle.load(open(os.path.join(root, 'cla.pkl'), 'rb'))
+        cla_preds.append(dat['cla_preds'])
+        cla_trues.append(dat['cla_trues'])
+        cla_ws.append(dat['cla_ws'])
+        pred_names.extend(dat['pred_names'])
+    return np.concatenate(cla_preds, 0), np.concatenate(cla_trues, 0), np.concatenate(cla_ws, 0), pred_names
 
 
-### Collect predictions ###
-valid_gen.batch_with_name = True
-
-y_preds = []
-y_trues = []
-pred_names = []
-for batch in valid_gen:
-    pred = model.model.predict(batch[0])
-    y_preds.append(pred[1])
-    y_trues.append(batch[1][1])
-    pred_names.extend(batch[2])
-
-y_preds = np.concatenate(y_preds, 0)
-y_preds = scipy.special.softmax(y_preds, -1)
-y_trues = np.concatenate(y_trues, 0)
-ws = y_trues[:, -1]
-y_trues = y_trues[:, :-1]
-
-with open("pred_save/0-to-inf_random_preds.pkl", 'wb') as f:
-    pickle.dump({"y_pred": y_preds, 
-                 "y_trues": y_trues, 
-                 "ws": ws, 
-                 "pred_names": pred_names}, f)
-
-
-### Metrics and plottings ###
 def evaluate_conf_mat(y_trues, y_preds, plot_output=None):
     mat = confusion_matrix(np.argmax(y_trues, 1), np.argmax(y_preds, 1))
     mat = mat/mat.sum(1, keepdims=True)
@@ -98,7 +44,6 @@ def evaluate_conf_mat(y_trues, y_preds, plot_output=None):
         for i in range(4):
             for j in range(4):
                 ax.text(j-0.22, i-0.1, "%.2f" % mat[i, j])
-        ax.set_title(day)
         ax.set_xticks([0, 1, 2, 3])
         ax.set_xlim(-0.5, 3.5)
         ax.set_yticks([0, 1, 2, 3])
@@ -115,6 +60,32 @@ def evaluate_binary_metric(y_trues, y_preds, cutoff=1):
     s3 = f1_score(_y_trues, _y_preds > 0.5)
     s4 = roc_auc_score(_y_trues, _y_preds)
     print("Prec: %.3f\tRecall: %.3f\tF1: %.3f\tAUC: %.3f" % (s1, s2, s3, s4))
+    return s1, s2, s3, s4
+
+
+def plot_binary_metric(y_trues, 
+                       y_preds, 
+                       properties, 
+                       cutoff=1.,
+                       fig_output='binary_metric.png'):
+    x_axis = sorted(set(properties))
+    scores = []
+    for _x in x_axis:
+        inds = np.where(properties == _x)
+        _y_preds = y_preds[inds]
+        _y_trues = y_trues[inds]
+        scores.append(evaluate_binary_metric(_y_trues, _y_preds, cutoff=cutoff))
+    scores = np.stack(scores, 0)
+    plt.clf()
+    fig, ax = plt.subplots(figsize=(7, 3))
+    plt.plot(np.arange(len(x_axis)), scores[:, 0], '.-', label='Precision')
+    plt.plot(np.arange(len(x_axis)), scores[:, 1], '.-', label='Recall')
+    plt.plot(np.arange(len(x_axis)), scores[:, 2], '.-', label='F1')
+    plt.plot(np.arange(len(x_axis)), scores[:, 3], '.-', label='ROC-AUC')
+    plt.xticks(np.arange(len(x_axis)), x_axis)
+    plt.legend()
+    plt.ylim(0.7, 1.0)
+    plt.savefig(fig_output, dpi=300, bbox_inches='tight')
 
 
 def boxplot_pred_distri(y_trues, 
@@ -184,24 +155,151 @@ def boxplot_pred_distri(y_trues,
     plt.savefig(samplect_fig_output, dpi=300, bbox_inches='tight')
 
 
-get_day = lambda n: int(get_identifier(n)[2])
-pred_days = np.array([get_day(n[0]) for n in pred_names])
-pred_intervals = np.array([get_day(n[1]) - get_day(n[0]) for n in pred_names])
-
-boxplot_pred_distri(y_trues, y_preds, pred_days, cutoff=1, 
-    boxplot_fig_output='figs/pred_distri_by_day.png',
-    samplect_fig_output='figs/sample_count_by_day.png')
-
-boxplot_pred_distri(y_trues, y_preds, pred_intervals, cutoff=1, 
-    boxplot_fig_output='figs/pred_distri_by_interval.png',
-    samplect_fig_output='figs/sample_count_by_interval.png')
+def get_day(n):
+    return int(get_identifier(n)[2])
 
 
-for day in sorted(set(pred_days)):
-    print(day)
-    inds = np.where((pred_days == day) * (ws > 0))
-    _y_preds = y_preds[inds]
-    _y_trues = y_trues[inds]
+def classification_main():
+    y_preds, y_trues, ws, pred_names = collect_classification_score()
+    
+    
+    pred_days = np.array([get_day(n[0]) if isinstance(n, tuple) else get_day(n) for n in pred_names])
 
-    evaluate_conf_mat(_y_trues, _y_preds, plot_output='figs/conf_mat_%s.png' % day)
-    evaluate_binary_metric(_y_trues, _y_preds, cutoff=2)
+    for cutoff in [1, 2]:
+        boxplot_pred_distri(y_trues, y_preds, pred_days, cutoff=cutoff, 
+            boxplot_fig_output='figs/pred_distri_by_day_cut%d.png' % cutoff,
+            samplect_fig_output='figs/sample_count_by_day_cut%d.png' % cutoff)
+        
+        plot_binary_metric(y_trues, y_preds, pred_days, cutoff=cutoff,
+                           fig_output='figs/binary_metric_cut%d.png' % cutoff)
+
+    # for day in sorted(set(pred_days)):
+    #     print(day)
+    #     inds = np.where((pred_days == day) * (ws > 0))
+    #     _y_preds = y_preds[inds]
+    #     _y_trues = y_trues[inds]
+    #     evaluate_conf_mat(_y_trues, _y_preds, plot_output='figs/conf_mat_%s.png' % day)
+    return
+
+
+#%% Regression metrics and plottings ###
+def plot_seg_pearsonr(rs_seg_preds, rs_seg_trues, properties, fig_output='seg_pearsonr.png'):
+
+    props = np.array(properties)
+    x_axis = sorted(set(properties))
+
+    prs = []
+    for _x in x_axis:
+        _preds = rs_seg_preds[np.where(props == _x)]
+        _trues = rs_seg_trues[np.where(props == _x)]
+        prs.append(pearsonr(_preds, _trues)[0])
+
+    plt.clf()
+    fig, ax = plt.subplots(figsize=(7, 3))
+    ax.plot(np.arange(len(x_axis)), prs, '.-')
+    ax.set_xticks(np.arange(len(x_axis)))
+    ax.set_xticklabels(x_axis)
+    plt.savefig(fig_output, dpi=300, bbox_inches='tight')
+
+
+def boxplot_seg_pearsonr_distri(prs, 
+                                properties,
+                                boxplot_fig_output='seg_pearsonr_distri.png',
+                                samplect_fig_output='seg_sample_count.png'):
+
+    x_axis = sorted(set(properties))
+
+    prs_by_x = {_x: [] for _x in x_axis}
+    for pr, prop in zip(prs, properties):
+        if pr == pr:
+            prs_by_x[prop].append(pr)
+
+    plt.clf()
+    fig, ax = plt.subplots(figsize=(7, 3))
+    red_diamond = dict(markerfacecolor='r', marker='D', markersize=2)
+    data = [prs_by_x[_x] for _x in x_axis]
+    bplot = ax.boxplot(
+        data,
+        notch=True,
+        vert=True,
+        patch_artist=True,
+        positions=np.arange(len(x_axis)),
+        flierprops=red_diamond,
+        widths=0.2,
+        manage_ticks=False)
+    ax.set_xticks(np.arange(len(x_axis)))
+    ax.set_xticklabels(x_axis)
+    ax.set_xlim(-1, len(x_axis))
+    plt.savefig(boxplot_fig_output, dpi=300, bbox_inches='tight')
+
+    plt.clf()
+    fig, ax = plt.subplots(figsize=(7, 1.5))
+    ax.plot(np.arange(len(x_axis)), [len(prs_by_x[_x]) for _x in x_axis], c='pink')
+    ax.set_xticks(np.arange(len(x_axis)))
+    ax.set_xticklabels(x_axis)
+    ax.set_xlim(-1, len(x_axis))
+    ax.set_ylim([0, ax.get_ylim()[1]])
+    plt.savefig(samplect_fig_output, dpi=300, bbox_inches='tight')
+
+
+def segmentation_main():
+    rs_seg_preds = []
+    rs_seg_trues = []
+    rs_days = []
+
+    pearsonrs = []
+    days = []
+
+    samples_for_visualization = []
+
+    for root in PRED_SAVE_DIRs:
+        fs = [f for f in os.listdir(root) if f.startswith('seg_')]
+        for f in sorted(fs, key=lambda x: int(x.split('_')[1].split('.')[0])):
+            dat = pickle.load(open(os.path.join(root, f), 'rb'))
+            seg_preds = dat['seg_preds']
+            seg_trues = dat['seg_trues']
+            seg_ws = dat['seg_ws']
+            pred_names = dat['pred_names']
+            for s_pred, s_true, s_w, name in zip(
+                np.concatenate(seg_preds, 0),
+                np.concatenate(seg_trues, 0),
+                np.concatenate(seg_ws, 0),
+                pred_names):
+
+                name = name[0] if isinstance(name, tuple) else name
+                day = get_day(name)
+
+                _s_pred = s_pred[s_w > 0]
+                _s_true = s_true[s_w > 0]
+                pr = pearsonr(_s_pred, _s_true)[0]
+                pearsonrs.append(pr)
+                days.append(day)
+
+                rs_inds = np.random.choice(np.arange(_s_pred.shape[0]), (2000,), replace=False)
+                rs_seg_preds.append(_s_pred[rs_inds])
+                rs_seg_trues.append(_s_true[rs_inds])
+                rs_days.extend([day] * len(rs_inds))
+
+                if pr == pr and np.random.rand() < 0.01:
+                    samples_for_visualization.append((s_pred, s_true, s_w))
+    
+    boxplot_seg_pearsonr_distri(
+        pearsonrs, 
+        days, 
+        boxplot_fig_output='figs/seg_pearsonr_distri.png', 
+        samplect_fig_output='figs/seg_sample_count.png')
+    rs_seg_preds = np.concatenate(rs_seg_preds)
+    rs_seg_trues = np.concatenate(rs_seg_trues)
+    plot_seg_pearsonr(
+        rs_seg_preds,
+        rs_seg_trues,
+        rs_days, 
+        fig_output='figs/seg_pearsonr.png')
+
+    with open('figs/seg_visualization_save.pkl', 'wb') as f:
+        pickle.dump(samples_for_visualization, f)
+
+
+if __name__ == '__main__':
+    classification_main()
+    segmentation_main()

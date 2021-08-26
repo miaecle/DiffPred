@@ -24,13 +24,6 @@ kwargs = {
     'batch_size': 8,
     'shuffle_inds': False, # Datasets are usually pre-shuffled
     'include_day': True,
-    'n_segment_classes': 4,
-    'segment_class_weights': [1, 2, 2, 2],
-    'segment_extra_weights': None,
-    'segment_label_type': 'continuous',
-    'n_classify_classes': 4,
-    'classify_class_weights': [1., 1., 2., 1.],
-    'classify_label_type': 'continuous',
 }
 
 #%% Define Dataset ###
@@ -38,10 +31,16 @@ n_fs = len([f for f in os.listdir(DATA_DIR) if f.startswith('X_') and f.endswith
 name_file = os.path.join(DATA_DIR, 'names.pkl')
 X_filenames = [os.path.join(DATA_DIR, 'X_%d.pkl' % i) for i in range(n_fs)]
 if os.path.exists(os.path.join(DATA_DIR, 'classify_continuous_labels.pkl')):
-    kwargs['label_file'] = os.path.join(DATA_DIR, 'classify_continuous_labels.pkl')
+    kwargs.update({'n_classify_classes': 4,
+                   'classify_class_weights': [1., 1., 1., 1.],
+                   'classify_label_type': 'continuous',
+                   'classify_label_file': os.path.join(DATA_DIR, 'classify_continuous_labels.pkl')})
 if os.path.exists(os.path.join(DATA_DIR, 'segment_continuous_y_%d.pkl' % (n_fs - 1))):
-    kwargs['y_filenames'] = [os.path.join(DATA_DIR, 'segment_continuous_y_%d.pkl' % i) for i in range(n_fs)]
-    kwargs['w_filenames'] = [os.path.join(DATA_DIR, 'segment_continuous_w_%d.pkl' % i) for i in range(n_fs)]
+    kwargs.update({'n_segment_classes': 4,
+                   'segment_class_weights': [1., 1., 1., 1.],
+                   'segment_label_type': 'continuous',
+                   'segment_y_files': [os.path.join(DATA_DIR, 'segment_continuous_y_%d.pkl' % i) for i in range(n_fs)],
+                   'segment_w_files': [os.path.join(DATA_DIR, 'segment_continuous_w_%d.pkl' % i) for i in range(n_fs)]})
 
 valid_gen = PairGenerator(
     name_file,
@@ -64,10 +63,14 @@ model.load(os.path.join(MODEL_DIR, 'bkp.model'))
 #%% Collect predictions ###
 os.makedirs(PRED_SAVE_DIR, exist_ok=True)
 valid_gen.batch_with_name = True
-pred_save = {"seg_preds": [], "seg_trues": [], "seg_ws": [],
-             "cla_preds": [], "cla_trues": [], "cla_ws": [],
-             "pred_names": []}
+
+pred_save = {"seg_preds": [], "seg_trues": [], "seg_ws": [], "pred_names": []}
 file_ct = 0
+cla_preds = []
+cla_trues = []
+cla_ws = []
+pred_names = []
+
 for batch in valid_gen:
     pred = model.model.predict(batch[0])
     seg_pred = scipy.special.softmax(pred[0], -1)
@@ -75,26 +78,32 @@ for batch in valid_gen:
     pred_save["seg_preds"].append(seg_pred)
 
     cla_pred = scipy.special.softmax(pred[1], -1)
-    pred_save["cla_preds"].append(cla_pred)
+    cla_preds.append(cla_pred)
 
     pred_save["pred_names"].extend(batch[-1])
+    pred_names.extend(batch[-1])
 
-    seg_true = batch[1][0]
-    seg_true = seg_true[..., 1] + seg_true[..., 2]*2 + seg_true[..., 3] * 3
-    pred_save["seg_trues"].append(seg_true)
-    pred_save["seg_ws"].append(batch[1][0][..., -1])
+    if not batch[1] is None:
+        seg_true = batch[1][0]
+        seg_true = seg_true[..., 1] + seg_true[..., 2]*2 + seg_true[..., 3] * 3
+        pred_save["seg_trues"].append(seg_true)
+        pred_save["seg_ws"].append(batch[1][0][..., -1])
     
-    pred_save["cla_trues"].append(batch[1][1][..., :-1])
-    pred_save["cla_ws"].append(batch[1][1][..., -1])
+        cla_trues.append(batch[1][1][..., :-1])
+        cla_ws.append(batch[1][1][..., -1])
 
 
     if len(pred_save["seg_preds"]) >= 100:
-        with open(os.path.join(PRED_SAVE_DIR, "%d.pkl" % file_ct), 'wb') as f:
+        with open(os.path.join(PRED_SAVE_DIR, "seg_%d.pkl" % file_ct), 'wb') as f:
             pickle.dump(pred_save, f)
-        pred_save = {"seg_preds": [], "seg_trues": [], "seg_ws": [],
-                     "cla_preds": [], "cla_trues": [], "cla_ws": [],
-                     "pred_names": []}
+        pred_save = {"seg_preds": [], "seg_trues": [], "seg_ws": [], "pred_names": []}
         file_ct += 1
 
-with open(os.path.join(PRED_SAVE_DIR, "%d.pkl" % file_ct), 'wb') as f:
+with open(os.path.join(PRED_SAVE_DIR, "seg_%d.pkl" % file_ct), 'wb') as f:
     pickle.dump(pred_save, f)
+    
+with open(os.path.join(PRED_SAVE_DIR, "cla.pkl"), 'wb') as f:
+    pickle.dump({"cla_preds": np.concatenate(cla_preds, 0),
+                 "cla_trues": np.concatenate(cla_trues, 0),
+                 "cla_ws": np.concatenate(cla_ws, 0),
+                 "pred_names": pred_names}, f)
