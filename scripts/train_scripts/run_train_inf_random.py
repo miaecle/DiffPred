@@ -60,7 +60,7 @@ kwargs = {
     'segment_extra_weights': None,
     'segment_label_type': 'continuous',
     'n_classify_classes': 4,
-    'classify_class_weights': [1., 1., 1., 1.],
+    'classify_class_weights': [1., 1., 2., 1.],
     'classify_label_type': 'continuous',
 }
 
