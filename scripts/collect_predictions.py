@@ -115,7 +115,8 @@ def collect_preds(valid_gen,
     pred_names = []
 
     if not support_gen is None:
-        support_gen = iter(support_gen)
+        support_iter = iter(support_gen)
+
     for batch in valid_gen:
         X = batch[0]
         names = batch[-1]
@@ -129,7 +130,11 @@ def collect_preds(valid_gen,
             X = input_transform(X)
 
         if not support_gen is None:
-            support_X = next(support_gen)[0]
+            try:
+                support_X = next(support_iter)[0]
+            except StopIteration:
+                support_iter = iter(support_gen)
+                support_X = next(support_iter)[0]
             if not support_transform is None:
                 support_X = support_transform(support_X)
             X = np.concatenate([X, support_X])
