@@ -243,22 +243,22 @@ def extract_samples_for_inspection(pairs, inter_dir, image_output_dir, seed=123)
     for i in range(len(phase_contrast_files)):
         assert 'X_%d.pkl' % i in fs
     
-    # # Sample phase contrast image
-    # os.makedirs(os.path.join(image_output_dir, "phase_contrast"), exist_ok=True)
-    # random_inds = np.random.choice(list(names.keys()), (50,), replace=False)
-    # for ind in random_inds:
-    #     file_ind = ind // 100
-    #     identifier = get_identifier(names[ind])
-    #     try:
-    #         processed_img = pickle.load(open(os.path.join(inter_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
-    #         raw_img = load_image(raw_id_to_f_mapping[identifier][0])
-    #         out_path = os.path.join(image_output_dir, 
-    #                                 "phase_contrast", 
-    #                                 "%s.png" % '_'.join(identifier))
-    #         save_multi_panel_fig([raw_img, processed_img], out_path)
+    # Sample phase contrast image
+    os.makedirs(os.path.join(image_output_dir, "phase_contrast"), exist_ok=True)
+    random_inds = np.random.choice(list(names.keys()), (50,), replace=False)
+    for ind in random_inds:
+        file_ind = ind // 100
+        identifier = get_identifier(names[ind])
+        try:
+            processed_img = pickle.load(open(os.path.join(inter_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
+            raw_img = load_image(raw_id_to_f_mapping[identifier][0])
+            out_path = os.path.join(image_output_dir, 
+                                    "phase_contrast", 
+                                    "%s.png" % '_'.join(identifier))
+            save_multi_panel_fig([raw_img, processed_img], out_path)
 
-    #     except Exception:
-    #         print("Error saving sample %s" % '_'.join(identifier))
+        except Exception:
+            print("Error saving sample %s" % '_'.join(identifier))
         
     # try:
     #     # Check discrete segmentation annotations

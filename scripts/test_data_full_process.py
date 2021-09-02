@@ -19,36 +19,54 @@ RAW_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_477/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_202/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_20/ex0',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_100/ex3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_142/ex1',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_273/ex2',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_839/ex1',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_480/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_854/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_975/ex0',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_other_instrument',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective',
 ]
 
 OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_477/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_202/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_20/ex0/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_100/ex3/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_142/ex1/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_273/ex2/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_839/ex1/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_480/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_854/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_975/ex0/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex2_other_instrument/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex2_prospective/0-to-0/',
 ]
 
 WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_477/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_202/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_20/ex0': '6well-15',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_100/ex3': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_142/ex1': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_273/ex2': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_839/ex1': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_480/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_854/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_975/ex0': '6well-14',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_other_instrument': '96well-9',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': '96well-9',
+}
+
+# scale and offset parameters for raw fl preprocess
+FL_PREPROCESS_SETTINGS = {
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': (3.0, 0.0),
+}
+
+FL_STATS = {
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': (4104, 2277),
 }
 
 RAW_F_FILTER = lambda f: not 'bkp' in f
@@ -75,6 +93,16 @@ def PREPROCESS_FILTER(pair, well_setting='96well-3'):
             return False
     return True
 
+
+def FL_PREPROCESS(fl, scale=1., offset=0.):
+    if fl is None:
+        return None 
+    fl = fl.astype(float)
+    _fl = fl * scale + offset
+    _fl = np.clip(_fl, 0, 65535).astype(int).astype('uint16')
+    return _fl
+
+
 # %% Featurize each experiment
 for raw_dir, inter_dir in zip(RAW_FOLDERS, OUTPUT_FOLDERS):
     os.makedirs(inter_dir, exist_ok=True)
@@ -83,16 +111,31 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, OUTPUT_FOLDERS):
     preprocess_filter = partial(PREPROCESS_FILTER, well_setting=well_setting)
     
     pairs = load_all_pairs(path=raw_dir, check_valid=RAW_F_FILTER)
-    
+
+    kwargs = {'labels': []}
+    if raw_dir in FL_PREPROCESS_SETTINGS and raw_dir in FL_STATS:
+        fl_preprocess_setting = FL_PREPROCESS_SETTINGS[raw_dir]
+        fl_preprocess_fn = partial(FL_PREPROCESS, 
+                                   scale=fl_preprocess_setting[0],
+                                   offset=fl_preprocess_setting[1])
+        fl_stat = FL_STATS[raw_dir]
+        fl_stat = (fl_stat[0] * fl_preprocess_setting[0] + fl_preprocess_setting[1],
+                   fl_stat[1] * fl_preprocess_setting[0])
+        fl_nonneg_thr = fl_stat[0] + fl_stat[1]
+
+        kwargs['labels'] = ['discrete', 'continuous']
+        kwargs['raw_label_preprocess'] = fl_preprocess_fn
+        kwargs['nonneg_thr'] = fl_nonneg_thr
+
     preprocess(pairs, 
                output_path=inter_dir, 
                preprocess_filter=preprocess_filter,
                target_size=(384, 288),
-               labels=[], 
                well_setting=well_setting,
                linear_align=False,
                shuffle=True,
-               seed=123)
+               seed=123,
+               **kwargs)
 
 
 # %% Check invalid entries and remove
