@@ -148,15 +148,15 @@ def collect_preds(valid_gen,
             cla_ws.extend([cla_w[i] for i in inds])
 
         if len(pred_save["seg_preds"]) >= 500:
-            with open(os.path.join(PRED_SAVE_DIR, "seg_%d.pkl" % file_ct), 'wb') as f:
+            with open(os.path.join(pred_save_dir, "seg_%d.pkl" % file_ct), 'wb') as f:
                 pickle.dump(pred_save, f)
             pred_save = {"seg_preds": [], "seg_trues": [], "seg_ws": [], "pred_names": []}
             file_ct += 1
 
-    with open(os.path.join(PRED_SAVE_DIR, "seg_%d.pkl" % file_ct), 'wb') as f:
+    with open(os.path.join(pred_save_dir, "seg_%d.pkl" % file_ct), 'wb') as f:
         pickle.dump(pred_save, f)
         
-    with open(os.path.join(PRED_SAVE_DIR, "cla.pkl"), 'wb') as f:
+    with open(os.path.join(pred_save_dir, "cla.pkl"), 'wb') as f:
         pickle.dump({"cla_preds": np.stack(cla_preds, 0),
                      "cla_trues": np.stack(cla_trues, 0) if len(cla_trues) > 0 else cla_trues,
                      "cla_ws": np.stack(cla_ws, 0) if len(cla_ws) > 0 else cla_ws,

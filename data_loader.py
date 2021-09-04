@@ -145,43 +145,62 @@ def get_line_name(name):
     for i, seg in enumerate(n):
       if seg.startswith('line'):
         return seg
+    return None
 
 
 def get_ex_day(name):
-    n = name.split('/')
-    for i, seg in enumerate(n):
-      if seg.startswith('ex'):
-        ex_id = seg
-        break
-    detail = n[i+1]
-    detail = detail.replace('-', ' ').replace('_', ' ')
-    ds_sep = detail.split()
-    day = None
-    for d in ds_sep:
-        if d.startswith('D'):
-            day = d
+    try:
+        n = name.split('/')
+        for i, seg in enumerate(n):
+          if seg.startswith('ex'):
+            ex_id = seg
             break
-    if day is None:
-        day = 'Dunknown'
-    return (ex_id, day)
+        detail = n[i+1]
+        detail = detail.replace('-', ' ').replace('_', ' ')
+        ds_sep = detail.split()
+        day = None
+        for d in ds_sep:
+            if d.startswith('D'):
+                day = d
+                break
+        if day is None:
+            day = 'Dunknown'
+        return (ex_id, day)
+    except Exception:
+        return (None, None)
 
 
 def well_id_from_name(f):
-    f = f.split('/')[-1].split('.')[0]
-    f = f.split('_')
-    return (f[0], f[3])
+    try:
+        f = f.split('/')[-1].split('.')[0]
+        f = f.split('_')
+        return (f[0], f[3])
+    except Exception:
+        return (None, None)
 
 
 def exp_id_from_name(f):
-    return str(get_ex_day(f)[0])
+    exp_id = get_ex_day(f)[0]
+    if exp_id is None:
+        return None
+    else:
+        return str(exp_id)
 
 
 def exp_day_from_name(f):
-    return str(get_ex_day(f)[1][1:])
+    try:
+        return str(get_ex_day(f)[1][1:])
+    except Exception:
+        return None
 
 
 def get_identifier(f):
-    return (get_line_name(f), exp_id_from_name(f), exp_day_from_name(f)) + well_id_from_name(f)
+    identifier = (get_line_name(f), exp_id_from_name(f), exp_day_from_name(f)) + well_id_from_name(f)
+    if identifier.count(None) <= 2:
+        return identifier
+    else:
+        print("Cannot parse file path %s" % f)
+        return tuple(f.strip().strip('/').split('/'))
 
 
 if __name__ == '__main__':
