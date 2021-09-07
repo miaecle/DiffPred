@@ -41,7 +41,7 @@ def filter_for_inf_predictor(batch):
     return np.array(inds)
 
 
-def get_data_gen(data_dir, data_gen, batch_size=8):
+def get_data_gen(data_dir, data_gen, batch_size=8, with_label=False):
     #%% Define Dataset ###
     n_fs = len([f for f in os.listdir(data_dir) if f.startswith('X_') and f.endswith('.pkl')])
     name_file = os.path.join(data_dir, 'names.pkl')
@@ -54,17 +54,18 @@ def get_data_gen(data_dir, data_gen, batch_size=8):
         'augment': False,
 
     }
-    if os.path.exists(os.path.join(data_dir, 'classify_continuous_labels.pkl')):
-        kwargs.update({'n_classify_classes': 4,
-                       'classify_class_weights': [1., 1., 1., 1.],
-                       'classify_label_type': 'continuous',
-                       'classify_label_file': os.path.join(data_dir, 'classify_continuous_labels.pkl')})
-    if os.path.exists(os.path.join(data_dir, 'segment_continuous_y_%d.pkl' % (n_fs - 1))):
-        kwargs.update({'n_segment_classes': 4,
-                       'segment_class_weights': [1., 1., 1., 1.],
-                       'segment_label_type': 'continuous',
-                       'segment_y_files': [os.path.join(data_dir, 'segment_continuous_y_%d.pkl' % i) for i in range(n_fs)],
-                       'segment_w_files': [os.path.join(data_dir, 'segment_continuous_w_%d.pkl' % i) for i in range(n_fs)]})
+    if with_label:
+        if os.path.exists(os.path.join(data_dir, 'classify_continuous_labels.pkl')):
+            kwargs.update({'n_classify_classes': 4,
+                           'classify_class_weights': [1., 1., 1., 1.],
+                           'classify_label_type': 'continuous',
+                           'classify_label_file': os.path.join(data_dir, 'classify_continuous_labels.pkl')})
+        if os.path.exists(os.path.join(data_dir, 'segment_continuous_y_%d.pkl' % (n_fs - 1))):
+            kwargs.update({'n_segment_classes': 4,
+                           'segment_class_weights': [1., 1., 1., 1.],
+                           'segment_label_type': 'continuous',
+                           'segment_y_files': [os.path.join(data_dir, 'segment_continuous_y_%d.pkl' % i) for i in range(n_fs)],
+                           'segment_w_files': [os.path.join(data_dir, 'segment_continuous_w_%d.pkl' % i) for i in range(n_fs)]})
     valid_gen = data_gen(
         name_file,
         X_filenames,
@@ -183,6 +184,10 @@ def parse_args(cli=True):
                         type=int,
                         default=18,
                         help="prediction target end point")
+    parser.add_argument('--with_label',
+                        action='store_true',
+                        default=False,
+                        help="if input contains full labels")
     if cli:
         args = parser.parse_args()
     else:
@@ -196,11 +201,12 @@ if __name__ == '__main__':
     model_dir = args.model_dir
     pred_save_dir = args.output_dir
     target_day = args.pred_target_day
+    with_label = args.with_label
 
     input_transform = partial(augment_fixed_end, end=target_day)
     input_filter = filter_for_inf_predictor
     gen_fn = CustomGenerator if '0-to-0' in data_dir else PairGenerator # PairGenerator for 3 channel, CustomGenerator for 2 channel
 
-    valid_gen = get_data_gen(data_dir, gen_fn, batch_size=8)
+    valid_gen = get_data_gen(data_dir, gen_fn, batch_size=8, with_label=with_label)
     model = get_model(model_dir)
     collect_preds(valid_gen, model, pred_save_dir, input_transform=input_transform, input_filter=input_filter)
