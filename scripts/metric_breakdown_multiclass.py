@@ -250,8 +250,6 @@ def segmentation_main():
     pearsonrs = []
     days = []
 
-    samples_for_visualization = []
-
     for root in PRED_SAVE_DIRs:
         fs = [f for f in os.listdir(root) if f.startswith('seg_')]
         for f in sorted(fs, key=lambda x: int(x.split('_')[1].split('.')[0])):
@@ -279,9 +277,6 @@ def segmentation_main():
                 rs_seg_preds.append(_s_pred[rs_inds])
                 rs_seg_trues.append(_s_true[rs_inds])
                 rs_days.extend([day] * len(rs_inds))
-
-                if pr == pr and np.random.rand() < 0.01:
-                    samples_for_visualization.append((s_pred, s_true, s_w))
     
     boxplot_seg_pearsonr_distri(
         pearsonrs, 
@@ -296,8 +291,66 @@ def segmentation_main():
         rs_days, 
         fig_output='figs/seg_pearsonr.png')
 
-    with open('figs/seg_visualization_save.pkl', 'wb') as f:
-        pickle.dump(samples_for_visualization, f)
+def get_well(name):
+    if isinstance(name, list) or isinstance(name, tuple):
+        name = name[0]
+    return get_identifier(name)[:2] + get_identifier(name)[-2:]
+
+
+def plot_segmentation_samples(output_folder, plot_well=True):
+    samples = []
+    for root in PRED_SAVE_DIRs:
+        all_pred_names = pickle.load(open(os.path.join(root, 'cla.pkl'), 'rb'))['pred_names']
+        plot_samples = []
+        if plot_well:
+            wells = list(set([get_well(n) for n in all_pred_names]))
+            plot_wells = np.random.choice(np.arange(len(wells)), (10,), replace=False)
+            plot_wells = [wells[i] for i in plot_wells]
+            plot_samples = [n for n in all_pred_names if get_well(n) in plot_wells]
+        else:
+            plot_samples = np.random.choice(np.arange(len(all_pred_names)), (100,), replace=False)
+            plot_samples = [all_pred_names[i] for i in plot_samples]
+
+        fs = [f for f in os.listdir(root) if f.startswith('seg_')]
+        for f in sorted(fs, key=lambda x: int(x.split('_')[1].split('.')[0])):
+            dat = pickle.load(open(os.path.join(root, f), 'rb'))
+            seg_preds = dat['seg_preds']
+            seg_trues = dat['seg_trues']
+            seg_ws = dat['seg_ws']
+            pred_names = dat['pred_names']
+            for s_pred, s_true, s_w, name in zip(
+                np.concatenate(seg_preds, 0),
+                np.concatenate(seg_trues, 0),
+                np.concatenate(seg_ws, 0),
+                pred_names):
+
+                if name in plot_samples and not np.allclose(s_w, 0):
+                    samples.append((s_pred, s_true, s_w, name))
+    
+    samples = sorted(samples, key=lambda x: get_well(x[3]))
+
+    os.makedirs(output_folder, exist_ok=True)
+    for i, (s_pred, s_true, s_w, name) in enumerate(samples):
+        if isinstance(name, list) or isinstance(name, tuple):
+            name = name[0]
+        _s_pred = s_pred[s_w > 0]
+        _s_true = s_true[s_w > 0]
+        pr = pearsonr(_s_pred, _s_true)[0]
+
+        title = str(get_identifier(name)) + '\n' + 'pearson-r: %.3f' % pr
+        file_name = str(get_well(name)) + '__D%s.png' % get_identifier(name)[2]
+
+        plt.clf()
+        plt.subplot(2, 1, 1)
+        plt.imshow(s_pred, vmin=0., vmax=3.)
+        plt.axis('off')
+        plt.title(title)
+        plt.subplot(2, 1, 2)
+        plt.imshow(s_true, vmin=0., vmax=3.)
+        plt.axis('off')
+        plt.savefig(os.path.join(output_folder, file_name), dpi=300, bbox_inches='tight')
+
+
 
 
 if __name__ == '__main__':
