@@ -10,7 +10,7 @@ from functools import partial
 from data_loader import load_all_pairs, get_identifier, load_image_pair, load_image, check_pairs_by_day
 from data_assembly import preprocess
 from data_generator import CustomGenerator
-from model import ClassifyOnSegment
+from models import ClassifyOnSegment
 from collect_predictions import augment_fixed_end, collect_preds
 
 
@@ -43,8 +43,6 @@ def main(args):
     model_path = args.model_path
     well_setting = args.well_setting
     target_day = args.target_day
-    
-    n_input_channel = 2 if '0-to-0' in model_path else 3
 
     intermediate_save_dir = tempfile.mkdtemp()
     
@@ -80,6 +78,7 @@ def main(args):
         n_classify_classes=None,
         classify_class_weights=None,)
 
+    n_input_channel = 2 if '0-to-0' in model_path else 3
     model = ClassifyOnSegment(
         input_shape=(288, 384, n_input_channel),
         model_structure='pspnet',
@@ -105,33 +104,29 @@ def parse_args(cli=True):
     parser.add_argument(
         '-i', '--input_folder',
         type=str,
-        required=True,
         help="Path to the folder for raw inputs (tif files), \
         note that path should be formulated similar to XXX/ex1/XXX_D2_XXX/XXX",
     )
     parser.add_argument(
         '-o', '--output_folder',
         type=str,
-        required=True,
         help="Output folder for saving predictions",
     )
     parser.add_argument(
         '-m', '--model_path',
         type=str,
-        required=True,
-        help="Path to the saved model weights",
+        default="/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/random_split/0-to-inf_random/bkp.model",
+        help="path of model weight file"
     )
     parser.add_argument(
         '-w', '--well_setting',
         type=str,
-        required=False,
         default='',
         help="Well setting for the input data, support: 96well-3, 6well-14, 6well-15, will remove corner views from input if given",
     )
     parser.add_argument(
         '--target_day',
         type=int,
-        required=False,
         default=18,
         help="Prediction target timepoint (day), default: 18",
     )

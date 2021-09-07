@@ -176,23 +176,23 @@ def preprocess(pairs,
         if output_path is not None and ((ind % 100 == 99) or (ind == len(pairs) - 1)):
             assert len(Xs) <= 100
             print("Writing file %d" % file_ind)
-            with open(output_path + 'names.pkl', 'wb') as f:
+            with open(os.path.join(output_path, 'names.pkl'), 'wb') as f:
                 pickle.dump(names, f)
-            with open(output_path + 'X_%d.pkl' % file_ind, 'wb') as f:
+            with open(os.path.join(output_path, 'X_%d.pkl' % file_ind), 'wb') as f:
                 pickle.dump(Xs, f)
             if 'discrete' in labels:
-                with open(output_path + 'segment_discrete_y_%d.pkl' % file_ind, 'wb') as f:
+                with open(os.path.join(output_path, 'segment_discrete_y_%d.pkl' % file_ind), 'wb') as f:
                     pickle.dump(segment_discrete_ys, f)
-                with open(output_path + 'segment_discrete_w_%d.pkl' % file_ind, 'wb') as f:
+                with open(os.path.join(output_path, 'segment_discrete_w_%d.pkl' % file_ind), 'wb') as f:
                     pickle.dump(segment_discrete_ws, f)
-                with open(output_path + 'classify_discrete_labels.pkl', 'wb') as f:
+                with open(os.path.join(output_path, 'classify_discrete_labels.pkl'), 'wb') as f:
                     pickle.dump(classify_discrete_labels, f)
             if 'continuous' in labels:
-                with open(output_path + 'segment_continuous_y_%d.pkl' % file_ind, 'wb') as f:
+                with open(os.path.join(output_path, 'segment_continuous_y_%d.pkl' % file_ind), 'wb') as f:
                     pickle.dump(segment_continuous_ys, f)
-                with open(output_path + 'segment_continuous_w_%d.pkl' % file_ind, 'wb') as f:
+                with open(os.path.join(output_path, 'segment_continuous_w_%d.pkl' % file_ind), 'wb') as f:
                     pickle.dump(segment_continuous_ws, f)
-                with open(output_path + 'classify_continuous_labels.pkl', 'wb') as f:
+                with open(os.path.join(output_path, 'classify_continuous_labels.pkl'), 'wb') as f:
                     pickle.dump(classify_continuous_labels, f)
             file_ind += 1
             Xs = {}
