@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 import scipy
 import argparse
+import tempfile
 import matplotlib.pyplot as plt
 from functools import partial
 from scipy.stats import spearmanr, pearsonr
@@ -74,20 +75,20 @@ def get_data_gen(data_dir, data_gen, batch_size=8, with_label=False):
     return valid_gen
 
 
-def get_model(model_dir):
-    model_folder_name = os.path.split(model_dir)[-1] if len(os.path.split(model_dir)[-1]) > 0 else os.path.split(os.path.split(model_dir)[0])[-1]
+def get_model(model_path):
+    model_folder_name = os.path.split(model_path)[-2]
     if '0-to-0' in model_folder_name:
         n_input_channel = 2
     elif '0-to-inf' in model_folder_name:
         n_input_channel = 3
     else:
-        raise ValueError("MODEL DIR not valid")
+        raise ValueError("MODEL PATH not valid")
 
     #%% Define Model ###
     model = ClassifyOnSegment(
         input_shape=(288, 384, n_input_channel),
         model_structure='pspnet',
-        model_path=model_dir,
+        model_path=tempfile.mkdtemp(),
         encoder_weights='imagenet',
         n_segment_classes=4,
         segment_class_weights=[1., 1., 1., 1.],
@@ -95,7 +96,7 @@ def get_model(model_dir):
         classify_class_weights=[1., 1., 1., 1.],
         eval_fn=evaluate_confusion_mat)
 
-    model.load(os.path.join(model_dir, 'bkp.model'))
+    model.load(model_path)
     return model
 
 
@@ -172,9 +173,9 @@ def parse_args(cli=True):
                         type=str,
                         default="",
                         help="input data directory")
-    parser.add_argument('--model_dir',
+    parser.add_argument('--model_path',
                         type=str,
-                        default="/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/random_split/0-to-inf_random/",
+                        default="/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/random_split/0-to-inf_random/bkp.model",
                         help="model weight directory")
     parser.add_argument('--output_dir',
                         type=str,
@@ -198,7 +199,7 @@ def parse_args(cli=True):
 if __name__ == '__main__':
     args = parse_args()
     data_dir = args.input_data_dir
-    model_dir = args.model_dir
+    model_path = args.model_path
     pred_save_dir = args.output_dir
     target_day = args.pred_target_day
     with_label = args.with_label
@@ -208,5 +209,5 @@ if __name__ == '__main__':
     gen_fn = CustomGenerator if '0-to-0' in data_dir else PairGenerator # PairGenerator for 3 channel, CustomGenerator for 2 channel
 
     valid_gen = get_data_gen(data_dir, gen_fn, batch_size=8, with_label=with_label)
-    model = get_model(model_dir)
+    model = get_model(model_path)
     collect_preds(valid_gen, model, pred_save_dir, input_transform=input_transform, input_filter=input_filter)
