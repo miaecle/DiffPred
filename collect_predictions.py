@@ -42,6 +42,17 @@ def filter_for_inf_predictor(batch):
     return np.array(inds)
 
 
+def filter_for_0_predictor(batch):
+    X, labels, batch_names = batch
+    inds = []
+    for i, name in enumerate(batch_names):
+        if isinstance(name, list) or isinstance(name, tuple):
+            name = name[0]
+        if 7 <= int(get_identifier(name)[2]) <= 20:
+            inds.append(i)
+    return np.array(inds)
+
+
 def get_data_gen(data_dir, data_gen, batch_size=8, with_label=False):
     #%% Define Dataset ###
     n_fs = len([f for f in os.listdir(data_dir) if f.startswith('X_') and f.endswith('.pkl')])
@@ -203,11 +214,18 @@ if __name__ == '__main__':
     pred_save_dir = args.output_dir
     target_day = args.pred_target_day
     with_label = args.with_label
-
-    input_transform = partial(augment_fixed_end, end=target_day)
-    input_filter = filter_for_inf_predictor
+    
     gen_fn = CustomGenerator if '0-to-0' in data_dir else PairGenerator # PairGenerator for 3 channel, CustomGenerator for 2 channel
-
     valid_gen = get_data_gen(data_dir, gen_fn, batch_size=8, with_label=with_label)
     model = get_model(model_path)
+
+    if '0-to-inf' in model_path:
+        input_filter = filter_for_inf_predictor
+        input_transform = partial(augment_fixed_end, end=target_day)
+    elif '0-to-0' in model_path:
+        input_filter = filter_for_0_predictor
+        input_transform = None
+    else:
+        raise ValueError("model not supported")
+
     collect_preds(valid_gen, model, pred_save_dir, input_transform=input_transform, input_filter=input_filter)
