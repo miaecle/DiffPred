@@ -46,11 +46,18 @@ def main(args):
 
     intermediate_save_dir = tempfile.mkdtemp()
     
+    # if `well_setting` is given, corner views will be removed
     preprocess_filter = partial(PREPROCESS_FILTER, well_setting=well_setting) if len(well_setting) > 0 else lambda x: True
+
+    # Load all phase contrast (identified by keyword "Phase" in the file name)
+    # and all GFP (identifier by keyword "GFP") images under the folder recursively.
+    # Phase contrast/GFP of the same well will be matched into pairs automatically
     pairs = load_all_pairs(path=input_folder)
     print("Checking input data")
+    # Function below checks all the identified phase contrast/GFP files and shows stats
     check_pairs_by_day(pairs)
     
+    # Process all input files, save into a temp folder
     preprocess(pairs, 
                output_path=intermediate_save_dir, 
                preprocess_filter=preprocess_filter,
@@ -65,6 +72,7 @@ def main(args):
     X_filenames = [os.path.join(intermediate_save_dir, 'X_%d.pkl' % i) for i in range(n_fs)]
     name_file = os.path.join(intermediate_save_dir, 'names.pkl')
     
+    # Generator instance looping through all input files
     test_gen = CustomGenerator(
         name_file,
         X_filenames, 
@@ -78,6 +86,7 @@ def main(args):
         n_classify_classes=None,
         classify_class_weights=None,)
 
+    # Identify model type: 0-to-0 / 0-to-inf
     n_input_channel = 2 if '0-to-0' in model_path else 3
     model = ClassifyOnSegment(
         input_shape=(288, 384, n_input_channel),
@@ -89,12 +98,16 @@ def main(args):
         n_classify_classes=4,
         classify_class_weights=[1., 1., 1., 1.])
     
+    # Load model weights
     model.load(model_path)
     
+    # If it is 0-to-inf prediction, define the placeholder for endpoint (default at 18)
     input_transform = None
     if n_input_channel == 3:
         input_transform = partial(augment_fixed_end, end=target_day)
     
+    # Calculate predictions and save to designated folder
+    # refer to `collect_predictions.py` for the function below 
     collect_preds(test_gen, model, output_folder, input_transform=input_transform)
 
 
@@ -105,7 +118,7 @@ def parse_args(cli=True):
         '-i', '--input_folder',
         type=str,
         help="Path to the folder for raw inputs (tif files), \
-        note that path should be formulated similar to XXX/ex1/XXX_D2_XXX/XXX",
+        note that path should be formulated similar to $ROOT/line_*/ex?/*_D2_*/XXX",
     )
     parser.add_argument(
         '-o', '--output_folder',
@@ -115,7 +128,7 @@ def parse_args(cli=True):
     parser.add_argument(
         '-m', '--model_path',
         type=str,
-        default="/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/random_split/0-to-inf_random/bkp.model",
+        default="/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/ex_split/0-to-inf_ex/bkp.model",
         help="path of model weight file"
     )
     parser.add_argument(
