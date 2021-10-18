@@ -28,8 +28,10 @@ RAW_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_975/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_other_instrument',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex0-12',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex14',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12',
 ]
 
 OUTPUT_FOLDERS = [
@@ -45,8 +47,10 @@ OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_975/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex2_other_instrument/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex2_prospective/0-to-0/',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex0-12/0-to-0/',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex14/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex1-14/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex2-14/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex1-6_12/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex2-6_12/0-to-0/',
 ]
 
 WELL_SETTINGS = {
@@ -62,21 +66,27 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_975/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_other_instrument': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': '96well-3',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex0-12': '96well-3',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex14': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': '96well-3'
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': '96well-3',
 }
 
 # scale and offset parameters for raw fl preprocess
 FL_PREPROCESS_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': (3.0, 0.0),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex0-12': (7.0, 0.0),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex14': (7.0, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': (2.7, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': (2.7, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': (3.5, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': (3.5, 0.0),
 }
 
 FL_STATS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': (4104, 2277),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex0-12': (2600, 850),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex14': (2600, 850),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': (4000, 1350),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': (4000, 1350),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': (4000, 1350),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': (4000, 1350),
 }
 
 RAW_F_FILTER = lambda f: not 'bkp' in f
