@@ -32,6 +32,8 @@ RAW_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well',
 ]
 
 OUTPUT_FOLDERS = [
@@ -51,6 +53,8 @@ OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex2-14/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex1-6_12/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex2-6_12/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/12well/line1_3R/ex2-12well/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/24well/line1_3R/ex0-24well/0-to-0/',
 ]
 
 WELL_SETTINGS = {
@@ -70,6 +74,8 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': '96well-3'
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': '12well-9',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': '24well-6',
 }
 
 # scale and offset parameters for raw fl preprocess
@@ -79,6 +85,8 @@ FL_PREPROCESS_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': (2.7, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': (3.5, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': (3.5, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': (1.5, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': (2.0, 0.0),
 }
 
 FL_STATS = {
@@ -87,6 +95,8 @@ FL_STATS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': (4000, 1350),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': (4000, 1350),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': (4000, 1350),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': (8200, 4000),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': (9700, 2800),
 }
 
 RAW_F_FILTER = lambda f: not 'bkp' in f
@@ -110,6 +120,15 @@ def PREPROCESS_FILTER(pair, well_setting='96well-3'):
     elif well_setting == '96well-3':
         if get_identifier(pair[0])[-1] in \
             ['1', '3', '7', '9']:
+            return False
+    elif well_setting == '12well-9':
+        if get_identifier(pair[0])[-1] in \
+            ['1', '9', '73', '81']:
+            return False
+    elif well_setting == '24well-6':
+        if get_identifier(pair[0])[-1] in \
+            ['1', '6', '12', '18', '24', '30', '31', '35', '36']:
+            # Multiples of 6 and '35' are added other than the 4 corners
             return False
     return True
 
