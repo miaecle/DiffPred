@@ -71,7 +71,7 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_other_instrument': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': '96well-3',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': '96well-3'
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': '12well-9',
