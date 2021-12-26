@@ -34,6 +34,8 @@ RAW_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well',
 ]
 
 OUTPUT_FOLDERS = [
@@ -55,6 +57,8 @@ OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex2-6_12/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/12well/line1_3R/ex2-12well/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/24well/line1_3R/ex0-24well/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex0-96well/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex1-96well/0-to-0/',
 ]
 
 WELL_SETTINGS = {
@@ -76,6 +80,8 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': '12well-9',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': '24well-6',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well': '96well-3',
 }
 
 # scale and offset parameters for raw fl preprocess
@@ -135,7 +141,7 @@ def PREPROCESS_FILTER(pair, well_setting='96well-3'):
 
 def FL_PREPROCESS(fl, scale=1., offset=0.):
     if fl is None:
-        return None 
+        return None
     fl = fl.astype(float)
     _fl = fl * scale + offset
     _fl = np.clip(_fl, 0, 65535).astype(int).astype('uint16')
@@ -145,16 +151,16 @@ def FL_PREPROCESS(fl, scale=1., offset=0.):
 # %% Featurize each experiment
 for raw_dir, inter_dir in zip(RAW_FOLDERS, OUTPUT_FOLDERS):
     os.makedirs(inter_dir, exist_ok=True)
-    
+
     well_setting = WELL_SETTINGS[raw_dir]
     preprocess_filter = partial(PREPROCESS_FILTER, well_setting=well_setting)
-    
+
     pairs = load_all_pairs(path=raw_dir, check_valid=RAW_F_FILTER)
 
     kwargs = {'labels': []}
     if raw_dir in FL_PREPROCESS_SETTINGS and raw_dir in FL_STATS:
         fl_preprocess_setting = FL_PREPROCESS_SETTINGS[raw_dir]
-        fl_preprocess_fn = partial(FL_PREPROCESS, 
+        fl_preprocess_fn = partial(FL_PREPROCESS,
                                    scale=fl_preprocess_setting[0],
                                    offset=fl_preprocess_setting[1])
         fl_stat = FL_STATS[raw_dir]
@@ -166,8 +172,8 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, OUTPUT_FOLDERS):
         kwargs['raw_label_preprocess'] = fl_preprocess_fn
         kwargs['nonneg_thr'] = fl_nonneg_thr
 
-    preprocess(pairs, 
-               output_path=inter_dir, 
+    preprocess(pairs,
+               output_path=inter_dir,
                preprocess_filter=preprocess_filter,
                target_size=(384, 288),
                well_setting=well_setting,
@@ -198,7 +204,7 @@ for output_path in OUTPUT_FOLDERS:
 
     test_gen = CustomGenerator(
         name_file,
-        X_filenames, 
+        X_filenames,
         augment=False,
         batch_with_name=True,
         **kwargs)
@@ -222,3 +228,4 @@ for output_path in OUTPUT_FOLDERS:
                               save_path=corrected_output_path,
                               write_segment_labels=False,
                               write_classify_labels=False)
+
