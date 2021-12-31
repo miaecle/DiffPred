@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Jun 21 15:31:55 2021
-
-@author: zqwu
-"""
 import os
 import pickle
 import numpy as np
@@ -33,9 +26,14 @@ RAW_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line_839/ex0',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line_975/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line_975-839/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well-gfp',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well-gfp',
 ]
 
 OUTPUT_FOLDERS = [
@@ -56,9 +54,14 @@ OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex1-6_12/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex2-6_12/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/12well/line1_3R/ex2-12well/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/12well/line_839/ex0/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/12well/line_975/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/24well/line1_3R/ex0-24well/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/24well/line_975-839/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex0-96well/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex0-96well-gfp/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex1-96well/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex1-96well-gfp/0-to-0/',
 ]
 
 WELL_SETTINGS = {
@@ -79,9 +82,14 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': '12well-9',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line_839/ex0': '12well-9',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line_975/ex0': '12well-9',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': '24well-6',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line_975-839/ex0': '24well-6',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well-gfp': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well-gfp': '96well-3',
 }
 
 # scale and offset parameters for raw fl preprocess
@@ -228,4 +236,5 @@ for output_path in OUTPUT_FOLDERS:
                               save_path=corrected_output_path,
                               write_segment_labels=False,
                               write_classify_labels=False)
+
 
