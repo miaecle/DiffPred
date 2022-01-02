@@ -30,6 +30,9 @@ RAW_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line_975/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line_975-839/ex0',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line1_3R/ex0',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line_839/ex0',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line_975/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well-gfp',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well',
@@ -58,6 +61,9 @@ OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/12well/line_975/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/24well/line1_3R/ex0-24well/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/24well/line_975-839/ex0/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_differentiation/line1_3R/ex0/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_differentiation/line_839/ex0/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_differentiation/line_975/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex0-96well/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex0-96well-gfp/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex1-96well/0-to-0/',
@@ -86,6 +92,9 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line_975/ex0': '12well-9',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': '24well-6',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line_975-839/ex0': '24well-6',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line1_3R/ex0': '6well-14',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line_839/ex0': '6well-14',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line_975/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well-gfp': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well': '96well-3',
@@ -101,6 +110,7 @@ FL_PREPROCESS_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': (3.5, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': (1.5, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': (2.0, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line1_3R/ex0': (3.5, 0.0),
 }
 
 FL_STATS = {
@@ -111,6 +121,7 @@ FL_STATS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': (4000, 1350),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': (8200, 4000),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': (9700, 2800),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line1_3R/ex0': (6000, 1300),
 }
 
 RAW_F_FILTER = lambda f: not 'bkp' in f
@@ -190,6 +201,15 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, OUTPUT_FOLDERS):
                seed=123,
                **kwargs)
 
+    if raw_dir in FL_STATS:
+        image_output_dir = inter_dir.replace('/0-to-0/', '/sample_figs/')
+        extract_samples_for_inspection([p for p in pairs if p[0] is not None and preprocess_filter(p)], 
+                                       inter_dir, 
+                                       image_output_dir, 
+                                       seed=123)
+
+
+
 
 # %% Check invalid entries and remove
 kwargs = {
@@ -236,5 +256,7 @@ for output_path in OUTPUT_FOLDERS:
                               save_path=corrected_output_path,
                               write_segment_labels=False,
                               write_classify_labels=False)
+
+
 
 
