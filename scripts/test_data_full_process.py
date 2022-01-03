@@ -5,7 +5,7 @@ import pandas as pd
 from functools import partial
 
 from data_loader import load_all_pairs, get_identifier, load_image_pair, load_image
-from data_assembly import preprocess
+from data_assembly import preprocess, extract_samples_for_inspection
 from data_generator import CustomGenerator
 
 RAW_FOLDERS = [
