@@ -1,6 +1,6 @@
 *.pptx
 *.png
-
+VALIDATION/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
