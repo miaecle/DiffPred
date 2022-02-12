@@ -12,7 +12,7 @@ RAW_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_477/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_202/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_20/ex0',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_100/ex3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_100/ex4',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_142/ex1',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_273/ex2',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_839/ex1',
@@ -20,11 +20,11 @@ RAW_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_854/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_975/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_other_instrument',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line_839/ex0',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line_975/ex0',
@@ -43,7 +43,7 @@ OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_477/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_202/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_20/ex0/0-to-0/',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_100/ex3/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_100/ex4/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_142/ex1/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_273/ex2/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_839/ex1/0-to-0/',
@@ -51,11 +51,11 @@ OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_854/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_975/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex2_other_instrument/0-to-0/',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex2_prospective/0-to-0/',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex1-14/0-to-0/',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex2-14/0-to-0/',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex1-6_12/0-to-0/',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex2-6_12/0-to-0/',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex2_prospective/0-to-0/',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex1-14/0-to-0/',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex2-14/0-to-0/',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex1-6_12/0-to-0/',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_combined-for-seg/ex2-6_12/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/12well/line1_3R/ex2-12well/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/12well/line_839/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/12well/line_975/ex0/0-to-0/',
@@ -74,7 +74,7 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_477/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_202/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_20/ex0': '6well-15',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_100/ex3': '6well-14',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_100/ex4': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_142/ex1': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_273/ex2': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_839/ex1': '6well-14',
@@ -82,11 +82,11 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_854/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_975/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_other_instrument': '96well-3',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': '96well-3',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': '96well-3',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': '96well-3',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': '96well-3',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': '96well-3',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': '96well-3',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': '96well-3',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': '96well-3',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': '96well-3',
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': '12well-9',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line_839/ex0': '12well-9',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line_975/ex0': '12well-9',
@@ -103,22 +103,22 @@ WELL_SETTINGS = {
 
 # scale and offset parameters for raw fl preprocess
 FL_PREPROCESS_SETTINGS = {
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': (3.0, 0.0),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': (2.7, 0.0),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': (2.7, 0.0),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': (3.5, 0.0),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': (3.5, 0.0),
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': (3.0, 0.0),
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': (2.7, 0.0),
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': (2.7, 0.0),
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': (3.5, 0.0),
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': (3.5, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': (1.5, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': (2.0, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line1_3R/ex0': (3.5, 0.0),
 }
 
 FL_STATS = {
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': (4104, 2277),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': (4000, 1350),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': (4000, 1350),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': (4000, 1350),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': (4000, 1350),
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_prospective': (4104, 2277),
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-6_12': (4000, 1350),
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex1-14': (4000, 1350),
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-6_12': (4000, 1350),
+    # '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_combined-for-seg/ex2-14': (4000, 1350),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': (8200, 4000),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': (9700, 2800),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line1_3R/ex0': (6000, 1300),
@@ -203,9 +203,9 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, OUTPUT_FOLDERS):
 
     if raw_dir in FL_STATS:
         image_output_dir = inter_dir.replace('/0-to-0/', '/sample_figs/')
-        extract_samples_for_inspection([p for p in pairs if p[0] is not None and preprocess_filter(p)], 
-                                       inter_dir, 
-                                       image_output_dir, 
+        extract_samples_for_inspection([p for p in pairs if p[0] is not None and preprocess_filter(p)],
+                                       inter_dir,
+                                       image_output_dir,
                                        seed=123)
 
 
@@ -256,6 +256,7 @@ for output_path in OUTPUT_FOLDERS:
                               save_path=corrected_output_path,
                               write_segment_labels=False,
                               write_classify_labels=False)
+
 
 
 
