@@ -137,7 +137,7 @@ def generate_mask(pair_dat, plot=False):
     return mask
 
 
-def generate_fluorescence_labels(pair_dat, mask):
+def generate_fluorescence_labels(pair_dat, mask, **kwargs):
     fl = pair_dat[1]
     
     # Add blur to intensity
@@ -204,14 +204,14 @@ def generate_fluorescence_labels(pair_dat, mask):
     return positives - negatives + 1
 
 
-def quantize_fluorescence(pair_dat, mask):
-    segmentation = generate_fluorescence_labels(pair_dat, mask)
+def quantize_fluorescence(pair_dat, mask, neg_percentile=50, pos_percentile=50, **kwargs):
+    segmentation = generate_fluorescence_labels(pair_dat, mask, **kwargs)
     
     fl = pair_dat[1]
     neg_intensity = fl[np.where(segmentation==0)]
     pos_intensity = fl[np.where(segmentation==2)]
-    zero_standard = np.median(neg_intensity)
-    one_standard = np.median(pos_intensity)
+    zero_standard = np.percentile(neg_intensity, neg_percentile)
+    one_standard = np.percentile(pos_intensity, pos_percentile)
     
     segs = np.linspace(zero_standard, one_standard, 4)
     interval_seg = segs[1] - segs[0]

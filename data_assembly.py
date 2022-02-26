@@ -59,7 +59,8 @@ def preprocess(pairs,
                well_setting='96well-3', #'6well-15', '6well-14' or '96well-3'
                linear_align=False,
                shuffle=True,
-               seed=None):
+               seed=None,
+               **featurize_kwargs):
     if not seed is None:
         np.random.seed(seed)
 
@@ -121,7 +122,7 @@ def preprocess(pairs,
 
         if not pair_dat[1] is None and 'discrete' in labels:
             try:
-                y, discrete_w = generate_discrete_labels(pair_dat, mask, cv2_shape, w, nonneg_thr=nonneg_thr)
+                y, discrete_w = generate_discrete_labels(pair_dat, mask, cv2_shape, w, nonneg_thr=nonneg_thr, **featurize_kwargs)
                 segment_discrete_ys[ind] = y.reshape(np_shape).astype(int)
                 segment_discrete_ws[ind] = discrete_w.reshape(np_shape).astype(float)
             except Exception as e:
@@ -136,7 +137,7 @@ def preprocess(pairs,
         # Segment labels (continuous fluorescence in 4 classes)
         if not pair_dat[1] is None and 'continuous' in labels:
             try:
-                y, continuous_w = generate_continuous_labels(pair_dat, mask, cv2_shape, w, nonneg_thr=nonneg_thr)
+                y, continuous_w = generate_continuous_labels(pair_dat, mask, cv2_shape, w, nonneg_thr=nonneg_thr, **featurize_kwargs)
                 segment_continuous_ys[ind] = y.reshape(np_shape).astype(float)
                 segment_continuous_ws[ind] = continuous_w.reshape(np_shape).astype(float)
 

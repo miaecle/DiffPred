@@ -172,7 +172,7 @@ def get_ex_day(name):
 
 def well_id_from_name(f):
     try:
-        f = f.split('/')[-1].split('.')[0]
+        f = os.path.split(f)[-1].split('.')[0]
         f = f.split('_')
         return (f[0], f[3])
     except Exception:
