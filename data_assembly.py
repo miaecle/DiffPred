@@ -10,9 +10,9 @@ from segment_support import generate_mask, generate_weight, generate_fluorescenc
 from segment_support import adjust_contrast, binarized_fluorescence_label
 
 
-def generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=65535):
+def generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=65535, **kwargs):
     # 0 - bg, 2 - fg, 1 - intermediate
-    discrete_y = generate_fluorescence_labels(pair_dat, mask)
+    discrete_y = generate_fluorescence_labels(pair_dat, mask, **kwargs)
     y = cv2.resize(discrete_y, cv2_shape)
     y[np.where((y > 0) & (y < 1))] = 1
     y[np.where((y > 1) & (y < 2))] = 1
@@ -31,8 +31,8 @@ def generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=
     return y, discrete_w
 
 
-def generate_continuous_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=65535):
-    continuous_y = quantize_fluorescence(pair_dat, mask)
+def generate_continuous_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=65535, **kwargs):
+    continuous_y = quantize_fluorescence(pair_dat, mask, **kwargs)
     y = cv2.resize(continuous_y, cv2_shape)
 
     continuous_w = copy.deepcopy(weight_init)
@@ -42,7 +42,7 @@ def generate_continuous_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_th
         target_y = np.zeros((1, y.shape[-1]))
         target_y[0, 0] = 1.
         y[np.where(y != y)[:2]] = target_y
-        continuous_w = generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=nonneg_thr)[1]
+        continuous_w = generate_discrete_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=nonneg_thr, **kwargs)[1]
     else:
         continuous_w[np.where(y != y)[:2]] = 0
         y[np.where(y != y)[:2]] = np.zeros((1, y.shape[-1]))
@@ -60,7 +60,7 @@ def preprocess(pairs,
                linear_align=False,
                shuffle=True,
                seed=None,
-               **featurize_kwargs):
+               featurize_kwargs={}):
     if not seed is None:
         np.random.seed(seed)
 
