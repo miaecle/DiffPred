@@ -210,6 +210,9 @@ def quantize_fluorescence(pair_dat, mask, neg_percentile=50, pos_percentile=50, 
     fl = pair_dat[1]
     neg_intensity = fl[np.where(segmentation==0)]
     pos_intensity = fl[np.where(segmentation==2)]
+    if len(pos_intensity) < 10:
+        fl_discretized = np.stack([np.ones_like(fl)] + [np.zeros_like(fl)] * 3, 2)
+        return fl_discretized
     zero_standard = np.percentile(neg_intensity, neg_percentile)
     one_standard = np.percentile(pos_intensity, pos_percentile)
     
