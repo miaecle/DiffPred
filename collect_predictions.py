@@ -31,24 +31,24 @@ def augment_fixed_interval(X, interval=15):
     return _X
 
 
-def filter_for_inf_predictor(batch):
+def filter_for_inf_predictor(batch, day_min=4, day_max=12):
     X, labels, batch_names = batch
     inds = []
     for i, name in enumerate(batch_names):
         if isinstance(name, list) or isinstance(name, tuple):
             name = name[0]
-        if 4 <= int(get_identifier(name)[2]) <= 12:
+        if day_min <= int(get_identifier(name)[2]) <= day_max:
             inds.append(i)
     return np.array(inds)
 
 
-def filter_for_0_predictor(batch):
+def filter_for_0_predictor(batch, day_min=7, day_max=20):
     X, labels, batch_names = batch
     inds = []
     for i, name in enumerate(batch_names):
         if isinstance(name, list) or isinstance(name, tuple):
             name = name[0]
-        if 7 <= int(get_identifier(name)[2]) <= 20:
+        if day_min <= int(get_identifier(name)[2]) <= day_max:
             inds.append(i)
     return np.array(inds)
 
@@ -220,7 +220,7 @@ if __name__ == '__main__':
     model = get_model(model_path)
 
     if '0-to-inf' in model_path:
-        input_filter = filter_for_inf_predictor
+        input_filter = partial(filter_for_inf_predictor, day_min=1, day_max=12)
         input_transform = partial(augment_fixed_end, end=target_day)
     elif '0-to-0' in model_path:
         input_filter = filter_for_0_predictor
