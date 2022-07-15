@@ -6,16 +6,13 @@ import numpy as np
 import scipy
 import argparse
 import tempfile
-import matplotlib.pyplot as plt
 from functools import partial
-from scipy.stats import spearmanr, pearsonr
-from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, confusion_matrix
 from keras.models import Model
 
-from data_loader import get_identifier, get_ex_day
+from data_loader import get_identifier
 from models import Segment, ClassifyOnSegment
-from layers import load_partial_weights, fill_first_layer, evaluate_confusion_mat, summarize_conf_mat
-from data_generator import CustomGenerator, PairGenerator, enhance_weight_for_false_positives
+from layers import evaluate_confusion_mat
+from data_generator import CustomGenerator, PairGenerator
 
 
 def augment_fixed_end(X, end=15):
