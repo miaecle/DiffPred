@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from functools import partial
 from scipy.stats import spearmanr, pearsonr
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, confusion_matrix
+from keras.models import Model
 
 from data_loader import get_identifier, get_ex_day
 from models import Segment, ClassifyOnSegment
@@ -174,6 +175,51 @@ def collect_preds(valid_gen,
                      "cla_trues": np.stack(cla_trues, 0) if len(cla_trues) > 0 else cla_trues,
                      "cla_ws": np.stack(cla_ws, 0) if len(cla_ws) > 0 else cla_ws,
                      "pred_names": pred_names}, f)
+
+
+def collect_embeddings(valid_gen, 
+                       model,
+                       save_dir, 
+                       layer_names=[
+                           'classify_head_pool1',
+                           'classify_head_fc0',
+                           'classify_head_fc1',
+                       ],
+                       input_transform=None, 
+                       input_filter=None):
+    os.makedirs(save_dir, exist_ok=True)
+    all_layer_names = [layer.name for layer in model.model.layers]
+    assert len(all_layer_names) == len(set(all_layer_names))
+
+    # Define models for extracting embeddings
+    _models = []
+    for layer_name in layer_names:
+        assert layer_name in all_layer_names
+        _models.append(Model(model.input, model.model.layers[all_layer_names.index(layer_name)].output))
+
+    emb_save = {"embedding-%s" % layer_name: [] for layer_name in layer_names}
+    emb_save["pred_names"] = []
+    for batch in valid_gen:
+        X = batch[0]
+        names = batch[-1]
+        if not input_filter is None:
+            inds = input_filter(batch)
+        else:
+            inds = np.arange(X.shape[0])
+        if len(inds) == 0:
+            continue
+        if not input_transform is None:
+            X = input_transform(X)
+
+        # Run embedding models
+        for layer_name, _model in zip(layer_names, _models):
+            emb = _model.predict(X)
+            emb_save["embedding-%s" % layer_name].extend([emb[i] for i in inds])
+        emb_save["pred_names"].extend([names[i] for i in inds])
+
+    with open(os.path.join(save_dir, "embs.pkl"), 'wb') as f:
+        pickle.dump(emb_save, f)
+    return
 
 
 def parse_args(cli=True):
