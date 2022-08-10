@@ -307,6 +307,36 @@ def evaluate_confusion_mat(data, model):
   return
 
 
+def evaluate_confusion_mat_classify_only(data, model):
+  """
+  data: CustomGenerator, PairGenerator, etc.
+  model: Classify
+  """
+  conf_mat_classify = np.zeros((10, 10))
+  for batch in data:
+    y_pred_classify = model.model.predict(batch[0])
+    yw_true_classify = batch[1]
+
+    y_pred_classify = scipy.special.softmax(y_pred_classify, -1)
+
+    y_true_classify = yw_true_classify[..., :-1]
+    w_true_classify = yw_true_classify[..., -1]
+
+    for c_y_pred, c_y_true, c_w in zip(y_pred_classify, y_true_classify, w_true_classify):
+      if c_w == 0:
+        continue
+      conf_mat_classify[np.argmax(c_y_true), np.argmax(c_y_pred)] += 1
+
+  n_classify_classes = np.where(conf_mat_classify > 0)[0].max() + 1
+  conf_mat_classify = conf_mat_classify[:n_classify_classes, :n_classify_classes]  
+
+  conf_mat_classify = conf_mat_classify/conf_mat_classify.sum(1, keepdims=True)
+  print("Classification")
+  print(conf_mat_classify)
+  summarize_conf_mat(conf_mat_classify)
+  return
+
+
 def summarize_conf_mat(conf_mat):
   n_classes = conf_mat.shape[0]
   conf_mat = conf_mat/conf_mat.sum(1, keepdims=True)
