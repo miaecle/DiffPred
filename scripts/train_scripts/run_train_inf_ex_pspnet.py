@@ -16,7 +16,7 @@ TEST_DIR1 = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuou
 TEST_DIR2 = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/0-to-inf_continuous/l3ex4_valid/'
 SPLIT_FILE = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/TRAIN/ex_split.pkl'
 
-MODEL_DIR = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/ex_split/0-to-inf_ex/'
+MODEL_DIR = '/oak/stanford/groups/jamesz/zqwu/iPSC_data/model_save/ex_split/0-to-inf_ex_pspnet/'
 os.makedirs(ROOT_DIR, exist_ok=True)
 os.makedirs(VALID_DIR, exist_ok=True)
 os.makedirs(TEST_DIR1, exist_ok=True)
@@ -109,7 +109,7 @@ for inds, save_dir in zip([valid_inds, test_inds1, test_inds2], [VALID_DIR, TEST
 print("Initiate Model", flush=True)
 model = ClassifyOnSegment(
     input_shape=(288, 384, 3),
-    segment_model_structure='unet',
+    segment_model_structure='pspnet',
     model_path=MODEL_DIR,
     encoder_weights='imagenet',
     n_segment_classes=4,
@@ -123,5 +123,5 @@ model.fit(train_gen,
           valid_gen=validation_gens[0],
           verbose=2,
           n_epochs=200)
-model.save(os.path.join(MODEL_DIR, 'unet_ex_0-to-inf_0.model'))
+model.save(os.path.join(MODEL_DIR, 'pspnet_ex_0-to-inf_0.model'))
 
