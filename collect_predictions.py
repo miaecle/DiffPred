@@ -10,8 +10,8 @@ from functools import partial
 from keras.models import Model
 
 from data_loader import get_identifier
-from models import Segment, ClassifyOnSegment
-from layers import evaluate_confusion_mat
+from models import Classify, Segment, ClassifyOnSegment
+from layers import evaluate_confusion_mat, evaluate_confusion_mat_classify_only
 from data_generator import CustomGenerator, PairGenerator
 
 
@@ -93,27 +93,46 @@ def get_model(model_path):
     else:
         raise ValueError("MODEL PATH not valid")
 
+    if 'pspnet' in model_path:
+        model_structure = 'pspnet'
+    elif 'fpn' in model_path:
+        model_structure = 'fpn'
+    elif 'resnet' in model_path:
+        model_structure = 'resnet34'
+    else:
+        model_structure = 'unet'
+
     #%% Define Model ###
-    model = ClassifyOnSegment(
-        input_shape=(288, 384, n_input_channel),
-        model_structure='pspnet',
-        model_path=tempfile.mkdtemp(),
-        encoder_weights='imagenet',
-        n_segment_classes=4,
-        segment_class_weights=[1., 1., 1., 1.],
-        n_classify_classes=4,
-        classify_class_weights=[1., 1., 1., 1.],
-        eval_fn=evaluate_confusion_mat)
+    if model_structure != 'resnet34':
+        model = ClassifyOnSegment(
+            input_shape=(288, 384, n_input_channel),
+            segment_model_structure=model_structure,
+            model_path=tempfile.mkdtemp(),
+            encoder_weights='imagenet',
+            n_segment_classes=4,
+            segment_class_weights=[1., 1., 1., 1.],
+            n_classify_classes=4,
+            classify_class_weights=[1., 1., 1., 1.],
+            eval_fn=evaluate_confusion_mat)
+    else:
+        model = Classify(
+            input_shape=(288, 384, n_input_channel),
+            fc_layers=[1024, 128],
+            n_classes=4,
+            encoder_weights='imagenet',
+            model_path=tempfile.mkdtemp(),
+            eval_fn=evaluate_confusion_mat_classify_only,
+            model_structure=model_structure)
 
     model.load(model_path)
     return model
 
 
 #%% Collect predictions ###
-def collect_preds(valid_gen, 
-                  model, 
-                  pred_save_dir, 
-                  input_transform=None, 
+def collect_preds(valid_gen,
+                  model,
+                  pred_save_dir,
+                  input_transform=None,
                   input_filter=None):
     os.makedirs(pred_save_dir, exist_ok=True)
 
@@ -137,26 +156,39 @@ def collect_preds(valid_gen,
             X = input_transform(X)
 
         pred = model.model.predict(X)
-        seg_pred = scipy.special.softmax(pred[0], -1)
-        seg_pred = seg_pred[..., 1] + seg_pred[..., 2]*2 + seg_pred[..., 3] * 3
-        pred_save["seg_preds"].extend([seg_pred[i] for i in inds])
+        if (isinstance(pred, list) or isinstance(pred, tuple)) and len(pred) == 2:
+            seg_pred, cla_pred = pred
+        else:
+            seg_pred = None
+            cla_pred = pred
 
-        cla_pred = scipy.special.softmax(pred[1], -1)
+        if seg_pred is not None:
+            seg_pred = scipy.special.softmax(seg_pred, -1)
+            seg_pred = seg_pred[..., 1] + seg_pred[..., 2]*2 + seg_pred[..., 3] * 3
+            pred_save["seg_preds"].extend([seg_pred[i] for i in inds])
+
+        cla_pred = scipy.special.softmax(cla_pred, -1)
         cla_preds.extend([cla_pred[i] for i in inds])
+
+
+        if not batch[1] is None:
+            if (isinstance(batch[1], list) or isinstance(batch[1], tuple)) and len(batch[1]) == 2:
+                seg_true, cla_true = batch[1]
+            else:
+                seg_true = None
+                cla_true = batch[1]
+            cla_y, cla_w = cla_true[..., :-1], cla_true[..., -1]
+            cla_trues.extend([cla_y[i] for i in inds])
+            cla_ws.extend([cla_w[i] for i in inds])
+
+            if seg_true is not None:
+                seg_y = seg_true[..., 1] + seg_true[..., 2]*2 + seg_true[..., 3] * 3
+                seg_w = seg_true[..., -1]
+                pred_save["seg_trues"].extend([seg_y[i] for i in inds])
+                pred_save["seg_ws"].extend([seg_w[i] for i in inds])
 
         pred_save["pred_names"].extend([names[i] for i in inds])
         pred_names.extend([names[i] for i in inds])
-
-        if not batch[1] is None:
-            seg_true, cla_true = batch[1]
-            seg_y = seg_true[..., 1] + seg_true[..., 2]*2 + seg_true[..., 3] * 3
-            seg_w = seg_true[..., -1]
-            cla_y, cla_w = cla_true[..., :-1], cla_true[..., -1]
-            pred_save["seg_trues"].extend([seg_y[i] for i in inds])
-            pred_save["seg_ws"].extend([seg_w[i] for i in inds])
-        
-            cla_trues.extend([cla_y[i] for i in inds])
-            cla_ws.extend([cla_w[i] for i in inds])
 
         if len(pred_save["seg_preds"]) >= 500:
             with open(os.path.join(pred_save_dir, "seg_%d.pkl" % file_ct), 'wb') as f:
@@ -166,7 +198,7 @@ def collect_preds(valid_gen,
 
     with open(os.path.join(pred_save_dir, "seg_%d.pkl" % file_ct), 'wb') as f:
         pickle.dump(pred_save, f)
-        
+
     with open(os.path.join(pred_save_dir, "cla.pkl"), 'wb') as f:
         pickle.dump({"cla_preds": np.stack(cla_preds, 0),
                      "cla_trues": np.stack(cla_trues, 0) if len(cla_trues) > 0 else cla_trues,
@@ -174,15 +206,15 @@ def collect_preds(valid_gen,
                      "pred_names": pred_names}, f)
 
 
-def collect_embeddings(valid_gen, 
+def collect_embeddings(valid_gen,
                        model,
-                       save_dir, 
+                       save_dir,
                        layer_names=[
                            'classify_head_pool1',
                            'classify_head_fc0',
                            'classify_head_fc1',
                        ],
-                       input_transform=None, 
+                       input_transform=None,
                        input_filter=None):
     os.makedirs(save_dir, exist_ok=True)
     all_layer_names = [layer.name for layer in model.model.layers]
@@ -257,7 +289,7 @@ if __name__ == '__main__':
     pred_save_dir = args.output_dir
     target_day = args.pred_target_day
     with_label = args.with_label
-    
+
     gen_fn = CustomGenerator if '0-to-0' in data_dir else PairGenerator # PairGenerator for 3 channel, CustomGenerator for 2 channel
     valid_gen = get_data_gen(data_dir, gen_fn, batch_size=8, with_label=with_label)
     model = get_model(model_path)
@@ -272,3 +304,4 @@ if __name__ == '__main__':
         raise ValueError("model not supported")
 
     collect_preds(valid_gen, model, pred_save_dir, input_transform=input_transform, input_filter=input_filter)
+
