@@ -48,6 +48,8 @@ RAW_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well-gfp',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well-gfp',
+    ### different institutions ###
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UofT',
 ]
 
 OUTPUT_FOLDERS = [
@@ -81,6 +83,7 @@ OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex0-96well-gfp/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex1-96well/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex1-96well-gfp/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_institutions/ex_UofT/0-to-0/',
 ]
 
 WELL_SETTINGS = {
@@ -114,6 +117,7 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well-gfp': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well-gfp': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UofT': '24well-5',
 }
 
 # scale and offset parameters for raw fl preprocess
