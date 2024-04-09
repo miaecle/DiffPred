@@ -88,12 +88,27 @@ def load_all_pairs(path='predict_gfp_raw', check_valid=lambda x: True):
 def check_pairs_by_day(pairs):
     """ Count file pairs by experiment day """
     days = set([get_identifier(p[0])[2] for p in pairs])
-    print("Day\tPair\tPC\tGFP")
+    print("Day\tFull\tPC\tGFP")
     for day in sorted(days, key=lambda x: int(x)):
         n_pairs = len([p for p in pairs if p[0] is not None and p[1] is not None and get_identifier(p[0])[2] == day])
         n_pcs = len([p for p in pairs if p[0] is not None and get_identifier(p[0])[2] == day])
         n_gfps = len([p for p in pairs if p[1] is not None and get_identifier(p[1])[2] == day])
         print("%s\t%d\t%d\t%d" % (day, n_pairs, n_pcs, n_gfps))
+
+
+def check_positions(pairs, limit_to_day=None):
+    """ Check well and position identifiers """
+    if limit_to_day is not None:
+        pairs = [p for p in pairs if get_identifier(p[0])[2] == str(limit_to_day)]
+    unique_wells = set(get_identifier(p[0])[3] for p in pairs)
+    print(len(unique_wells))
+    print(sorted(set(w[0] for w in unique_wells)))
+    print(sorted(set(w[1:] for w in unique_wells)))
+    unique_positions = set(get_identifier(p[0])[4] for p in pairs)
+    print(len(unique_positions))
+    if len(unique_positions) < 20:
+        print(sorted(unique_positions))
+    return unique_wells, unique_positions
 
 
 def load_image(f):
@@ -200,7 +215,3 @@ def get_identifier(f):
     else:
         print("Cannot parse file path %s" % f)
         return tuple(f.strip().strip('/').split('/'))
-
-
-if __name__ == '__main__':
-    pass
