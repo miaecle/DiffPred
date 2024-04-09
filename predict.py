@@ -45,7 +45,7 @@ def main(args):
     target_day = args.target_day
 
     intermediate_save_dir = tempfile.mkdtemp()
-    
+
     # if `well_setting` is given, corner views will be removed
     preprocess_filter = partial(PREPROCESS_FILTER, well_setting=well_setting) if len(well_setting) > 0 else lambda x: True
 
@@ -56,7 +56,7 @@ def main(args):
     print("Checking input data")
     # Function below checks all the identified phase contrast/GFP files and shows stats
     check_pairs_by_day(pairs)
-    
+
     # Process all input files, save into a temp folder
     preprocess(pairs, 
                output_path=intermediate_save_dir, 
@@ -67,7 +67,7 @@ def main(args):
                shuffle=True,
                seed=123,
                labels=[])
-    
+
     n_fs = len([f for f in os.listdir(intermediate_save_dir) if f.startswith('X_') and f.endswith('.pkl')])
     X_filenames = [os.path.join(intermediate_save_dir, 'X_%d.pkl' % i) for i in range(n_fs)]
     name_file = os.path.join(intermediate_save_dir, 'names.pkl')

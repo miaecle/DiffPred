@@ -1,12 +1,11 @@
 import os
 import numpy as np
-import sys
 import difflib
 import tifffile
 import cv2
-import pickle
 
 CHANNEL_MAX = 65535
+
 
 def n_diff(s1, s2):
     """ Check edit distance between two strings """
@@ -46,7 +45,7 @@ def load_all_pairs(path='predict_gfp_raw', check_valid=lambda x: True):
     fs = get_all_files(path=path)
     fs = [f for f in fs if check_valid(f)]
     pcs = sorted([f for f in fs if 'Phase' in f])
-    gfps = sorted([f for f in fs if not 'Phase' in f and 'GFP' in f])
+    gfps = sorted([f for f in fs if 'Phase' not in f and 'GFP' in f])
 
     exclusions = []
     pc_file_mapping = {}
@@ -100,9 +99,9 @@ def check_pairs_by_day(pairs):
 def load_image(f):
     try:
         img = tifffile.imread(f)
-    except Exception as e:
+    except Exception:
         img = cv2.imread(f, -1)
-        assert not img is None
+        assert img is not None
         if len(img.shape) == 3:
             img = img[..., 0]
     if img.dtype == 'uint16':
@@ -112,14 +111,14 @@ def load_image(f):
 
 
 def load_image_pair(pair):
-    dats = [load_image(f) if not f is None else None for f in pair]
-    assert len(set(d.shape for d in dats if not d is None)) == 1
+    dats = [load_image(f) if f is not None else None for f in pair]
+    assert len(set(d.shape for d in dats if d is not None)) == 1
     return dats
 
 
 def get_fl_distri(pairs):
     fl_files = [pair[1] for pair in pairs if pair[1] is not None]
-    overall_distri = {i:0 for i in range(65536)}
+    overall_distri = {i: 0 for i in range(65536)}
     for fl_f in fl_files:
         try:
             mat = load_image(fl_f)
@@ -143,8 +142,8 @@ def get_fl_stats(distri):
 def get_line_name(name):
     n = name.split('/')
     for i, seg in enumerate(n):
-      if seg.startswith('line'):
-        return seg
+        if seg.startswith('line'):
+            return seg
     return None
 
 
@@ -152,9 +151,9 @@ def get_ex_day(name):
     try:
         n = name.split('/')
         for i, seg in enumerate(n):
-          if seg.startswith('ex'):
-            ex_id = seg
-            break
+            if seg.startswith('ex'):
+                ex_id = seg
+                break
         detail = n[i+1]
         detail = detail.replace('-', ' ').replace('_', ' ')
         ds_sep = detail.split()
