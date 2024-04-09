@@ -8,178 +8,182 @@ Created on Wed Feb  6 13:22:55 2019
 import segmentation_models
 import classification_models
 import numpy as np
-import keras
 import tempfile
 import os
 import scipy
-from keras import backend as K
-from keras.models import Model, load_model
-from keras import layers
-from keras.layers import Dense, Layer, Input, BatchNormalization, Conv2D
-from layers import weighted_cross_entropy, sparse_weighted_cross_entropy, l2_loss
-from layers import Conv2dBn, ValidMetrics
-from layers import evaluate_segmentation, evaluate_classification, evaluate_segmentation_and_classification
+
+import tensorflow as tf
+import tensorflow.keras as keras
+from tensorflow.keras.models import Model
+from tensorflow.keras import layers
+from tensorflow.keras.layers import Dense, Input, Conv2D
+
+from layers import (
+    weighted_cross_entropy,
+    Conv2dBn,
+    ValidMetrics,
+    evaluate_segmentation,
+    evaluate_classification,
+    evaluate_segmentation_and_classification,
+)
 from data_generator import CustomGenerator
 
 
 class Segment(object):
-  def __init__(self,
-               input_shape=(288, 384, 1),
-               n_classes=2,
-               encoder_weights='imagenet',
-               freeze_encoder=False,
-               loss_fn=weighted_cross_entropy,
-               eval_fn=evaluate_segmentation,
-               model_structure='unet',
-               model_path=None,
-               **kwargs):
-    self.input_shape = input_shape
-    self.n_classes = n_classes
+    def __init__(self,
+                 input_shape=(288, 384, 1),
+                 n_classes=2,
+                 encoder_weights='imagenet',
+                 freeze_encoder=False,
+                 loss_fn=weighted_cross_entropy,
+                 eval_fn=evaluate_segmentation,
+                 model_structure='unet',
+                 model_path=None,
+                 **kwargs):
+        self.input_shape = input_shape
+        self.n_classes = n_classes
 
-    self.structure = model_structure
-    self.encoder_weights = encoder_weights
-    self.freeze_encoder = freeze_encoder
-    if model_path is None:
-      self.model_path = tempfile.mkdtemp()
-    else:
-      self.model_path = model_path
-    self.call_backs = [keras.callbacks.TerminateOnNaN(),
-                       keras.callbacks.ReduceLROnPlateau(patience=20, min_lr=1e-7),
-                       keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
-    self.valid_score_callback = ValidMetrics(eval_fn)
+        self.structure = model_structure
+        self.encoder_weights = encoder_weights
+        self.freeze_encoder = freeze_encoder
+        if model_path is None:
+            self.model_path = tempfile.mkdtemp()
+        else:
+            self.model_path = model_path
+        self.call_backs = [
+            keras.callbacks.TerminateOnNaN(),
+            keras.callbacks.ReduceLROnPlateau(patience=20, min_lr=1e-7),
+            keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
+        self.valid_score_callback = ValidMetrics(eval_fn)
 
-    self.loss_func = loss_fn(n_classes=n_classes)
-    self.build_model()
-    self.compile()
+        self.loss_func = loss_fn(n_classes=n_classes)
+        self.build_model()
+        self.compile()
 
+    def build_model(self):
+        self.input = Input(shape=self.input_shape, dtype='float32')
+        self.pre_conv = Dense(3, activation=None, name='pre_conv')(self.input)
+        self.net = self.get_backbone_module(self.n_classes)
+        output = self.net(self.pre_conv)
+        self.model = Model(self.input, output)
 
-  def build_model(self):
-    self.input = Input(shape=self.input_shape, dtype='float32')
-    self.pre_conv = Dense(3, activation=None, name='pre_conv')(self.input)
-    self.net = self.get_backbone_module(self.n_classes)
-    output = self.net(self.pre_conv)
-    self.model = Model(self.input, output)
-
-
-  def get_backbone_module(self, n_classes, activation='linear'):
-    if self.structure == 'unet':
-        net = segmentation_models.models.unet.Unet(
-            backbone_name='resnet34',
-            input_shape=list(self.input_shape[:2]) + [3],
-            classes=n_classes,
-            activation=activation,
-            encoder_weights=self.encoder_weights,
-            encoder_freeze=False,
-            encoder_features='default',
-            decoder_block_type='upsampling',
-            decoder_filters=(256, 128, 64, 32, 16),
-            decoder_use_batchnorm=True,
-            backend=keras.backend,
-            layers=keras.layers,
-            models=keras.models,
-            utils=keras.utils
-        )
-    elif self.structure == 'pspnet':
-        net = segmentation_models.models.pspnet.PSPNet(
-            backbone_name='resnet34',
-            input_shape=list(self.input_shape[:2]) + [3],
-            classes=n_classes,
-            activation=activation,
-            encoder_weights=self.encoder_weights,
-            encoder_freeze=False,
-            downsample_factor=8,
-            psp_conv_filters=512,
-            psp_pooling_type='avg',
-            psp_use_batchnorm=True,
-            psp_dropout=None,
-            backend=keras.backend,
-            layers=keras.layers,
-            models=keras.models,
-            utils=keras.utils
-        )
-    elif self.structure == 'fpn':
-        net = segmentation_models.models.fpn.FPN(
-            backbone_name='resnet34',
-            input_shape=list(self.input_shape[:2]) + [3],
-            classes=n_classes,
-            activation=activation,
-            encoder_weights=self.encoder_weights,
-            encoder_freeze=False,
-            encoder_features='default',
-            pyramid_block_filters=256,
-            pyramid_use_batchnorm=True,
-            pyramid_aggregation='concat',
-            pyramid_dropout=None,
-            backend=keras.backend,
-            layers=keras.layers,
-            models=keras.models,
-            utils=keras.utils
+    def get_backbone_module(self, n_classes, activation='linear'):
+        if self.structure == 'unet':
+            net = segmentation_models.models.unet.Unet(
+                backbone_name='resnet34',
+                input_shape=list(self.input_shape[:2]) + [3],
+                classes=n_classes,
+                activation=activation,
+                encoder_weights=self.encoder_weights,
+                encoder_freeze=False,
+                encoder_features='default',
+                decoder_block_type='upsampling',
+                decoder_filters=(256, 128, 64, 32, 16),
+                decoder_use_batchnorm=True,
+                backend=keras.backend,
+                layers=keras.layers,
+                models=keras.models,
+                utils=keras.utils
             )
-    else:
-        raise ValueError("Structure not supported")
-    return net
+        elif self.structure == 'pspnet':
+            net = segmentation_models.models.pspnet.PSPNet(
+                backbone_name='resnet34',
+                input_shape=list(self.input_shape[:2]) + [3],
+                classes=n_classes,
+                activation=activation,
+                encoder_weights=self.encoder_weights,
+                encoder_freeze=False,
+                downsample_factor=8,
+                psp_conv_filters=512,
+                psp_pooling_type='avg',
+                psp_use_batchnorm=True,
+                psp_dropout=None,
+                backend=keras.backend,
+                layers=keras.layers,
+                models=keras.models,
+                utils=keras.utils
+            )
+        elif self.structure == 'fpn':
+            net = segmentation_models.models.fpn.FPN(
+                backbone_name='resnet34',
+                input_shape=list(self.input_shape[:2]) + [3],
+                classes=n_classes,
+                activation=activation,
+                encoder_weights=self.encoder_weights,
+                encoder_freeze=False,
+                encoder_features='default',
+                pyramid_block_filters=256,
+                pyramid_use_batchnorm=True,
+                pyramid_aggregation='concat',
+                pyramid_dropout=None,
+                backend=keras.backend,
+                layers=keras.layers,
+                models=keras.models,
+                utils=keras.utils
+                )
+        else:
+            raise ValueError("Structure not supported")
+        return net
 
 
-  def compile(self):
-    self.model.compile(optimizer='Adam', 
-                       loss=self.loss_func,
-                       metrics=[])
+    def compile(self):
+      self.model.compile(optimizer='Adam', 
+                        loss=self.loss_func,
+                        metrics=[])
 
 
-  def fit(self, 
-          train_gen,
-          valid_gen=None,
-          n_epochs=10,
-          verbose=1,
-          **kwargs):
-    if not os.path.exists(self.model_path):
-      os.mkdir(self.model_path)
-    if valid_gen is not None:
-      self.valid_score_callback.valid_data = valid_gen
-    self.model.fit_generator(train_gen,
-                             steps_per_epoch=len(train_gen), 
-                             epochs=n_epochs,
-                             verbose=verbose,
-                             callbacks=self.call_backs + [self.valid_score_callback],
-                             validation_data=valid_gen,
-                             shuffle=False, 
-                             initial_epoch=0,
-                             **kwargs)
+    def fit(self, 
+            train_gen,
+            valid_gen=None,
+            n_epochs=10,
+            verbose=1,
+            **kwargs):
+      if not os.path.exists(self.model_path):
+        os.mkdir(self.model_path)
+      if valid_gen is not None:
+        self.valid_score_callback.valid_data = valid_gen
+      self.model.fit_generator(train_gen,
+                              steps_per_epoch=len(train_gen), 
+                              epochs=n_epochs,
+                              verbose=verbose,
+                              callbacks=self.call_backs + [self.valid_score_callback],
+                              validation_data=valid_gen,
+                              shuffle=False, 
+                              initial_epoch=0,
+                              **kwargs)
 
 
-  def predict_on_generator(self, gen):
-    y_pred = self.model.predict_generator(gen)
-    y_pred = scipy.special.softmax(y_pred, -1)
-    return y_pred
+    def predict_on_generator(self, gen):
+      y_pred = self.model.predict_generator(gen)
+      y_pred = scipy.special.softmax(y_pred, -1)
+      return y_pred
 
 
-  def predict_on_X(self, X):
-    y_pred = self.model.predict(X)
-    y_pred = scipy.special.softmax(y_pred, -1)
-    return y_pred
+    def predict_on_X(self, X):
+      y_pred = self.model.predict(X)
+      y_pred = scipy.special.softmax(y_pred, -1)
+      return y_pred
 
 
-  def predict(self, inputs):
-    if isinstance(inputs, (np.ndarray, np.generic)) and tuple(inputs.shape[1:]) == self.input_shape:
-      preds = self.predict_on_X(inputs)
-    elif isinstance(inputs, tuple) and tuple(inputs[0].shape[1:]) == self.input_shape:
-      preds = self.predict_on_X(inputs[0])
-    elif isinstance(inputs, CustomGenerator):
-      preds = self.predict_on_generator(inputs)
-    else:
-      print("Data type not supported")
-      return None
-    return preds
+    def predict(self, inputs):
+      if isinstance(inputs, (np.ndarray, np.generic)) and tuple(inputs.shape[1:]) == self.input_shape:
+        preds = self.predict_on_X(inputs)
+      elif isinstance(inputs, tuple) and tuple(inputs[0].shape[1:]) == self.input_shape:
+        preds = self.predict_on_X(inputs[0])
+      elif isinstance(inputs, CustomGenerator):
+        preds = self.predict_on_generator(inputs)
+      else:
+        print("Data type not supported")
+        return None
+      return preds
 
 
-  def save(self, path):
-    self.model.save_weights(path)
+    def save(self, path):
+      self.model.save_weights(path)
 
 
-  def load(self, path):
-    self.model.load_weights(path)
-
-
+    def load(self, path):
+      self.model.load_weights(path)
 
 
 class Classify(Segment):

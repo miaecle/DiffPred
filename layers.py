@@ -6,11 +6,12 @@ Created on Thu Feb 14 17:51:20 2019
 @author: zqwu
 """
 
-import tensorflow as tf
 import numpy as np
 import scipy
-import keras
-from keras import layers
+import tensorflow as tf
+import tensorflow.keras as keras
+from tensorflow.keras import layers
+
 from sklearn.metrics import (
   roc_auc_score, f1_score, precision_score, recall_score
 )
@@ -26,7 +27,7 @@ def Conv2dBn(filters,
              use_batchnorm=False,
              name=None,
              **kwargs):
-
+    # Conv2D with optional batch normalization
     if name is None:
         block_name = ''
     else:
@@ -57,7 +58,7 @@ def Conv2dBn(filters,
 
     return wrapper
 
-
+# Custom loss functions
 class weighted_cross_entropy(object):
     def __init__(self, n_classes=2):
         self.n_classes = n_classes
@@ -97,6 +98,7 @@ class l2_loss(object):
         return loss
 
 
+# Custom callbacks/metrics
 class GradualDefreeze(keras.callbacks.Callback):
     def __init__(self, order={0: 'none', 3: 'last', 10: 'full'}):
         self.order = order
