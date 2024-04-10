@@ -58,6 +58,7 @@ def Conv2dBn(filters,
 
     return wrapper
 
+
 # Custom loss functions
 class weighted_cross_entropy(object):
     def __init__(self, n_classes=2):
@@ -321,7 +322,7 @@ def evaluate_confusion_mat(data, model):
     conf_mat_seg = conf_mat_seg[:n_seg_classes, :n_seg_classes]
 
     n_classify_classes = np.where(conf_mat_classify > 0)[0].max() + 1
-    conf_mat_classify = conf_mat_classify[:n_classify_classes, :n_classify_classes]  
+    conf_mat_classify = conf_mat_classify[:n_classify_classes, :n_classify_classes]
 
     conf_mat_seg = conf_mat_seg/conf_mat_seg.sum(1, keepdims=True)
     conf_mat_classify = conf_mat_classify/conf_mat_classify.sum(1, keepdims=True)
@@ -355,7 +356,7 @@ def evaluate_confusion_mat_classify_only(data, model):
             conf_mat_classify[np.argmax(c_y_true), np.argmax(c_y_pred)] += 1
 
     n_classify_classes = np.where(conf_mat_classify > 0)[0].max() + 1
-    conf_mat_classify = conf_mat_classify[:n_classify_classes, :n_classify_classes]  
+    conf_mat_classify = conf_mat_classify[:n_classify_classes, :n_classify_classes]
 
     conf_mat_classify = conf_mat_classify/conf_mat_classify.sum(1, keepdims=True)
     print("Classification")
@@ -368,7 +369,7 @@ def summarize_conf_mat(conf_mat):
     n_classes = conf_mat.shape[0]
     conf_mat = conf_mat/conf_mat.sum(1, keepdims=True)
     # Assuming balanced classes
-    simple_accuracy = np.mean(np.diag(conf_mat)) 
+    simple_accuracy = np.mean(np.diag(conf_mat))
     error1 = {}  # Higher than True
     error2 = {}  # Lower than true
     for error_level in range(1, n_classes):

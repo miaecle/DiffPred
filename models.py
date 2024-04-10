@@ -12,7 +12,6 @@ import tempfile
 import os
 import scipy
 
-import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras.models import Model
 from tensorflow.keras import layers
@@ -186,7 +185,8 @@ class Classify(Segment):
             self.model_path = model_path
         self.call_backs = [keras.callbacks.TerminateOnNaN(),
                            # keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
-                           keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
+                           keras.callbacks.ModelCheckpoint(
+                               self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
         self.valid_score_callback = ValidMetrics(eval_fn)
 
         self.loss_func = loss_fn(n_classes=n_classes)
@@ -253,8 +253,9 @@ class ClassifyOnSegment(Segment):
         else:
             self.model_path = model_path
         self.call_backs = [keras.callbacks.TerminateOnNaN(),
-                          # keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
-                          keras.callbacks.ModelCheckpoint(self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
+                           # keras.callbacks.ReduceLROnPlateau(patience=5, min_lr=1e-7),
+                           keras.callbacks.ModelCheckpoint(
+                               self.model_path + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5')]
         self.valid_score_callback = ValidMetrics(eval_fn)
 
         self.loss_func = [segment_loss_fn(n_classes=n_segment_classes),
