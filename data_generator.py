@@ -1,8 +1,7 @@
 import numpy as np
-import keras
-import os
+import tensorflow.keras as keras
 import pickle
-from data_loader import well_id_from_name, exp_id_from_name, exp_day_from_name, get_identifier
+from data_loader import exp_day_from_name, get_identifier
 from data_augmentation import Augment
 
 
@@ -22,11 +21,11 @@ def enhance_weight_for_false_positives(X, labels, ratio=5):
     return [segment_labels, labels[1]]
 
 
-class CustomGenerator(keras.utils.Sequence) :
-    def __init__(self, 
+class CustomGenerator(keras.utils.Sequence):
+    def __init__(self,
                  name_file,
-                 X_files, 
-                 segment_y_files=None, 
+                 X_files,
+                 segment_y_files=None,
                  segment_w_files=None,
                  n_segment_classes=None,
                  segment_class_weights=[],
@@ -58,11 +57,11 @@ class CustomGenerator(keras.utils.Sequence) :
         self.segment_class_weights = segment_class_weights
         self.segment_extra_weights = segment_extra_weights
         self.segment_label_type = segment_label_type
-        if not self.n_segment_classes is None:
+        if self.n_segment_classes is not None:
             assert len(self.segment_class_weights) == self.n_segment_classes
 
         # Classification label details
-        if not classify_label_file is None:
+        if classify_label_file is not None:
             classify_labels = pickle.load(open(classify_label_file, 'rb'))
             self.classify_y = {k: v[0] for k, v in classify_labels.items()}
             self.classify_w = {k: v[1] for k, v in classify_labels.items()}
@@ -72,7 +71,7 @@ class CustomGenerator(keras.utils.Sequence) :
         self.n_classify_classes = n_classify_classes
         self.classify_class_weights = classify_class_weights
         self.classify_label_type = classify_label_type
-        if not self.n_classify_classes is None:
+        if self.n_classify_classes is not None:
             assert len(self.classify_class_weights) == self.n_classify_classes
 
         # Cache for inputs & segmentation labels
@@ -83,7 +82,7 @@ class CustomGenerator(keras.utils.Sequence) :
         self.cache_file_num = cache_file_num
 
         # Number of samples
-        self.N = N if not N is None else len(self.names)
+        self.N = N if N is not None else len(self.names)
         if selected_inds is None:
             selected_inds = np.arange(self.N)
         self.selected_inds = self.reorder_inds(selected_inds, shuffle_inds=shuffle_inds)
@@ -95,7 +94,6 @@ class CustomGenerator(keras.utils.Sequence) :
         self.batch_size = batch_size
         self.batch_with_name = batch_with_name
 
-
     def reorder_inds(self, inds, shuffle_inds=False):
         def get_group(ind):
             # Get which file the sample is from
@@ -105,10 +103,8 @@ class CustomGenerator(keras.utils.Sequence) :
             np.random.shuffle(groups)
         return sorted(inds, key=lambda x: groups.index(get_group(x)))
 
-    
     def __len__(self):
         return (np.ceil(len(self.selected_inds) / float(self.batch_size))).astype(np.int)
- 
 
     def __getitem__(self, idx):
         batch_names = []
@@ -117,8 +113,8 @@ class CustomGenerator(keras.utils.Sequence) :
         batch_segment_w = []
         batch_classify_y = []
         batch_classify_w = []
-        get_segment_label = not self.n_segment_classes is None
-        get_classify_label = not self.n_classify_classes is None
+        get_segment_label = self.n_segment_classes is not None
+        get_classify_label = self.n_classify_classes is not None
 
         for i in range(idx * self.batch_size, (idx + 1) * self.batch_size):
             if i >= len(self.selected_inds):
@@ -158,12 +154,11 @@ class CustomGenerator(keras.utils.Sequence) :
 
         return self.prepare_inputs(
             batch_names,
-            batch_X, 
-            batch_segment_y, 
-            batch_segment_w, 
+            batch_X,
+            batch_segment_y,
+            batch_segment_w,
             batch_classify_y,
             batch_classify_w)
-
 
     def load_ind(self, ind, force_augment_off=False, random_seed=None):
         self.add_to_cache(ind)
@@ -175,12 +170,12 @@ class CustomGenerator(keras.utils.Sequence) :
             sample_X = self.cache_X[ind]
         else:
             sample_X = pickle.load(open(self.X_filenames[f_ind], 'rb'))[ind]
-        
+
         n_rows, n_cols = sample_X.shape[:2]
         sample_X = sample_X.reshape((n_rows, n_cols, -1)).astype(float)
 
         # Sample segmentation label
-        if not self.n_segment_classes is None:
+        if self.n_segment_classes is not None:
             if ind in self.cache_segment_y and ind in self.cache_segment_w:
                 sample_segment_y = self.cache_segment_y[ind]
                 sample_segment_w = self.cache_segment_w[ind]
@@ -188,12 +183,12 @@ class CustomGenerator(keras.utils.Sequence) :
                 sample_segment_y = pickle.load(open(self.segment_y_files[f_ind], 'rb'))[ind]
                 sample_segment_w = pickle.load(open(self.segment_w_files[f_ind], 'rb'))[ind]
             # Cast segment label
-            if not sample_segment_y is None:
+            if sample_segment_y is not None:
                 sample_segment_y = sample_segment_y.reshape((n_rows, n_cols, -1))
                 sample_segment_w = sample_segment_w.reshape((n_rows, n_cols, -1))
-                if self.segment_label_type == 'discrete': # Label as class
+                if self.segment_label_type == 'discrete':  # Label as class
                     sample_segment_y = sample_segment_y.astype(int)
-                elif self.segment_label_type == 'continuous': # Label as class prob
+                elif self.segment_label_type == 'continuous':  # Label as class prob
                     sample_segment_y = sample_segment_y.astype(float)
                 else:
                     raise ValueError("segmentation label type unknown")
@@ -201,22 +196,21 @@ class CustomGenerator(keras.utils.Sequence) :
             sample_segment_y = None
             sample_segment_w = None
 
-        if not force_augment_off and not self.augment is None:
-            if not random_seed is None:
-               np.random.seed(random_seed)
-            if not sample_segment_y is None and not sample_segment_w is None:
+        if not force_augment_off and self.augment is not None:
+            if random_seed is not None:
+                np.random.seed(random_seed)
+            if sample_segment_y is not None and sample_segment_w is not None:
                 sample_X, sample_segment_y, sample_segment_w = \
                     self.augment(sample_X, sample_segment_y, sample_segment_w)
             else:
                 sample_X = self.augment(sample_X, None, None)
         return sample_X, sample_segment_y, sample_segment_w, sample_name
 
-
     def add_to_cache(self, ind):
         if ind in self.cache_X and ind in self.cache_segment_y and ind in self.cache_segment_w:
             return
         f_ind = ind // self.sample_per_file
-        
+
         f_X = pickle.load(open(self.X_files[f_ind], 'rb'))
         f_segment_y = pickle.load(open(self.segment_y_files[f_ind], 'rb')) if self.segment_y_files else {}
         f_segment_w = pickle.load(open(self.segment_w_files[f_ind], 'rb')) if self.segment_w_files else {}
@@ -231,11 +225,10 @@ class CustomGenerator(keras.utils.Sequence) :
             self.cache_segment_w.update(f_segment_w)
         return
 
-
     def prepare_inputs(self, names, X, seg_y=None, seg_w=None, cl_y=None, cl_w=None):
         _X = self.prepare_features(X, names=names)
         _labels = self.prepare_labels(_X, seg_y=seg_y, seg_w=seg_w, cl_y=cl_y, cl_w=cl_w)
-        if not self.segment_extra_weights is None:
+        if self.segment_extra_weights is not None:
             _labels = self.segment_extra_weights(_X, _labels)
 
         if self.batch_with_name:
@@ -243,16 +236,14 @@ class CustomGenerator(keras.utils.Sequence) :
         else:
             return _X, _labels
 
-
     def prepare_features(self, X, names=None):
         day_array = []
         for name in names:
             day = exp_day_from_name(name)
-            day = float(day) if day != 'unknown' else 20 # Unknown da
+            day = float(day) if day != 'unknown' else 20
             day_array.append(day)
         day_nums = np.array(day_array).reshape((-1, 1, 1, 1))
         return np.concatenate([X, np.ones_like(X) * day_nums], 3)
-
 
     def prepare_labels(self, X, seg_y=None, seg_w=None, cl_y=None, cl_w=None):
         def setup_label(y, w, n_classes, class_weights, label_type):
@@ -275,7 +266,7 @@ class CustomGenerator(keras.utils.Sequence) :
             return labels
 
         # Segment labels
-        if not seg_y is None and not seg_w is None:
+        if seg_y is not None and seg_w is not None:
             segment_labels = setup_label(seg_y,
                                          seg_w,
                                          self.n_segment_classes,
@@ -285,7 +276,7 @@ class CustomGenerator(keras.utils.Sequence) :
             segment_labels = None
 
         # Classify labels
-        if not cl_y is None and not cl_w is None:
+        if cl_y is not None and cl_w is not None:
             classify_labels = setup_label(cl_y,
                                           cl_w,
                                           self.n_classify_classes,
@@ -296,16 +287,15 @@ class CustomGenerator(keras.utils.Sequence) :
 
         if segment_labels is None and classify_labels is None:
             return None
-        elif segment_labels is None and not classify_labels is None:
+        elif segment_labels is None and classify_labels is not None:
             return classify_labels
-        elif not segment_labels is None and classify_labels is None:
+        elif segment_labels is not None and classify_labels is None:
             return segment_labels
         else:
             return [segment_labels, classify_labels]
 
-
-    def reorder_save(self, 
-                     inds, 
+    def reorder_save(self,
+                     inds,
                      save_path=None,
                      write_segment_labels=True,
                      write_classify_labels=True):
@@ -353,7 +343,6 @@ class CustomGenerator(keras.utils.Sequence) :
                 save_segment_ws = {}
         return file_ind
 
-
     def get_all_pairs(self, time_interval=[1, 3]):
         valid_pcs = {}
         valid_fls = {}
@@ -379,7 +368,6 @@ class CustomGenerator(keras.utils.Sequence) :
                     valid_pairs.append((ind_i, ind_j))
         return valid_pairs
 
-
     def shrink_pairs(self, pairs):
         def pair_identifier(p):
             id_from = get_identifier(self.names[p[0]])
@@ -388,9 +376,9 @@ class CustomGenerator(keras.utils.Sequence) :
             assert id_from[3:] == id_to[3:]
             pair_id = tuple([id_from[0],
                              id_from[1],
-                             int(id_from[2]), 
-                             int(id_to[2]), 
-                             id_from[3], 
+                             int(id_from[2]),
+                             int(id_to[2]),
+                             id_from[3],
                              id_from[4]])
             return pair_id
 
@@ -407,14 +395,13 @@ class CustomGenerator(keras.utils.Sequence) :
         selected = set()
         for p in pairs:
             pair_id = pair_identifier(p)
-            if not pair_id in selected:
+            if pair_id not in selected:
                 out_pairs.append(p)
                 for _adjacent_id in adjacent_identifiers(pair_id):
                     selected.add(_adjacent_id)
         return out_pairs
 
-
-    def cross_pair_save(self, 
+    def cross_pair_save(self,
                         pair_inds,
                         save_path=None,
                         write_segment_labels=True,
@@ -461,13 +448,10 @@ class CustomGenerator(keras.utils.Sequence) :
                 save_Xs = {}
                 save_segment_ys = {}
                 save_segment_ws = {}
-
         return file_ind
 
 
-
-class PairGenerator(CustomGenerator) :
-
+class PairGenerator(CustomGenerator):
     def prepare_features(self, X, names=None):
         day_array = []
         for name in names:
