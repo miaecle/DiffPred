@@ -13,7 +13,7 @@ import tensorflow.keras as keras
 from tensorflow.keras import layers
 
 from sklearn.metrics import (
-  roc_auc_score, f1_score, precision_score, recall_score
+    roc_auc_score, f1_score, precision_score, recall_score
 )
 
 
@@ -63,8 +63,7 @@ def Conv2dBn(filters,
 class weighted_cross_entropy(object):
     def __init__(self, n_classes=2):
         self.n_classes = n_classes
-        self.loss_fn = tf.keras.losses.CategoricalCrossentropy(
-          from_logits=True)
+        self.loss_fn = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
         self.__name__ = "weighted_cross_entropy"
 
     def __call__(self, y_true, y_pred):
@@ -77,15 +76,13 @@ class weighted_cross_entropy(object):
 class sparse_weighted_cross_entropy(object):
     def __init__(self, n_classes=2):
         self.n_classes = n_classes
-        self.loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(
-          from_logits=True)
+        self.loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         self.__name__ = "sparse_weighted_cross_entropy"
 
     def __call__(self, y_true, y_pred):
         w = y_true[..., -1]
         y_true = y_true[..., :-1]
-        loss = self.loss_fn(
-          tf.math.argmax(y_true, -1), y_pred, sample_weight=w)
+        loss = self.loss_fn(tf.math.argmax(y_true, -1), y_pred, sample_weight=w)
         return loss
 
 
@@ -208,15 +205,15 @@ def evaluate_segmentation(data, model):
             fp += _fp
             fn += _fn
             total_ct += 1
-            if _y_pred.shape[0] > (0.99*288*384) and (_tp + _fn) < thr and _fp > thr:
+            if _y_pred.shape[0] > (0.99 * 288 * 384) and (_tp + _fn) < thr and _fp > thr:
                 err_ct1 += 1
             if _fn > thr and (_tp + _fp) < thr:
                 err_ct2 += 1
 
-    iou = tp/(tp + fp + fn)
-    prec = tp/(tp + fp)
-    recall = tp/(tp + fn)
-    f1 = 2/(1/(prec + 1e-5) + 1/(recall + 1e-5))
+    iou = tp / (tp + fp + fn)
+    prec = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 / (1 / (prec + 1e-5) + 1 / (recall + 1e-5))
     print("Precision: %.3f\tRecall: %.3f\tF1: %.3f\tIOU: %.3f\tFP: %d/%d\tFN: %d/%d" %
           (prec, recall, f1, iou, err_ct1, total_ct, err_ct2, total_ct))
     return prec, recall, f1, iou, err_ct1, err_ct2
@@ -264,15 +261,15 @@ def evaluate_segmentation_and_classification(data, model):
             fp += _fp
             fn += _fn
             total_ct += 1
-            if _y_pred.shape[0] > (0.99*288*384) and (_tp + _fn) < thr and _fp > thr:
+            if _y_pred.shape[0] > (0.99 * 288 * 384) and (_tp + _fn) < thr and _fp > thr:
                 err_ct1 += 1
             if _fn > thr and (_tp + _fp) < thr:
                 err_ct2 += 1
 
-    iou = tp/(tp + fp + fn)
-    prec = tp/(tp + fp)
-    recall = tp/(tp + fn)
-    f1 = 2/(1/(prec + 1e-5) + 1/(recall + 1e-5))
+    iou = tp / (tp + fp + fn)
+    prec = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 / (1 / (prec + 1e-5) + 1 / (recall + 1e-5))
     print("Precision: %.3f\tRecall: %.3f\tF1: %.3f\tIOU: %.3f\tFP: %d/%d\tFN: %d/%d" %
           (prec, recall, f1, iou, err_ct1, total_ct, err_ct2, total_ct))
 
@@ -324,8 +321,8 @@ def evaluate_confusion_mat(data, model):
     n_classify_classes = np.where(conf_mat_classify > 0)[0].max() + 1
     conf_mat_classify = conf_mat_classify[:n_classify_classes, :n_classify_classes]
 
-    conf_mat_seg = conf_mat_seg/conf_mat_seg.sum(1, keepdims=True)
-    conf_mat_classify = conf_mat_classify/conf_mat_classify.sum(1, keepdims=True)
+    conf_mat_seg = conf_mat_seg / conf_mat_seg.sum(1, keepdims=True)
+    conf_mat_classify = conf_mat_classify / conf_mat_classify.sum(1, keepdims=True)
     print("Segmentation")
     print(conf_mat_seg)
     summarize_conf_mat(conf_mat_seg)
@@ -358,7 +355,7 @@ def evaluate_confusion_mat_classify_only(data, model):
     n_classify_classes = np.where(conf_mat_classify > 0)[0].max() + 1
     conf_mat_classify = conf_mat_classify[:n_classify_classes, :n_classify_classes]
 
-    conf_mat_classify = conf_mat_classify/conf_mat_classify.sum(1, keepdims=True)
+    conf_mat_classify = conf_mat_classify / conf_mat_classify.sum(1, keepdims=True)
     print("Classification")
     print(conf_mat_classify)
     summarize_conf_mat(conf_mat_classify)
@@ -367,7 +364,7 @@ def evaluate_confusion_mat_classify_only(data, model):
 
 def summarize_conf_mat(conf_mat):
     n_classes = conf_mat.shape[0]
-    conf_mat = conf_mat/conf_mat.sum(1, keepdims=True)
+    conf_mat = conf_mat / conf_mat.sum(1, keepdims=True)
     # Assuming balanced classes
     simple_accuracy = np.mean(np.diag(conf_mat))
     error1 = {}  # Higher than True
@@ -376,8 +373,8 @@ def summarize_conf_mat(conf_mat):
         error1[error_level] = []
         error2[error_level] = []
         for i in range(n_classes - error_level):
-            error1[error_level].append(conf_mat[i, i+error_level])
-            error2[error_level].append(conf_mat[i+error_level, i])
+            error1[error_level].append(conf_mat[i, i + error_level])
+            error2[error_level].append(conf_mat[i + error_level, i])
 
     weighted_error1 = sum([level**2 * np.mean(error1[level]) for level in sorted(error1)])
     weighted_error2 = sum([level**2 * np.mean(error2[level]) for level in sorted(error2)])

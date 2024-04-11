@@ -85,8 +85,7 @@ class Segment(object):
                 decoder_block_type='upsampling',
                 decoder_filters=(256, 128, 64, 32, 16),
                 decoder_use_batchnorm=True,
-                **shared_kwargs,
-            )
+                **shared_kwargs)
         elif self.structure == 'pspnet':
             net = segmentation_models.models.pspnet.PSPNet(
                 downsample_factor=8,
@@ -94,8 +93,7 @@ class Segment(object):
                 psp_pooling_type='avg',
                 psp_use_batchnorm=True,
                 psp_dropout=None,
-                **shared_kwargs,
-            )
+                **shared_kwargs)
         elif self.structure == 'fpn':
             net = segmentation_models.models.fpn.FPN(
                 encoder_features='default',
@@ -103,8 +101,7 @@ class Segment(object):
                 pyramid_use_batchnorm=True,
                 pyramid_aggregation='concat',
                 pyramid_dropout=None,
-                **shared_kwargs,
-                )
+                **shared_kwargs)
         else:
             raise ValueError("Structure not supported")
         return net
@@ -278,13 +275,13 @@ class ClassifyOnSegment(Segment):
 
         x = core_embedding
         for i in range(5):
-            x = Conv2dBn(self.unet_feat*max(1, 2**(i-2)),
+            x = Conv2dBn(self.unet_feat * max(1, 2**(i - 2)),
                          kernel_size=3,
                          padding='same',
                          activation='relu',
                          use_batchnorm=True,
                          name='classify_head_block%d' % i)(x)
-            x = Conv2dBn(self.unet_feat*max(1, 2**(i-1)),
+            x = Conv2dBn(self.unet_feat * max(1, 2**(i - 1)),
                          kernel_size=3,
                          strides=(2, 2),
                          padding='same',

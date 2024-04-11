@@ -7,20 +7,25 @@ def fill(img, h, w):
     img = cv2.resize(img, (w, h), cv2.INTER_CUBIC)
     return img
 
+
 def zoom(x, h_start, h_end, w_start, w_end):
     h, w = x.shape[:2]
     x = x[h_start:h_end, w_start:w_end]
     out = fill(x, h, w)
     return out
 
+
 def scale_brightness(x, scale):
     return x * scale
+
 
 def translate_brightness(x, translation):
     return (x - translation)
 
+
 def horizontal_flip(x):
     return cv2.flip(x, 1)
+
 
 def vertical_flip(x):
     return cv2.flip(x, 0)
@@ -47,16 +52,14 @@ class Augment(object):
         self.flip_prob = flip_prob
         self.rv = truncnorm(-3, 3)
 
-
-
     def __call__(self, x, y=None, weight=None):
         x_shape = x.shape
         x_dtype = x.dtype
-        if not y is None and not weight is None:
-          y_shape = y.shape
-          y_dtype = y.dtype
-          weight_shape = weight.shape
-          weight_dtype = weight.dtype
+        if y is not None and weight is not None:
+            y_shape = y.shape
+            y_dtype = y.dtype
+            weight_shape = weight.shape
+            weight_dtype = weight.dtype
 
         h, w = x_shape[:2]
         if np.random.rand() < self.zoom_prob:
@@ -68,7 +71,7 @@ class Augment(object):
             w_start = int(np.random.uniform(0, w * (1 - w_zoom_ratio)))
             w_end = w_start + int(w * w_zoom_ratio)
             x = zoom(x, h_start, h_end, w_start, w_end)
-            if not y is None and not weight is None:
+            if y is not None and weight is not None:
                 weight = zoom(weight, h_start, h_end, w_start, w_end)
                 y = zoom(y.astype(float), h_start, h_end, w_start, w_end)
                 if self.segment_label_type == 'discrete':
@@ -82,16 +85,16 @@ class Augment(object):
             x = translate_brightness(x, translation)
         if np.random.rand() < self.flip_prob:
             x = horizontal_flip(x)
-            if not y is None and not weight is None:
+            if y is not None and weight is not None:
                 y = horizontal_flip(y)
                 weight = horizontal_flip(weight)
         if np.random.rand() < self.flip_prob:
             x = vertical_flip(x)
-            if not y is None and not weight is None:
+            if y is not None and weight is not None:
                 y = vertical_flip(y)
                 weight = vertical_flip(weight)
 
-        if not y is None and not weight is None:
+        if y is not None and weight is not None:
             x = x.reshape(x_shape).astype(x_dtype)
             y = y.reshape(y_shape).astype(y_dtype)
             weight = weight.reshape(weight_shape).astype(weight_dtype)

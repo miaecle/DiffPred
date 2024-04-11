@@ -148,8 +148,8 @@ def get_fl_distri(pairs):
 
 def get_fl_stats(distri):
     assert len(distri) == 65535
-    fl_mean = sum([i*num for i, num in enumerate(distri)]) / sum(distri)
-    fl_var = sum([(i - fl_mean)**2*num for i, num in enumerate(distri)]) / sum(distri)
+    fl_mean = sum([i * num for i, num in enumerate(distri)]) / sum(distri)
+    fl_var = sum([(i - fl_mean)**2 * num for i, num in enumerate(distri)]) / sum(distri)
     fl_std = np.sqrt(fl_var)
     return fl_mean, fl_std
 
@@ -169,7 +169,7 @@ def get_ex_day(name):
             if seg.startswith('ex'):
                 ex_id = seg
                 break
-        detail = n[i+1]
+        detail = n[i + 1]
         detail = detail.replace('-', ' ').replace('_', ' ')
         ds_sep = detail.split()
         day = None

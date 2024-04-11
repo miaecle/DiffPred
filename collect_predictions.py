@@ -85,6 +85,7 @@ def get_data_gen(data_dir, data_gen, batch_size=8, with_label=False):
 
 
 def get_model(model_path):
+    # Load model from path
     model_folder_name = os.path.split(model_path)[-2]
     if '0-to-0' in model_folder_name:
         n_input_channel = 2
@@ -102,23 +103,27 @@ def get_model(model_path):
     else:
         model_structure = 'unet'
 
-    #%% Define Model ###
+    if 'discrete' in model_path:
+        n_classes = 2
+    else:
+        n_classes = 4
+
     if model_structure != 'resnet34':
         model = ClassifyOnSegment(
             input_shape=(288, 384, n_input_channel),
             segment_model_structure=model_structure,
             model_path=tempfile.mkdtemp(),
             encoder_weights='imagenet',
-            n_segment_classes=4,
-            segment_class_weights=[1., 1., 1., 1.],
-            n_classify_classes=4,
-            classify_class_weights=[1., 1., 1., 1.],
+            n_segment_classes=n_classes,
+            segment_class_weights=[1.] * n_classes,
+            n_classify_classes=n_classes,
+            classify_class_weights=[1.] * n_classes,
             eval_fn=evaluate_confusion_mat)
     else:
         model = Classify(
             input_shape=(288, 384, n_input_channel),
             fc_layers=[1024, 128],
-            n_classes=4,
+            n_classes=n_classes,
             encoder_weights='imagenet',
             model_path=tempfile.mkdtemp(),
             eval_fn=evaluate_confusion_mat_classify_only,
