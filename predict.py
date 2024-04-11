@@ -46,7 +46,7 @@ def main(args):
                linear_align=False,
                shuffle=True,
                seed=123,
-               labels=[])
+               labels=['discrete', 'continuous'])
 
     # n_fs = len([f for f in os.listdir(data_dir) if f.startswith('X_') and f.endswith('.pkl')])
     # X_filenames = [os.path.join(data_dir, 'X_%d.pkl' % i) for i in range(n_fs)]
