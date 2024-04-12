@@ -5,7 +5,8 @@ import pandas as pd
 from functools import partial
 
 from data_loader import load_all_pairs, get_identifier, load_image_pair, load_image
-from data_assembly import preprocess, extract_samples_for_inspection
+from data_assembly import remove_corner_views, fluorescence_preprocess, preprocess
+from data_assembly import extract_samples_for_inspection
 from data_generator import CustomGenerator
 
 
@@ -30,7 +31,6 @@ RAW_FOLDERS = [
     ### different instrument ###
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_other_instrument',
     ### 10 additional lines - combined for segmentation ###
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines_for_seg/line_additional-combined-24/ex0-pre',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines_for_seg/line_additional-combined-24/ex0-post',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines_for_seg/line_additional-combined-24/ex1-day14',
     ### different wells ###
@@ -68,7 +68,6 @@ OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_854/ex1/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_975/ex0/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex2_other_instrument/0-to-0/',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/additional_lines_for_seg/line_additional-combined-24/ex0-pre/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/additional_lines_for_seg/line_additional-combined-24/ex0-post/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/additional_lines_for_seg/line_additional-combined-24/ex1-day14/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/different_wells/12well/line1_3R/ex2-12well/0-to-0/',
@@ -102,7 +101,6 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_854/ex1': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines/line_975/ex0': '6well-14',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex2_other_instrument': '96well-3',
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines_for_seg/line_additional-combined-24/ex0-pre': '24well-6',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines_for_seg/line_additional-combined-24/ex0-post': '24well-6',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines_for_seg/line_additional-combined-24/ex1-day14': '24well-6',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': '12well-9',
@@ -126,7 +124,6 @@ FL_PREPROCESS_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex15': (3.0, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex4': (2.5, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/prospective/line1_3R/ex0': (3.0, 0),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines_for_seg/line_additional-combined-24/ex0-pre': (1.5, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines_for_seg/line_additional-combined-24/ex0-post': (1.5, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': (1.5, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': (2.0, 0.0),
@@ -138,7 +135,6 @@ FL_STATS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex15': (5436, 1980),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line3_TNNI/ex4': (4290, 2944),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/prospective/line1_3R/ex0': (7500, 1700),
-    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines_for_seg/line_additional-combined-24/ex0-pre': (15000, 7000),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/additional_lines_for_seg/line_additional-combined-24/ex0-post': (15000, 7000),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': (8200, 4000),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': (9700, 2800),
@@ -147,60 +143,19 @@ FL_STATS = {
 
 RAW_F_FILTER = lambda f: not 'bkp' in f
 
-def PREPROCESS_FILTER(pair, well_setting='96well-3'):
-    # Remove samples without phase contrast
-    if pair[0] is None:
-        return False
-    # Remove samples with inconsistent id
-    if pair[1] is not None and get_identifier(pair[0]) != get_identifier(pair[1]):
-        return False
-    # Remove corner samples
-    if well_setting == '6well-15':
-        if get_identifier(pair[0])[-1] in \
-            ['1', '2', '16', '14', '15', '30', '196', '211', '212', '210', '224', '225']:
-            return False
-    elif well_setting == '6well-14':
-        if get_identifier(pair[0])[-1] in \
-            ['1', '2', '15', '13', '14', '28', '169', '183', '184', '182', '195', '196']:
-            return False
-    elif well_setting == '96well-3':
-        if get_identifier(pair[0])[-1] in \
-            ['1', '3', '7', '9']:
-            return False
-    elif well_setting == '12well-9':
-        if get_identifier(pair[0])[-1] in \
-            ['1', '9', '73', '81']:
-            return False
-    elif well_setting == '24well-6':
-        if get_identifier(pair[0])[-1] in \
-            ['1', '6', '12', '18', '24', '30', '31', '35', '36']:
-            # Multiples of 6 and '35' are added other than the 4 corners
-            return False
-    return True
-
-
-def FL_PREPROCESS(fl, scale=1., offset=0.):
-    if fl is None:
-        return None
-    fl = fl.astype(float)
-    _fl = fl * scale + offset
-    _fl = np.clip(_fl, 0, 65535).astype(int).astype('uint16')
-    return _fl
-
-
 # %% Featurize each experiment
 for raw_dir, inter_dir in zip(RAW_FOLDERS, OUTPUT_FOLDERS):
     os.makedirs(inter_dir, exist_ok=True)
 
     well_setting = WELL_SETTINGS[raw_dir]
-    preprocess_filter = partial(PREPROCESS_FILTER, well_setting=well_setting)
+    preprocess_filter = partial(remove_corner_views, well_setting=well_setting)
 
     pairs = load_all_pairs(path=raw_dir, check_valid=RAW_F_FILTER)
 
     kwargs = {'labels': []}
     if raw_dir in FL_PREPROCESS_SETTINGS and raw_dir in FL_STATS:
         fl_preprocess_setting = FL_PREPROCESS_SETTINGS[raw_dir]
-        fl_preprocess_fn = partial(FL_PREPROCESS,
+        fl_preprocess_fn = partial(fluorescence_preprocess,
                                    scale=fl_preprocess_setting[0],
                                    offset=fl_preprocess_setting[1])
         fl_stat = FL_STATS[raw_dir]
@@ -222,12 +177,12 @@ for raw_dir, inter_dir in zip(RAW_FOLDERS, OUTPUT_FOLDERS):
                seed=123,
                **kwargs)
 
-    if raw_dir in FL_STATS:
-        image_output_dir = inter_dir.replace('/0-to-0/', '/sample_figs/')
-        extract_samples_for_inspection([p for p in pairs if p[0] is not None and preprocess_filter(p)],
-                                       inter_dir,
-                                       image_output_dir,
-                                       seed=123)
+    # if raw_dir in FL_STATS:
+    #     image_output_dir = inter_dir.replace('/0-to-0/', '/sample_figs/')
+    #     extract_samples_for_inspection([p for p in pairs if p[0] is not None and preprocess_filter(p)],
+    #                                    inter_dir,
+    #                                    image_output_dir,
+    #                                    seed=123)
 
 
 

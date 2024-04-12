@@ -36,15 +36,27 @@ def remove_corner_views(pair, well_setting='96well-3'):
         if position_code in ['1', '2', '15', '13', '14', '28', '169', '183', '184', '182', '195', '196']:
             return False
     elif well_setting == '12well-9':
-        if position_code in ['1', '2', '10', '8', '9', '18', '64', '73', '74', '72', '80', '81']:
+        if position_code in ['1', '9', '73', '81']:
             return False
     elif well_setting == '24well-6':
-        if position_code in ['1', '2', '7', '5', '6', '12', '25', '31', '32', '30', '35', '36']:
+        if position_code in ['1', '6', '31', '36']:
+            return False
+        # Multiples of 6 and '35' are added other than the 4 corners
+        if position_code in ['12', '18', '24', '30', '35']:
             return False
     elif well_setting == '24well-5':
         if position_code in ['1', '5', '21', '25']:
             return False
     return True
+
+
+def fluorescence_preprocess(fl, scale=1., offset=0.):
+    if fl is None:
+        return None
+    fl = fl.astype(float)
+    _fl = fl * scale + offset
+    _fl = np.clip(_fl, 0, 65535).astype(int).astype('uint16')
+    return _fl
 
 
 def generate_discrete_segmentation_labels(pair_dat, mask, cv2_shape, weight_init, nonneg_thr=65535, **kwargs):

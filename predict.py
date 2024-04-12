@@ -32,7 +32,7 @@ def main(args):
     # Load all phase contrast (identified by keyword "Phase" in the file name)
     # and all GFP (identifier by keyword "GFP") images under the folder recursively.
     # Phase contrast/GFP of the same well will be matched into pairs automatically
-    pairs = load_all_pairs(path=input_folder)
+    pairs = load_all_pairs(path=input_folder, check_valid=lambda x: True)
     print("Checking input data")
     # Function below checks all the identified phase contrast/GFP files and shows stats
     check_pairs_by_day(pairs)
@@ -46,7 +46,7 @@ def main(args):
                linear_align=False,
                shuffle=True,
                seed=123,
-               labels=['discrete', 'continuous'])
+               labels=[])
 
     # n_fs = len([f for f in os.listdir(data_dir) if f.startswith('X_') and f.endswith('.pkl')])
     # X_filenames = [os.path.join(data_dir, 'X_%d.pkl' % i) for i in range(n_fs)]
