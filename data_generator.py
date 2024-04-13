@@ -361,7 +361,7 @@ class CustomGenerator(keras.utils.Sequence):
             d = valid_pcs[ind_i]
             if d[2] == 'unknown':
                 continue
-            for t in range(time_interval[0], time_interval[1]+1):
+            for t in range(time_interval[0], time_interval[1] + 1):
                 new_d = (d[0], d[1], str(int(d[2]) + t), d[3], d[4])
                 if new_d in fls_reverse_mapping:
                     ind_j = fls_reverse_mapping[new_d]

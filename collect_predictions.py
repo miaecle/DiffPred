@@ -10,7 +10,7 @@ from functools import partial
 from keras.models import Model
 
 from data_loader import get_identifier
-from models import Classify, Segment, ClassifyOnSegment
+from models import Classify, ClassifyOnSegment
 from layers import evaluate_confusion_mat, evaluate_confusion_mat_classify_only
 from data_generator import CustomGenerator, PairGenerator
 
@@ -52,17 +52,15 @@ def filter_for_0_predictor(batch, day_min=7, day_max=20):
 
 
 def get_data_gen(data_dir, data_gen, batch_size=8, with_label=False):
-    #%% Define Dataset ###
     n_fs = len([f for f in os.listdir(data_dir) if f.startswith('X_') and f.endswith('.pkl')])
     name_file = os.path.join(data_dir, 'names.pkl')
     X_filenames = [os.path.join(data_dir, 'X_%d.pkl' % i) for i in range(n_fs)]
 
     kwargs = {
         'batch_size': batch_size,
-        'shuffle_inds': False, # Datasets are usually pre-shuffled
+        'shuffle_inds': False,  # Datasets are usually pre-shuffled
         'batch_with_name': True,
         'augment': False,
-
     }
     if with_label:
         if os.path.exists(os.path.join(data_dir, 'classify_continuous_labels.pkl')):
@@ -133,7 +131,6 @@ def get_model(model_path):
     return model
 
 
-#%% Collect predictions ###
 def collect_preds(valid_gen,
                   model,
                   pred_save_dir,
@@ -151,13 +148,13 @@ def collect_preds(valid_gen,
     for batch in valid_gen:
         X = batch[0]
         names = batch[-1]
-        if not input_filter is None:
+        if input_filter is not None:
             inds = input_filter(batch)
         else:
             inds = np.arange(X.shape[0])
         if len(inds) == 0:
             continue
-        if not input_transform is None:
+        if input_transform is not None:
             X = input_transform(X)
 
         pred = model.model.predict(X)
@@ -166,17 +163,14 @@ def collect_preds(valid_gen,
         else:
             seg_pred = None
             cla_pred = pred
-
         if seg_pred is not None:
             seg_pred = scipy.special.softmax(seg_pred, -1)
-            seg_pred = seg_pred[..., 1] + seg_pred[..., 2]*2 + seg_pred[..., 3] * 3
+            seg_pred = seg_pred[..., 1] + seg_pred[..., 2] * 2 + seg_pred[..., 3] * 3
             pred_save["seg_preds"].extend([seg_pred[i] for i in inds])
-
         cla_pred = scipy.special.softmax(cla_pred, -1)
         cla_preds.extend([cla_pred[i] for i in inds])
 
-
-        if not batch[1] is None:
+        if batch[1] is not None:
             if (isinstance(batch[1], list) or isinstance(batch[1], tuple)) and len(batch[1]) == 2:
                 seg_true, cla_true = batch[1]
             else:
@@ -187,7 +181,7 @@ def collect_preds(valid_gen,
             cla_ws.extend([cla_w[i] for i in inds])
 
             if seg_true is not None:
-                seg_y = seg_true[..., 1] + seg_true[..., 2]*2 + seg_true[..., 3] * 3
+                seg_y = seg_true[..., 1] + seg_true[..., 2] * 2 + seg_true[..., 3] * 3
                 seg_w = seg_true[..., -1]
                 pred_save["seg_trues"].extend([seg_y[i] for i in inds])
                 pred_save["seg_ws"].extend([seg_w[i] for i in inds])
@@ -236,13 +230,13 @@ def collect_embeddings(valid_gen,
     for batch in valid_gen:
         X = batch[0]
         names = batch[-1]
-        if not input_filter is None:
+        if input_filter is not None:
             inds = input_filter(batch)
         else:
             inds = np.arange(X.shape[0])
         if len(inds) == 0:
             continue
-        if not input_transform is None:
+        if input_transform is not None:
             X = input_transform(X)
 
         # Run embedding models
@@ -295,7 +289,7 @@ if __name__ == '__main__':
     target_day = args.pred_target_day
     with_label = args.with_label
 
-    gen_fn = CustomGenerator if '0-to-0' in data_dir else PairGenerator # PairGenerator for 3 channel, CustomGenerator for 2 channel
+    gen_fn = CustomGenerator if '0-to-0' in data_dir else PairGenerator
     valid_gen = get_data_gen(data_dir, gen_fn, batch_size=8, with_label=with_label)
     model = get_model(model_path)
 
@@ -309,4 +303,3 @@ if __name__ == '__main__':
         raise ValueError("model not supported")
 
     collect_preds(valid_gen, model, pred_save_dir, input_transform=input_transform, input_filter=input_filter)
-

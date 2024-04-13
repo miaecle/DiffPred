@@ -274,156 +274,145 @@ def preprocess(pairs,
     return file_ind
 
 
-# def save_multi_panel_fig(mats, out_path):
-#     n_cols = 2
-#     n_rows = int(np.ceil(len(mats) / 2))
-#     _ = plt.figure(figsize=(6 * n_cols, 6 * n_rows))
-#     for i, mat in enumerate(mats):
-#         if mat is None:
-#             continue
-#         plt.subplot(n_rows, n_cols, i + 1)
-#         if len(mat.shape) > 2:
-#             assert len(mat.shape) == 3
-#             if mat.shape[2] == 1:
-#                 mat = mat[:, :, 0]
-#             else:
-#                 assert mat.shape[2] == 3
-#         plt.imshow(mat)
-#         plt.axis('off')
-#     plt.savefig(out_path, dpi=300)
-#     return
+def save_multi_panel_fig(mats, out_path):
+    n_cols = 2
+    n_rows = int(np.ceil(len(mats) / 2))
+    _ = plt.figure(figsize=(6 * n_cols, 6 * n_rows))
+    for i, mat in enumerate(mats):
+        if mat is None:
+            continue
+        plt.subplot(n_rows, n_cols, i + 1)
+        if len(mat.shape) > 2:
+            assert len(mat.shape) == 3
+            if mat.shape[2] == 1:
+                mat = mat[:, :, 0]
+            else:
+                assert mat.shape[2] == 3
+        plt.imshow(mat)
+        plt.axis('off')
+    plt.savefig(out_path, dpi=300)
+    return
 
 
-# def extract_samples_for_inspection(pairs, inter_dir, image_output_dir, seed=123):
-#     if not seed is None:
-#         np.random.seed(seed)
-#     if not os.path.exists(image_output_dir):
-#         os.makedirs(image_output_dir, exist_ok=True)
-#     raw_id_to_f_mapping = {get_identifier(p[0]): p for p in pairs}
+def extract_samples_for_inspection(pairs, dataset_dir, image_output_dir, seed=123):
+    # Randomly sample images from the dataset and save visualizations
+    if seed is not None:
+        np.random.seed(seed)
+    if not os.path.exists(image_output_dir):
+        os.makedirs(image_output_dir, exist_ok=True)
+    raw_id_to_f_mapping = {get_identifier(p[0]): p for p in pairs}
 
-#     fs = os.listdir(inter_dir)
-#     # Check existence of identifier file
-#     assert 'names.pkl' in fs
-#     names = pickle.load(open(os.path.join(inter_dir, 'names.pkl'), 'rb'))
-#     for i, n in names.items():
-#         assert get_identifier(n) in raw_id_to_f_mapping
+    fs = os.listdir(dataset_dir)
+    # Check existence of identifier file
+    assert 'names.pkl' in fs
+    names = pickle.load(open(os.path.join(dataset_dir, 'names.pkl'), 'rb'))
+    for i, n in names.items():
+        assert get_identifier(n) in raw_id_to_f_mapping
 
-#     # Check phase contrast files
-#     phase_contrast_files = [f for f in fs if f.startswith('X_') and f.endswith('.pkl')]
-#     for i in range(len(phase_contrast_files)):
-#         assert 'X_%d.pkl' % i in fs
+    # Check phase contrast files
+    phase_contrast_files = [f for f in fs if f.startswith('X_') and f.endswith('.pkl')]
+    for i in range(len(phase_contrast_files)):
+        assert 'X_%d.pkl' % i in fs
 
-#     # Sample phase contrast image
-#     os.makedirs(os.path.join(image_output_dir, "phase_contrast"), exist_ok=True)
-#     random_inds = np.random.choice(list(names.keys()), (50,), replace=False)
-#     for ind in random_inds:
-#         file_ind = ind // 100
-#         identifier = get_identifier(names[ind])
-#         try:
-#             processed_img = pickle.load(open(os.path.join(inter_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
-#             raw_img = load_image(raw_id_to_f_mapping[identifier][0])
-#             out_path = os.path.join(image_output_dir,
-#                                     "phase_contrast",
-#                                     "%s.png" % '_'.join(identifier))
-#             save_multi_panel_fig([raw_img, processed_img], out_path)
+    # Sample phase contrast image
+    os.makedirs(os.path.join(image_output_dir, "phase_contrast"), exist_ok=True)
+    random_inds = np.random.choice(list(names.keys()), (50,), replace=False)
+    for ind in random_inds:
+        file_ind = ind // 100
+        identifier = get_identifier(names[ind])
+        try:
+            processed_img = pickle.load(open(os.path.join(dataset_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
+            raw_img = load_image(raw_id_to_f_mapping[identifier][0])
+            out_path = os.path.join(image_output_dir,
+                                    "phase_contrast",
+                                    "%s.png" % '_'.join(identifier))
+            save_multi_panel_fig([raw_img, processed_img], out_path)
 
-#         except Exception:
-#             print("Error saving sample %s" % '_'.join(identifier))
+        except Exception:
+            print("Error saving sample %s" % '_'.join(identifier))
 
-#     # try:
-#     #     # Check discrete segmentation annotations
-#     #     assert "classify_discrete_labels.pkl" in fs
-#     #     for i in range(len(phase_contrast_files)):
-#     #         assert 'segment_discrete_y_%d.pkl' % i in fs
-#     #         assert 'segment_discrete_w_%d.pkl' % i in fs
+    try:
+        # Check discrete segmentation annotations
+        assert "classify_discrete_labels.pkl" in fs
+        for i in range(len(phase_contrast_files)):
+            assert 'segment_discrete_y_%d.pkl' % i in fs
+            assert 'segment_discrete_w_%d.pkl' % i in fs
 
-#     #     classify_discrete_labels = pickle.load(open(os.path.join(inter_dir, "classify_discrete_labels.pkl"), 'rb'))
-#     #     inds_by_class = {}
-#     #     for k in classify_discrete_labels:
-#     #         if classify_discrete_labels[k][0] is None or classify_discrete_labels[k][1] == 0:
-#     #             continue
-#     #         label = classify_discrete_labels[k][0]
-#     #         if not label in inds_by_class:
-#     #             inds_by_class[label] = []
-#     #         inds_by_class[label].append(k)
+        classify_discrete_labels = pickle.load(open(os.path.join(dataset_dir, "classify_discrete_labels.pkl"), 'rb'))
+        inds_by_class = {}
+        for k in classify_discrete_labels:
+            if classify_discrete_labels[k][0] is None or classify_discrete_labels[k][1] == 0:
+                continue
+            label = classify_discrete_labels[k][0]
+            if label not in inds_by_class:
+                inds_by_class[label] = []
+            inds_by_class[label].append(k)
 
-#     #     # Sample discrete fl segmentation (by class)
-#     #     for cl in inds_by_class:
-#     #         os.makedirs(os.path.join(image_output_dir, "discrete_segmentation_class_%s" % str(cl)), exist_ok=True)
-#     #         if len(inds_by_class[cl]) > 20:
-#     #             random_inds = np.random.choice(list(inds_by_class[cl]), (20,), replace=False)
-#     #         else:
-#     #             random_inds = inds_by_class[cl]
-#     #         for ind in random_inds:
-#     #             file_ind = ind // 100
-#     #             identifier = get_identifier(names[ind])
-#     #             try:
-#     #                 raw_pc = load_image(raw_id_to_f_mapping[identifier][0])
-#     #                 raw_fl = load_image(raw_id_to_f_mapping[identifier][1])
-#     #                 processed_pc = pickle.load(open(os.path.join(inter_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
-#     #                 processed_fl_y = pickle.load(open(os.path.join(inter_dir, 'segment_discrete_y_%d.pkl' % file_ind), 'rb'))[ind]
-#     #                 processed_fl_w = pickle.load(open(os.path.join(inter_dir, 'segment_discrete_w_%d.pkl' % file_ind), 'rb'))[ind]
-#     #                 out_path = os.path.join(image_output_dir,
-#     #                                         "discrete_segmentation_class_%s" % str(cl),
-#     #                                         "%s.png" % '_'.join(identifier))
-#     #                 save_multi_panel_fig([raw_pc,
-#     #                                       processed_pc,
-#     #                                       raw_fl,
-#     #                                       None,
-#     #                                       processed_fl_y,
-#     #                                       processed_fl_w], out_path)
-#     #             except Exception:
-#     #                 print("Error saving fl(discrete) sample %s" % '_'.join(identifier))
-#     # except Exception:
-#     #     print("Issue locating discrete segmentation files")
+        # Sample discrete fl segmentation (by class)
+        for cl in inds_by_class:
+            os.makedirs(os.path.join(image_output_dir, "discrete_segmentation_class_%s" % str(cl)), exist_ok=True)
+            if len(inds_by_class[cl]) > 20:
+                random_inds = np.random.choice(list(inds_by_class[cl]), (20,), replace=False)
+            else:
+                random_inds = inds_by_class[cl]
+            for ind in random_inds:
+                file_ind = ind // 100
+                identifier = get_identifier(names[ind])
+                try:
+                    raw_pc = load_image(raw_id_to_f_mapping[identifier][0])
+                    raw_fl = load_image(raw_id_to_f_mapping[identifier][1])
+                    processed_pc = pickle.load(open(os.path.join(dataset_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
+                    processed_fl_y = pickle.load(open(os.path.join(dataset_dir, 'segment_discrete_y_%d.pkl' % file_ind), 'rb'))[ind]
+                    processed_fl_w = pickle.load(open(os.path.join(dataset_dir, 'segment_discrete_w_%d.pkl' % file_ind), 'rb'))[ind]
+                    out_path = os.path.join(
+                        image_output_dir, "discrete_segmentation_class_%s" % str(cl), "%s.png" % '_'.join(identifier))
+                    save_multi_panel_fig([raw_pc, processed_pc, raw_fl, None, processed_fl_y, processed_fl_w], out_path)
+                except Exception:
+                    print("Error saving fl(discrete) sample %s" % '_'.join(identifier))
+    except Exception:
+        print("Issue locating discrete segmentation files")
 
-#     try:
-#         # Check continuous segmentation annotations
-#         assert "classify_continuous_labels.pkl" in fs
-#         for i in range(len(phase_contrast_files)):
-#             assert 'segment_continuous_y_%d.pkl' % i in fs
-#             assert 'segment_continuous_w_%d.pkl' % i in fs
+    try:
+        # Check continuous segmentation annotations
+        assert "classify_continuous_labels.pkl" in fs
+        for i in range(len(phase_contrast_files)):
+            assert 'segment_continuous_y_%d.pkl' % i in fs
+            assert 'segment_continuous_w_%d.pkl' % i in fs
 
-#         classify_continuous_labels = pickle.load(open(os.path.join(inter_dir, "classify_continuous_labels.pkl"), 'rb'))
-#         inds_by_class = {}
-#         for k in classify_continuous_labels:
-#             if classify_continuous_labels[k][0] is None or classify_continuous_labels[k][1] == 0:
-#                 continue
-#             label = np.argmax(classify_continuous_labels[k][0])
-#             if not label in inds_by_class:
-#                 inds_by_class[label] = []
-#             inds_by_class[label].append(k)
+        classify_continuous_labels = pickle.load(open(os.path.join(dataset_dir, "classify_continuous_labels.pkl"), 'rb'))
+        inds_by_class = {}
+        for k in classify_continuous_labels:
+            if classify_continuous_labels[k][0] is None or classify_continuous_labels[k][1] == 0:
+                continue
+            label = np.argmax(classify_continuous_labels[k][0])
+            if label not in inds_by_class:
+                inds_by_class[label] = []
+            inds_by_class[label].append(k)
 
-#         # Sample continuous fl segmentation (by class)
-#         for cl in inds_by_class:
-#             os.makedirs(os.path.join(image_output_dir, "continuous_segmentation_class_%s" % str(cl)), exist_ok=True)
-#             if len(inds_by_class[cl]) > 20:
-#                 random_inds = np.random.choice(list(inds_by_class[cl]), (20,), replace=False)
-#             else:
-#                 random_inds = inds_by_class[cl]
-#             for ind in random_inds:
-#                 file_ind = ind // 100
-#                 identifier = get_identifier(names[ind])
-#                 try:
-#                     raw_pc = load_image(raw_id_to_f_mapping[identifier][0])
-#                     raw_fl = load_image(raw_id_to_f_mapping[identifier][1])
-#                     processed_pc = pickle.load(open(os.path.join(inter_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
-#                     processed_fl_y = pickle.load(open(os.path.join(inter_dir, 'segment_continuous_y_%d.pkl' % file_ind), 'rb'))[ind]
-#                     processed_fl_y = (processed_fl_y * np.array([0., 1./3, 2./3, 1.]).reshape((1, 1, 4))).sum(2)
-#                     processed_fl_w = pickle.load(open(os.path.join(inter_dir, 'segment_continuous_w_%d.pkl' % file_ind), 'rb'))[ind]
-#                     out_path = os.path.join(image_output_dir,
-#                                             "continuous_segmentation_class_%s" % str(cl),
-#                                             "%s.png" % '_'.join(identifier))
-#                     save_multi_panel_fig([raw_pc,
-#                                           processed_pc,
-#                                           raw_fl,
-#                                           None,
-#                                           processed_fl_y,
-#                                           processed_fl_w], out_path)
-#                 except Exception:
-#                     print("Error saving fl(continuous) sample %s" % '_'.join(identifier))
-#     except Exception:
-#         print("Issue locating continuous segmentation files")
+        # Sample continuous fl segmentation (by class)
+        for cl in inds_by_class:
+            os.makedirs(os.path.join(image_output_dir, "continuous_segmentation_class_%s" % str(cl)), exist_ok=True)
+            if len(inds_by_class[cl]) > 20:
+                random_inds = np.random.choice(list(inds_by_class[cl]), (20,), replace=False)
+            else:
+                random_inds = inds_by_class[cl]
+            for ind in random_inds:
+                file_ind = ind // 100
+                identifier = get_identifier(names[ind])
+                try:
+                    raw_pc = load_image(raw_id_to_f_mapping[identifier][0])
+                    raw_fl = load_image(raw_id_to_f_mapping[identifier][1])
+                    processed_pc = pickle.load(open(os.path.join(dataset_dir, 'X_%d.pkl' % file_ind), 'rb'))[ind]
+                    processed_fl_y = pickle.load(open(os.path.join(dataset_dir, 'segment_continuous_y_%d.pkl' % file_ind), 'rb'))[ind]
+                    processed_fl_y = (processed_fl_y * np.array([0., 0.333, 0.667, 1.]).reshape((1, 1, 4))).sum(2)
+                    processed_fl_w = pickle.load(open(os.path.join(dataset_dir, 'segment_continuous_w_%d.pkl' % file_ind), 'rb'))[ind]
+                    out_path = os.path.join(
+                        image_output_dir, "continuous_segmentation_class_%s" % str(cl), "%s.png" % '_'.join(identifier))
+                    save_multi_panel_fig([raw_pc, processed_pc, raw_fl, None, processed_fl_y, processed_fl_w], out_path)
+                except Exception:
+                    print("Error saving fl(continuous) sample %s" % '_'.join(identifier))
+    except Exception:
+        print("Issue locating continuous segmentation files")
 
 
 # def merge_dataset_soft(source_data_folders, target_data_folder, shuffle=True, seed=123):
