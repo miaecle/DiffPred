@@ -48,8 +48,18 @@ RAW_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well-gfp',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well-gfp',
+    ### MERSCOPE Spatial Transcriptomics Analysis ###
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex_Vizgen-slide15-pos',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex_Vizgen-slide17-pos',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex_Vizgen-slide7-neg',
     ### different institutions ###
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UofT',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UTexas',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UColorado',
+    ### drug perturbation ###
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_drugs/ex4_Benzopyrene',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_drugs/ex_multi_line_Benzopyrene',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_drugs/ex0_Valproate',
 ]
 
 OUTPUT_FOLDERS = [
@@ -82,7 +92,15 @@ OUTPUT_FOLDERS = [
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex0-96well-gfp/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex1-96well/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/saliency/line1_3R/ex1-96well-gfp/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex_Vizgen-slide15-pos/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex_Vizgen-slide17-pos/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line1_3R/ex_Vizgen-slide7-neg/0-to-0/',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_institutions/ex_UofT/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_institutions/ex_UTexas/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_institutions/ex_UColorado/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_drugs/ex4_Benzopyrene/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_drugs/ex_multi_line_Benzopyrene/0-to-0/',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/VALIDATION/line_drugs/ex0_Valproate/0-to-0/',
 ]
 
 WELL_SETTINGS = {
@@ -115,7 +133,15 @@ WELL_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex0-96well-gfp': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well': '96well-3',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/saliency/line1_3R/ex1-96well-gfp': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex_Vizgen-slide15-pos': '1well-40by29',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex_Vizgen-slide17-pos': '1well-40by29',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line1_3R/ex_Vizgen-slide7-neg': '1well-40by29',
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UofT': '24well-5',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UTexas': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UColorado': '96well-1',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_drugs/ex4_Benzopyrene': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_drugs/ex_multi_line_Benzopyrene': '96well-3',
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_drugs/ex0_Valproate': '96well-3',
 }
 
 # scale and offset parameters for raw fl preprocess
@@ -128,6 +154,10 @@ FL_PREPROCESS_SETTINGS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': (1.5, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': (2.0, 0.0),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line1_3R/ex0': (3.5, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UTexas': (3.0, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UColorado': (3.0, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_drugs/ex4_Benzopyrene': (2.0, 0.0),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_drugs/ex0_Valproate': (3.5, 0.0),
 }
 
 FL_STATS = {
@@ -139,6 +169,10 @@ FL_STATS = {
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/12well/line1_3R/ex2-12well': (8200, 4000),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_wells/24well/line1_3R/ex0-24well': (9700, 2800),
     '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/different_differentiation/line1_3R/ex0': (6000, 1300),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UTexas': (6831, 2497),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_institutions/ex_UColorado': (7651, 1779),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_drugs/ex4_Benzopyrene': (7119, 3445),
+    '/oak/stanford/groups/jamesz/zqwu/iPSC_data/RAW/line_drugs/ex0_Valproate': (8761, 1425),
 }
 
 RAW_F_FILTER = lambda f: not 'bkp' in f

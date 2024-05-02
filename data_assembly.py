@@ -44,9 +44,6 @@ def remove_corner_views(pair, well_setting='96well-3'):
         # Multiples of 6 and '35' are added other than the 4 corners
         if position_code in ['12', '18', '24', '30', '35']:
             return False
-    elif well_setting == '24well-5':
-        if position_code in ['1', '5', '21', '25']:
-            return False
     return True
 
 

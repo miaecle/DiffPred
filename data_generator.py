@@ -104,7 +104,7 @@ class CustomGenerator(keras.utils.Sequence):
         return sorted(inds, key=lambda x: groups.index(get_group(x)))
 
     def __len__(self):
-        return (np.ceil(len(self.selected_inds) / float(self.batch_size))).astype(np.int)
+        return (np.ceil(len(self.selected_inds) / float(self.batch_size))).astype(int)
 
     def __getitem__(self, idx):
         batch_names = []
